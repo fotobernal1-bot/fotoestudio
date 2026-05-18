@@ -1078,9 +1078,13 @@ let ventasFB = [];
 
 function cambiarPeriodo(periodo, el){
   periodoActual = periodo;
-  document.querySelectorAll('#page-reportes .tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
   cargarReportes();
+}
+
+function getFechaStr(date){
+  return date.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
 async function cargarReportes(){
@@ -1089,106 +1093,143 @@ async function cargarReportes(){
   if(el) el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   try{
     const now=new Date();
-    let query=db.collection('ventas');
+    let snap;
     if(periodoActual==='hoy'){
-      const hoy=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
-      query=query.where('fecha','==',hoy);
+      const hoy=getFechaStr(now);
+      snap=await db.collection('ventas').where('fecha','==',hoy).get();
+    } else if(periodoActual==='ayer'){
+      const ayer=new Date(now); ayer.setDate(ayer.getDate()-1);
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ayer)).get();
+    } else if(periodoActual==='semana'){
+      // Get last 7 days — fetch all from this month and filter client side
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];
+      const hace7=new Date(now); hace7.setDate(hace7.getDate()-7);
+      snap.forEach(d=>{
+        const v=d.data();
+        if(v.timestamp && new Date(v.timestamp)>=hace7) ventasFB.push(v);
+      });
+      renderReportes();
+      return;
     } else if(periodoActual==='mes'){
-      query=query.where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1);
-    } else if(periodoActual==='anio'){
-      query=query.where('year','==',now.getFullYear());
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+    } else {
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
     }
-    const snap=await query.limit(500).get();
     ventasFB=[];
     snap.forEach(d=>ventasFB.push(d.data()));
     renderReportes();
   } catch(e){
-    console.error(e);
+    console.error('Error cargando reportes:',e);
     mostrarReportesLocal();
   }
 }
 
 function mostrarReportesLocal(){
-  ventasFB=ventas.map(v=>({folio:v.f,desc:v.desc,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}]}));
+  ventasFB=ventas.map(v=>({
+    folio:v.f, total:v.total, fecha:'hoy',
+    items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],
+    escuelas:[]
+  }));
   renderReportes();
+}
+
+function barraCategoria(nombre, total, count, maxTotal){
+  const pct=Math.round(total/maxTotal*100);
+  return `<div style="margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+      <span style="font-weight:500;">${nombre}</span>
+      <span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;font-weight:400;">(${count})</span></span>
+    </div>
+    <div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;">
+      <div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div>
+    </div>
+  </div>`;
 }
 
 function renderReportes(){
   const total=ventasFB.reduce((s,v)=>s+v.total,0);
   const num=ventasFB.length;
   const prom=num?Math.round(total/num):0;
+  const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
 
-  // Período label
-  const labels={hoy:'Hoy',mes:'Este mes',anio:'Este año',todo:'Todo el tiempo'};
-  const el_total=document.getElementById('rep-total');
-  const el_num=document.getElementById('rep-numventas');
-  const el_per=document.getElementById('rep-periodo');
-  const el_prom=document.getElementById('rep-ticketprom');
-  if(el_total) el_total.textContent='$'+total.toLocaleString();
-  if(el_num) el_num.textContent=num;
-  if(el_per) el_per.textContent=labels[periodoActual]||'—';
-  if(el_prom) el_prom.textContent='Ticket promedio: $'+prom.toLocaleString();
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rep-total','$'+total.toLocaleString());
+  set('rep-numventas',num);
+  set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
 
-  // Por categoría
-  const cats={};
+  // Agrupar items por categoría
+  const urgentes={};
+  const escuelas_map={};
+  const impresiones_map={};
+  const marcos_map={};
+
+  const catNombres={
+    infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',
+    cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',
+    cartilla:'Cartilla militar',digital:'Imagen digital',
+    visa:'Visa',visaUSA:'Visa USA',otro:'Otro'
+  };
+
   ventasFB.forEach(v=>{
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
-      if(!cats[tipo]) cats[tipo]={nombre:tipo,total:0,count:0};
-      cats[tipo].total+=item.precio||0;
-      cats[tipo].count++;
+      const precio=item.precio||0;
+      const nombre=catNombres[tipo]||item.nombre||tipo;
+      if(tipo==='escuela'){
+        const n=item.nombre||'Escuela';
+        if(!escuelas_map[n])escuelas_map[n]={total:0,count:0};
+        escuelas_map[n].total+=precio;escuelas_map[n].count++;
+      } else if(tipo==='impresion'){
+        if(!impresiones_map[nombre])impresiones_map[nombre]={total:0,count:0};
+        impresiones_map[nombre].total+=precio;impresiones_map[nombre].count++;
+      } else if(tipo==='marco'){
+        if(!marcos_map[nombre])marcos_map[nombre]={total:0,count:0};
+        marcos_map[nombre].total+=precio;marcos_map[nombre].count++;
+      } else {
+        if(!urgentes[nombre])urgentes[nombre]={total:0,count:0};
+        urgentes[nombre].total+=precio;urgentes[nombre].count++;
+      }
     });
   });
-  const catNombres={infantil6:'Infantil 6f',infantil9:'Infantil 9f',cred4:'Credencial 4f',cred6:'Credencial 6f',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',impresion:'Impresión',escuela:'Paquete escolar',marco:'Marco'};
-  const catsSorted=Object.values(cats).sort((a,b)=>b.total-a.total);
-  const maxTotal=catsSorted[0]?.total||1;
-  const elCats=document.getElementById('rep-categorias');
-  if(elCats) elCats.innerHTML=catsSorted.map(c=>{
-    const pct=Math.round(c.total/maxTotal*100);
-    const nombre=catNombres[c.nombre]||c.nombre;
-    return `<div style="margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-        <span style="font-weight:500;">${nombre}</span>
-        <span style="color:#1D9E75;font-weight:600;">$${c.total.toLocaleString()} <span style="color:#888;font-weight:400;">(${c.count})</span></span>
-      </div>
-      <div style="background:#e0e0e0;border-radius:10px;height:8px;overflow:hidden;">
-        <div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;transition:width .3s;"></div>
-      </div>
-    </div>`;
-  }).join('')||'<p style="font-size:12px;color:#888;">Sin datos</p>';
 
-  // Escuelas
-  const escMap={};
-  ventasFB.forEach(v=>{
-    const mes=v.fecha?v.fecha.substring(3,10):'desconocido';
-    const anio=v.year||new Date().getFullYear();
-    (v.escuelas||[]).forEach(esc=>{
-      if(!escMap[esc]) escMap[esc]={nombre:esc,visitas:{}};
-      const key=anio+'-'+mes;
-      if(!escMap[esc].visitas[key]) escMap[esc].visitas[key]={count:0,total:0,mes,anio};
-      escMap[esc].visitas[key].count++;
-      escMap[esc].visitas[key].total+=v.total||0;
-    });
-  });
+  const renderSeccion=(elId, mapa)=>{
+    const el=document.getElementById(elId);
+    if(!el)return;
+    const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+    if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas en este período</p>';return;}
+    const max=items[0][1].total||1;
+    el.innerHTML=items.map(([n,d])=>barraCategoria(n,d.total,d.count,max)).join('');
+  };
+
+  renderSeccion('rep-urgentes', urgentes);
+  renderSeccion('rep-impresiones', impresiones_map);
+  renderSeccion('rep-marcos', marcos_map);
+
+  // Escuelas con detalle
   const elEsc=document.getElementById('rep-escuelas');
-  const escList=Object.values(escMap).sort((a,b)=>Object.keys(b.visitas).length-Object.keys(a.visitas).length);
-  if(elEsc) elEsc.innerHTML=escList.length?escList.map(e=>{
-    const visitas=Object.values(e.visitas).sort((a,b)=>b.anio-a.anio||b.mes.localeCompare(a.mes));
-    return `<div class="card" style="margin-bottom:8px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${e.nombre}</div>
-      ${visitas.map(v=>`<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;padding:3px 0;border-bottom:0.5px solid #e0e0e0;">
-        <span>${v.mes} — ${v.count} visita${v.count>1?'s':''}</span>
-        <span style="color:#1D9E75;font-weight:500;">$${v.total.toLocaleString()}</span>
-      </div>`).join('')}
-    </div>`;
-  }).join('')||'<p style="font-size:12px;color:#888;">Sin paquetes escolares en este período</p>' : '<p style="font-size:12px;color:#888;">Sin paquetes escolares en este período</p>';
+  if(elEsc){
+    const escItems=Object.entries(escuelas_map).sort((a,b)=>b[1].total-a[1].total);
+    if(!escItems.length){
+      elEsc.innerHTML='<p style="font-size:12px;color:#888;">Sin paquetes en este período</p>';
+    } else {
+      const max=escItems[0][1].total||1;
+      elEsc.innerHTML=escItems.map(([n,d])=>barraCategoria(n,d.total,d.count,max)).join('');
+    }
+  }
 
   // Historial
+  const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elHist=document.getElementById('rep-historial');
-  if(elHist) elHist.innerHTML=ventasFB.length?
-    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
-    ventasFB.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:11px;color:#888;">${v.fecha||'—'}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||v.desc||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+
-    '</tbody></table>' :
+  if(elHist) elHist.innerHTML=sorted.length?
+    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
+    sorted.map(v=>`<tr>
+      <td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td>
+      <td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td>
+      <td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td>
+      <td style="color:#1D9E75;font-weight:600;">$${v.total}</td>
+    </tr>`).join('')+'</tbody></table>':
     '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
 }
 function mostrarTicket(v){
