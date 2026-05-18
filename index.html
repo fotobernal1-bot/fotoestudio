@@ -939,10 +939,14 @@ function showPage(id,el){
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
+  if(!tabsEl)return;
   tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  let sib=tabsEl.nextElementSibling;
-  while(sib){if(sib.classList&&sib.classList.contains('tsec'))sib.classList.remove('active');sib=sib.nextElementSibling;}
+  // Hide all tsec within the same parent container
+  const parent=tabsEl.parentElement;
+  if(parent){
+    parent.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active'));
+  }
   const target=document.getElementById('t-'+id);
   if(target)target.classList.add('active');
 }
@@ -1074,7 +1078,7 @@ async function cargarReportes(){
   if(el) el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   try{
     const now=new Date();
-    let query=db.collection('ventas').orderBy('timestamp','desc');
+    let query=db.collection('ventas');
     if(periodoActual==='hoy'){
       const hoy=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
       query=query.where('fecha','==',hoy);
@@ -1688,7 +1692,7 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas};
+    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,ventasDia:ventas,folioNum};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
