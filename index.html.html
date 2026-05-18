@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FotoEstudio — Sistema de ventas</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f0f0f0;color:#111;height:100vh;display:flex;align-items:stretch;}
+.app{display:flex;width:100%;height:100vh;background:white;}
+.sidebar{width:200px;background:#f7f7f5;border-right:1px solid #e0e0e0;display:flex;flex-direction:column;padding:16px 0;flex-shrink:0;}
+.logo{padding:0 16px 14px;border-bottom:1px solid #e0e0e0;margin-bottom:10px;}
+.logo p{font-size:14px;font-weight:600;color:#111;}
+.logo span{font-size:11px;color:#888;}
+.nav{display:flex;align-items:center;gap:9px;padding:9px 16px;font-size:13px;color:#666;cursor:pointer;border-left:2px solid transparent;}
+.nav:hover{background:white;color:#111;}
+.nav.active{background:white;color:#111;border-left-color:#1D9E75;font-weight:500;}
+.nav i{font-size:16px;}
+.nav-sep{height:1px;background:#e0e0e0;margin:8px 16px;}
+.main{flex:1;overflow-y:auto;background:white;}
+.page{display:none;padding:20px;}
+.page.active{display:block;}
+.ptitle{font-size:16px;font-weight:600;margin-bottom:3px;}
+.psub{font-size:12px;color:#888;margin-bottom:16px;}
+.slabel{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.hrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.tab{padding:6px 13px;font-size:12px;border:1px solid #e0e0e0;border-radius:20px;cursor:pointer;color:#666;background:#f7f7f5;}
+.tab.active{background:#E1F5EE;color:#085041;border-color:#1D9E75;font-weight:500;}
+.tsec{display:none;}
+.tsec.active{display:block;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:13px;margin-bottom:10px;}
+.stat{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:8px;padding:10px;}
+.sl{font-size:10px;color:#888;margin-bottom:2px;}
+.sv{font-size:22px;font-weight:600;}
+.ss{font-size:10px;color:#888;margin-top:2px;}
+.green{color:#1D9E75;}.amber{color:#BA7517;}.red{color:#A32D2D;}.blue{color:#0C447C;}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;}
+.bok{background:#E1F5EE;color:#085041;}.blow{background:#FAEEDA;color:#633806;}.bout{background:#FCEBEB;color:#791F1F;}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.bgreen{background:#1D9E75;color:white;}.bgreen:hover{background:#085041;}
+.bgray{background:#f7f7f5;border:1px solid #e0e0e0;color:#333;}.bgray:hover{border-color:#999;}
+input[type=number],input[type=text],input[type=password],select,textarea{border:1px solid #d0d0d0;border-radius:7px;padding:7px 9px;font-size:13px;background:white;color:#111;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
+.frow{margin-bottom:10px;}
+.frow label{font-size:11px;color:#666;display:block;margin-bottom:4px;}
+
+/* FOTO CARDS */
+.foto-card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:14px;cursor:pointer;transition:border-color .15s;}
+.foto-card:hover{border-color:#1D9E75;background:#f0fbf6;}
+.fc-n{font-size:20px;font-weight:600;}.fc-l{font-size:11px;color:#888;margin-top:2px;}.fc-p{font-size:15px;color:#1D9E75;font-weight:600;margin-top:7px;}
+.dig-card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:22px;cursor:pointer;text-align:center;margin-bottom:12px;transition:border-color .15s;}
+.dig-card:hover{border-color:#1D9E75;background:#f0fbf6;}
+.dig-card i{font-size:36px;color:#1D9E75;display:block;margin-bottom:8px;}
+.dig-card .dn{font-size:16px;font-weight:600;margin-bottom:4px;}.dig-card .dd{font-size:11px;color:#888;margin-bottom:10px;}.dig-card .dp{font-size:24px;font-weight:600;color:#1D9E75;}
+.sub-div{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;padding:10px 0 7px;border-top:1px solid #e0e0e0;margin-top:6px;display:flex;align-items:center;gap:6px;}
+.specs-up{border:1px dashed #ccc;border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:9px;margin-bottom:9px;background:#f7f7f5;cursor:pointer;}
+.specs-up:hover{background:#f0fbf6;border-color:#1D9E75;}
+.specs-up i{font-size:18px;color:#888;}
+.su-p{font-size:12px;font-weight:500;}.su-s{font-size:10px;color:#888;}
+.simg{width:100%;max-height:180px;object-fit:contain;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:9px;display:none;}
+
+/* VISA */
+.visa-card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-bottom:9px;}
+.vh{padding:11px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.vh:hover{background:#f0f0f0;}
+.vb{display:none;padding:0 13px 11px;}
+.vb.open{display:block;}
+.vsp{width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #e0e0e0;}
+.vph{background:white;border:1px dashed #ccc;border-radius:8px;padding:16px;text-align:center;font-size:11px;color:#888;}
+.vbtns{display:flex;gap:7px;margin-top:9px;}
+.bsm{font-size:11px;padding:5px 10px;border:1px solid #e0e0e0;border-radius:7px;background:white;cursor:pointer;color:#555;display:inline-flex;align-items:center;gap:4px;}
+.bsm:hover{border-color:#999;}
+.bsmg{font-size:11px;padding:5px 10px;border:none;border-radius:7px;background:#1D9E75;color:white;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+.bsmg:hover{background:#085041;}
+
+/* ESCUELAS */
+.esc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.esc-card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;transition:border-color .15s;}
+.esc-card:hover{border-color:#1D9E75;}
+.esc-img{width:100%;height:110px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888;background:white;border-bottom:1px solid #e0e0e0;cursor:pointer;position:relative;overflow:hidden;}
+.esc-img img{width:100%;height:110px;object-fit:cover;}
+.esc-zh{position:absolute;bottom:5px;right:7px;background:rgba(0,0,0,.45);color:white;font-size:10px;padding:2px 7px;border-radius:5px;}
+.esc-body{padding:10px 12px;}
+.esc-n{font-size:13px;font-weight:600;}.esc-s{font-size:11px;color:#888;margin-top:3px;}
+.add-card{background:#f7f7f5;border:1px dashed #ccc;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:170px;cursor:pointer;color:#888;font-size:12px;}
+.add-card:hover{background:#f0fbf6;border-color:#1D9E75;color:#1D9E75;}
+.add-card i{font-size:26px;}
+
+/* IMPRESIONES */
+.imp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+
+/* TABLAS */
+.itbl{width:100%;border-collapse:collapse;font-size:13px;}
+.itbl th{text-align:left;padding:8px 11px;font-size:11px;font-weight:500;color:#888;border-bottom:1px solid #e0e0e0;text-transform:uppercase;letter-spacing:.4px;}
+.itbl td{padding:10px 11px;border-bottom:1px solid #e0e0e0;color:#111;}
+.itbl tr:last-child td{border-bottom:none;}
+.itbl tr:hover td{background:#fafafa;}
+
+/* INVENTARIO */
+.clave-wall{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:16px;text-align:center;margin-bottom:10px;}
+.clave-wall p{font-size:12px;color:#666;margin-bottom:9px;}
+.turno-open{background:#E1F5EE;border:1px solid #a0dcc8;border-radius:10px;padding:11px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.turno-open p{font-size:13px;font-weight:600;color:#085041;}.turno-open span{font-size:11px;color:#1D9E75;}
+.marco-card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;margin-bottom:9px;}
+.marco-img{width:100%;height:100px;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;border-bottom:1px solid #e0e0e0;overflow:hidden;position:relative;}
+.marco-img img{width:100%;height:100px;object-fit:cover;}
+.marco-body{padding:11px 13px;}
+.marco-n{font-size:13px;font-weight:600;}
+.stk-ctrl{display:flex;align-items:center;gap:7px;}
+.stk-btn{width:28px;height:28px;border:1px solid #e0e0e0;border-radius:7px;background:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#111;}
+.stk-btn:hover{border-color:#1D9E75;color:#1D9E75;}
+.stk-btn:disabled{opacity:.4;cursor:not-allowed;}
+.stk-n{font-size:18px;font-weight:600;min-width:30px;text-align:center;}
+.vrow{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid #e0e0e0;}
+.vrow:last-child{border-bottom:none;}
+.bit-row{padding:8px 0;border-bottom:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:start;gap:10px;}
+.bit-row:last-child{border-bottom:none;}
+.bd{font-size:13px;color:#111;}.bh{font-size:10px;color:#888;margin-top:2px;}
+
+/* DIAGRAMAS CORTE */
+.cd-dg{border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-bottom:7px;}
+.cd-r{display:flex;border-bottom:1px solid #e0e0e0;}
+.cd-r:last-child{border-bottom:none;}
+.cd-c{flex:1;padding:6px 4px;font-size:10px;text-align:center;border-right:1px solid #e0e0e0;}
+.cd-c:last-child{border-right:none;}
+.cd-inf{background:#E1F5EE;color:#085041;font-weight:500;}
+.cd-rst{background:#E6F1FB;color:#0C447C;font-weight:500;}
+.cd-crd{background:#FAEEDA;color:#633806;font-weight:500;}
+.cd-tba{background:#f0e6fb;color:#5c2d8a;font-weight:500;}
+
+/* CARRITO */
+.cart-panel{width:240px;background:#f7f7f5;border-left:1px solid #e0e0e0;display:flex;flex-direction:column;flex-shrink:0;}
+.cart-hdr{padding:14px 14px 11px;border-bottom:1px solid #e0e0e0;}
+.cart-hdr p{font-size:14px;font-weight:600;color:#111;}.cart-hdr span{font-size:11px;color:#888;}
+.cart-items{flex:1;overflow-y:auto;padding:8px 0;}
+.cart-empty{padding:24px 14px;text-align:center;font-size:12px;color:#888;}
+.ci{padding:9px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:start;gap:7px;}
+.ci-inf{flex:1;}.ci-n{font-size:12px;font-weight:500;color:#111;}.ci-p{font-size:12px;color:#1D9E75;font-weight:600;}
+.ci-x{font-size:14px;color:#888;cursor:pointer;padding:1px;flex-shrink:0;}
+.ci-x:hover{color:#A32D2D;}
+.cart-ftr{padding:13px 14px;border-top:1px solid #e0e0e0;}
+.trow{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;}
+.trow.big{font-weight:600;font-size:15px;margin-bottom:11px;}
+.trow span:last-child{color:#1D9E75;}
+.pago-lbl{font-size:11px;color:#888;margin-bottom:4px;}
+.pago-inp{font-size:16px;font-weight:600;border:1px solid #d0d0d0;border-radius:8px;padding:7px 9px;width:100%;background:white;margin-bottom:9px;color:#111;}
+.pago-inp:focus{outline:none;border-color:#1D9E75;}
+.cambio-row{background:#E1F5EE;border-radius:8px;padding:9px 11px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cambio-row span{font-size:11px;color:#085041;font-weight:500;}.cambio-row strong{font-size:18px;font-weight:700;color:#085041;}
+.cambio-ins{background:#FCEBEB;}.cambio-ins span,.cambio-ins strong{color:#A32D2D;}
+.bcobrar{background:#1D9E75;color:white;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:7px;}
+.bcobrar:hover{background:#085041;}
+.bcobrar:disabled{background:#e0e0e0;color:#999;cursor:not-allowed;}
+.blimpiar{background:transparent;border:1px solid #e0e0e0;border-radius:8px;padding:7px;font-size:12px;cursor:pointer;width:100%;color:#666;display:flex;align-items:center;justify-content:center;gap:5px;}
+.blimpiar:hover{background:white;}
+
+/* LIGHTBOX */
+.lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.lb.open{display:flex;}
+.lb img{max-width:90%;max-height:70vh;object-fit:contain;border-radius:10px;}
+.lb-t{color:white;font-size:15px;font-weight:600;margin-top:14px;}
+.lb-s{color:rgba(255,255,255,.6);font-size:12px;margin-top:5px;text-align:center;max-width:400px;}
+.lb-p{color:#5DCAA5;font-size:18px;font-weight:600;margin-top:7px;}
+.lb-x{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;border-radius:50%;width:36px;height:36px;color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.lb-x:hover{background:rgba(255,255,255,.25);}
+.lb-btns{display:flex;gap:9px;margin-top:16px;}
+.lb-add{background:#1D9E75;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;}
+.lb-add:hover{background:#085041;}
+.lb-close{background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:10px 20px;font-size:13px;cursor:pointer;}
+.lb-noi{color:rgba(255,255,255,.4);font-size:13px;text-align:center;padding:40px;}
+
+/* MODALES */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:center;justify-content:center;}
+.modal-ov.open{display:flex;}
+.modal-box{background:white;border-radius:14px;padding:22px;width:320px;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2);}
+.modal-t{font-size:15px;font-weight:600;margin-bottom:14px;color:#111;}
+.modal-btns{display:flex;gap:8px;margin-top:14px;}
+
+/* TICKET */
+.ticket-wrap{font-family:'Courier New',monospace;background:white;color:#111;border-radius:8px;padding:18px;border:1px solid #e0e0e0;}
+.tkt-hdr{text-align:center;margin-bottom:12px;}
+.tkt-hdr p{font-size:14px;font-weight:700;}.tkt-hdr span{font-size:11px;color:#555;}
+.tkt-div{border:none;border-top:1px dashed #ccc;margin:8px 0;}
+.tkt-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;}
+.tkt-bold{font-weight:700;font-size:13px;}
+.tkt-total{font-size:14px;font-weight:700;border-top:2px solid #111;padding-top:6px;margin-top:4px;}
+.tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}
+
+/* ============================================================
+   RESPONSIVE MÓVIL — iPhone y iPad
+   ============================================================ */
+@media (max-width: 900px) {
+  body { overflow: hidden; }
+  
+  .app { 
+    flex-direction: column; 
+    height: 100vh; 
+    height: 100dvh;
+  }
+  
+  /* Sidebar = bottom nav bar */
+  .sidebar { 
+    width: 100%; 
+    height: auto;
+    min-height: 56px;
+    flex-direction: row; 
+    padding: 0;
+    overflow-x: auto; 
+    overflow-y: hidden;
+    border-right: none; 
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: nowrap; 
+    align-items: stretch;
+    order: 3;
+    flex-shrink: 0;
+  }
+  .logo { display: none; }
+  .nav-sep { display: none; }
+  .nav { 
+    flex-direction: column; 
+    padding: 6px 10px; 
+    font-size: 9px; 
+    border-left: none; 
+    border-top: 2px solid transparent;
+    white-space: nowrap; 
+    flex-shrink: 0; 
+    gap: 2px;
+    justify-content: center;
+    align-items: center;
+    min-width: 64px;
+  }
+  .nav.active { 
+    border-left: none; 
+    border-top-color: #1D9E75; 
+    background: #f0fbf6; 
+  }
+  .nav i { font-size: 20px; }
+  
+  /* Main content scrollable */
+  .main { 
+    flex: 1; 
+    overflow-y: auto; 
+    overflow-x: hidden;
+    order: 1;
+    width: 100%;
+  }
+  .page { padding: 12px; }
+  
+  /* Carrito colapsado en móvil */
+  .cart-panel { 
+    width: 100%; 
+    border-left: none; 
+    border-bottom: 1px solid #e0e0e0;
+    order: 2;
+    flex-shrink: 0;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .cart-hdr { padding: 8px 12px 6px; }
+  .cart-items { max-height: 60px; }
+  .cart-ftr { padding: 8px 12px; }
+  .trow.big { font-size: 13px; margin-bottom: 6px; }
+  .pago-lbl { font-size: 10px; }
+  .pago-inp { font-size: 14px; padding: 5px 7px; margin-bottom: 6px; }
+  .cambio-row { padding: 6px 9px; margin-bottom: 7px; }
+  .cambio-row strong { font-size: 14px; }
+  .bcobrar { padding: 9px; font-size: 13px; margin-bottom: 5px; }
+  
+  /* Grids */
+  .g2 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g3 { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .g4 { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .esc-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .imp-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  
+  /* Cards touch-friendly */
+  .foto-card { padding: 12px; }
+  .fc-n { font-size: 17px; }
+  .fc-p { font-size: 14px; }
+  
+  /* Tabs */
+  .tabs, .urgentes-tabs, .inv-tabs { 
+    flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab, .utab, .itab { flex-shrink: 0; }
+  
+  /* Modales */
+  .modal-box { width: 95vw; max-height: 88vh; overflow-y: auto; }
+  
+  /* Lightbox */
+  .lb img { max-width: 95%; max-height: 50vh; }
+  .lb-btns { flex-direction: column; width: 85%; gap: 8px; }
+  .lb-add, .lb-close { width: 100%; text-align: center; padding: 12px; font-size: 14px; }
+  
+  /* Títulos */
+  .ptitle { font-size: 14px; }
+  .psub { font-size: 11px; }
+  
+  /* Header rows */
+  .hrow { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 430px) {
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .esc-grid { grid-template-columns: 1fr 1fr; }
+  .nav { min-width: 56px; padding: 6px 8px; font-size: 8px; }
+  .nav i { font-size: 18px; }
+}
+
+/* ============================================================
+   RESPONSIVE — iPhone, iPad, Desktop
+   ============================================================ */
+
+/* iPad (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar { width: 150px; }
+  .cart-panel { width: 190px; }
+  .nav { font-size: 11px; padding: 8px 12px; }
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .g4 { grid-template-columns: 1fr 1fr; }
+}
+
+/* iPhone y móviles (max 768px) */
+@media (max-width: 768px) {
+  body { overflow-x: hidden; }
+  
+  /* Layout vertical */
+  .app { 
+    flex-direction: column; 
+    height: auto; 
+    min-height: 100vh;
+    width: 100%;
+  }
+  
+  /* Sidebar → barra inferior fija (como tab bar de iPhone) */
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    height: auto;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: #f7f7f5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .logo { display: none; }
+  .nav { 
+    flex: 1;
+    flex-direction: column;
+    padding: 8px 4px 6px;
+    font-size: 9px;
+    border-left: none;
+    border-top: 2px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+    gap: 2px;
+    min-width: 50px;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav i { font-size: 20px; }
+  .nav.active { 
+    border-left: none;
+    border-top-color: #1D9E75;
+    color: #1D9E75;
+    background: #f0fbf6;
+  }
+  .nav-sep { display: none; }
+  /* Space for bottom tab bar */
+  .main { padding-bottom: 70px; }
+  .cart-panel { margin-bottom: 65px; }
+  
+  /* Main */
+  .main { 
+    width: 100%; 
+    overflow-y: auto;
+    flex: 1;
+  }
+  .page { padding: 14px; }
+  .ptitle { font-size: 16px; }
+  
+  /* Carrito → parte inferior fija */
+  .cart-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 2px solid #e0e0e0;
+    max-height: 300px;
+    flex-shrink: 0;
+  }
+  .cart-hdr { padding: 10px 14px 8px; }
+  .cart-items { max-height: 80px; }
+  .cart-ftr { padding: 10px 14px; }
+  .trow.big { font-size: 14px; margin-bottom: 8px; }
+  .pago-inp { font-size: 14px; padding: 6px 8px; margin-bottom: 7px; }
+  .cambio-row { padding: 7px 10px; margin-bottom: 8px; }
+  .cambio-row strong { font-size: 16px; }
+  .bcobrar { padding: 10px; font-size: 13px; margin-bottom: 5px; }
+  
+  /* Grids */
+  .g2 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g3 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g4 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .esc-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .imp-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  
+  /* Tabs scroll horizontal */
+  .tabs, .inv-tabs { 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .tabs::-webkit-scrollbar, .inv-tabs::-webkit-scrollbar { display: none; }
+  .tab, .itab { flex-shrink: 0; }
+  .urgentes-tabs { 
+    flex-wrap: nowrap; 
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .utab { flex-shrink: 0; }
+  
+  /* Foto cards más fáciles de tocar */
+  .foto-card { padding: 12px; }
+  .fc-n { font-size: 18px; }
+  .fc-l { font-size: 11px; }
+  .fc-p { font-size: 14px; margin-top: 6px; }
+  .dig-card { padding: 16px; }
+  .dig-card i { font-size: 28px; }
+  .dig-card .dn { font-size: 14px; }
+  .dig-card .dp { font-size: 20px; }
+  
+  /* Imagen digital y escuelas */
+  .esc-img { height: 90px; }
+  .esc-img img { height: 90px; }
+  .esc-n { font-size: 12px; }
+  .esc-s { font-size: 10px; }
+  
+  /* Modales */
+  .modal-ov { align-items: flex-end; }
+  .modal-box { 
+    width: 100%; 
+    max-height: 85vh; 
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+  }
+  
+  /* Lightbox */
+  .lb { padding: 14px; }
+  .lb img { max-width: 100%; max-height: 50vh; }
+  .lb-btns { flex-direction: column; width: 100%; gap: 8px; }
+  .lb-add, .lb-close { width: 100%; text-align: center; padding: 12px; border-radius: 10px; }
+  
+  /* Inventario */
+  .marco-card { margin-bottom: 8px; }
+  .vrow { padding: 10px 12px; }
+  .stk-n { font-size: 16px; }
+  
+  /* Hrow */
+  .hrow { flex-wrap: wrap; gap: 8px; }
+  
+  /* Tablas */
+  .itbl { font-size: 11px; }
+  .itbl th, .itbl td { padding: 7px 8px; }
+}
+
+/* iPhone pequeño (max 390px) */
+@media (max-width: 390px) {
+  .g2 { grid-template-columns: 1fr; }
+  .nav { padding: 8px 10px; font-size: 9px; min-width: 52px; }
+  .nav i { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas</span></div>
+    <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
+      <i class="ti ti-cloud-off" style="font-size:13px;"></i>
+      <span id="drive-status-txt">Toca para sincronizar</span>
+    </div>
+    <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
+    <div class="nav" onclick="showPage('escuelas',this)"><i class="ti ti-school"></i> Paquetes escolares</div>
+    <div class="nav" onclick="showPage('impresiones',this)"><i class="ti ti-printer"></i> Impresiones</div>
+    <div class="nav" onclick="showPage('marcos-venta',this)"><i class="ti ti-frame"></i> Marcos</div>
+    <div class="nav-sep"></div>
+    <div class="nav" onclick="showPage('inventario',this)"><i class="ti ti-package"></i> Inventario</div>
+    <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
+  </div>
+
+  <div class="main">
+
+    <!-- URGENTES -->
+    <div id="page-urgentes" class="page active">
+      <p class="ptitle">Urgentes</p><p class="psub">Toca un producto para agregar al carrito</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="urgentes-tabs">
+          <div class="tab active" onclick="showT('inf',this)">Infantil</div>
+          <div class="tab" onclick="showT('cred',this)">Credencial</div>
+          <div class="tab" onclick="showT('dig',this)">Imagen digital</div>
+          <div class="tab" onclick="showT('visa',this)">Visa</div>
+        </div>
+        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')" title="Agregar nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
+      </div>
+      <div id="t-inf" class="tsec active">
+        <div class="hrow"><p class="slabel" style="margin:0;">Infantil — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar producto infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="inf-grid" class="g2" style="margin-bottom:12px;"></div>
+      </div>
+      <div id="t-cred" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Credencial — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar producto credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="cred-grid" class="g2" style="margin-bottom:12px;"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <div class="sub-div" style="border:none;padding:0;"><i class="ti ti-shield"></i> Cartilla militar</div>
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar producto cartilla';"><i class="ti ti-plus"></i> Agregar</button>
+        </div>
+        <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
+        <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="prevSpec(this,'pca')"></div>
+        <img id="pca" class="simg" alt="specs cartilla">
+      </div>
+      <div id="t-dig" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar producto digital';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="dig-grid"></div>
+      </div>
+      <div id="t-visa" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Visas / Pasaportes</p><button class="btn bgreen" onclick="openM('m-visa')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="visas-list"></div>
+      </div>
+      <!-- CATEGORÍAS DINÁMICAS -->
+      <div id="cats-dinamicas"></div>
+    </div>
+
+    <!-- ESCUELAS -->
+    <div id="page-escuelas" class="page">
+      <div class="hrow"><div><p class="ptitle">Paquetes escolares</p><p class="psub" style="margin:0;">Toca la imagen para ver especificaciones</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
+      <div style="position:relative;margin-bottom:12px;">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+        <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+      </div>
+      <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
+      <div class="esc-grid" id="esc-grid"></div>
+    </div>
+
+    <!-- IMPRESIONES -->
+    <div id="page-impresiones" class="page">
+      <div class="hrow"><div><p class="ptitle">Impresiones</p><p class="psub" style="margin:0;">Precio editable con el lápiz en cada tarjeta</p></div><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar tamaño</button></div>
+      <div class="imp-grid" id="imp-grid"></div>
+    </div>
+
+    <!-- MARCOS VENTA -->
+    <div id="page-marcos-venta" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
+      </div>
+      <div class="esc-grid" id="marcos-venta-grid"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
+        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
+        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
+        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
+      </div>
+      <p class="slabel">Infantil</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-inf6">0</div></div>
+        <div class="stat"><div class="sl">Color 9 fotos</div><div class="sv" id="r-inf9">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-inf6bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 9 fotos</div><div class="sv" id="r-inf9bn">0</div></div>
+      </div>
+      <p class="slabel">Credencial</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 4 fotos</div><div class="sv" id="r-cred4">0</div></div>
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-cred6">0</div></div>
+        <div class="stat"><div class="sl">B/N 4 fotos</div><div class="sv" id="r-cred4bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-cred6bn">0</div></div>
+      </div>
+      <div class="g4" style="margin-bottom:14px;">
+        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
+        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
+        <div class="stat"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
+        <div class="stat"><div class="sl">Total infantil</div><div class="sv" id="r-inf">0</div></div>
+      </div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
+    </div>
+
+  </div>
+
+  <!-- CARRITO LATERAL -->
+  <div class="cart-panel">
+    <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
+    <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
+    <div class="cart-ftr">
+      <div class="trow big"><span>Total</span><span id="cart-total">$0</span></div>
+      <p class="pago-lbl">¿Con cuánto paga?</p>
+      <input class="pago-inp" type="number" id="pago" placeholder="0" min="0" oninput="calcCambio()">
+      <div class="cambio-row" id="cambio-row"><span>Cambio</span><strong id="cambio-val">$0</strong></div>
+      <button class="bcobrar" id="btn-cobrar" onclick="cobrar()" disabled><i class="ti ti-check"></i> Cobrar</button>
+      <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb">
+  <button class="lb-x" onclick="closeLb()"><i class="ti ti-x"></i></button>
+  <div id="lb-img-wrap"></div>
+  <div class="lb-t" id="lb-t"></div>
+  <div class="lb-s" id="lb-s"></div>
+  <div class="lb-p" id="lb-p"></div>
+  <div class="lb-btns" id="lb-btns"><button class="lb-close" onclick="closeLb()">Cerrar</button><button class="lb-add" id="lb-add-btn"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button></div>
+</div>
+
+<!-- MODALES -->
+<div class="modal-ov" id="m-nueva-cat"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Urgentes</p>
+  <div class="frow"><label>Nombre de la categoría</label><input type="text" id="nc-nombre" placeholder="Ej: Militares, Pasaportes, etc."></div>
+  <p style="font-size:11px;color:#888;margin-top:4px;">Después de crear la categoría podrás agregar productos desde el botón + dentro de ella.</p>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCat()">Crear</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-visa"><div class="modal-box"><p class="modal-t">Nueva visa / pasaporte</p>
+  <div class="frow"><label>País o tipo de visa</label><input type="text" id="v-n" placeholder="Ej: Visa USA, Pasaporte China"></div>
+  <div class="frow"><label>Precio</label><input type="text" id="v-p" placeholder="$200"></div>
+  <div class="frow"><label>¿Es Visa USA? (consume 2 restos 11x8)</label><select id="v-usa"><option value="0">No</option><option value="1">Sí — Visa USA</option></select></div>
+  <div class="frow"><label>Imagen de especificaciones</label><input type="file" accept="image/*" id="v-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa')">Cancelar</button><button class="btn bgreen" onclick="guardarVisa()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-esc"><div class="modal-box"><p class="modal-t">Nueva escuela</p>
+  <div class="frow"><label>Nombre de la escuela</label><input type="text" id="e-n" placeholder="Primaria Benito Juárez"></div>
+  <div class="frow"><label>Especificaciones del paquete</label><textarea id="e-s" style="height:60px;resize:none;" placeholder="Ej: 2 fotos 5x7, 4 credencial B&N, 1 grupal..."></textarea></div>
+  <div class="frow"><label>Precio del paquete</label><input type="text" id="e-p" placeholder="$350"></div>
+  <div class="frow"><label>Imagen de portada</label><input type="file" accept="image/*" id="e-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc')">Cancelar</button><button class="btn bgreen" onclick="guardarEsc()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-esc-edit"><div class="modal-box"><p class="modal-t">Editar escuela</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ee-n"></div>
+  <div class="frow"><label>Especificaciones</label><textarea id="ee-s" style="height:60px;resize:none;"></textarea></div>
+  <div class="frow"><label>Precio</label><input type="text" id="ee-p"></div>
+  <div class="frow"><label>Nueva imagen (opcional)</label><input type="file" accept="image/*" id="ee-img" style="font-size:11px;"></div>
+  <input type="hidden" id="ee-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarEscEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-imp"><div class="modal-box"><p class="modal-t">Nuevo tamaño de impresión</p>
+  <div class="frow"><label>Tamaño (ej: 20x24)</label><input type="text" id="im-s" placeholder="20x24"></div>
+  <div class="frow"><label>Precio</label><input type="text" id="im-p" placeholder="$600"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp')">Cancelar</button><button class="btn bgreen" onclick="guardarImp()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-marc"><div class="modal-box"><p class="modal-t">Agregar marco</p>
+  <div class="frow"><label>Nombre del marco</label><input type="text" id="ma-n" placeholder="Marco café claro"></div>
+  <div class="frow"><label>Tamaño</label><input type="text" id="ma-t" placeholder="4x6"></div>
+  <div class="frow"><label>Precio ($)</label><input type="number" id="ma-precio" value="0" min="0"></div>
+  <div class="frow"><label>Stock inicial</label><input type="number" id="ma-s" value="0" min="0"></div>
+  <div class="frow"><label>Foto del marco</label><input type="file" accept="image/*" id="ma-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc')">Cancelar</button><button class="btn bgreen" onclick="guardarMarco()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-marc-edit"><div class="modal-box"><p class="modal-t">Editar marco</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="me-n"></div>
+  <div class="frow"><label>Tamaño</label><input type="text" id="me-t"></div>
+  <div class="frow"><label>Nueva foto (opcional)</label><input type="file" accept="image/*" id="me-img" style="font-size:11px;"></div>
+  <input type="hidden" id="me-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarMarcoEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-vid"><div class="modal-box"><p class="modal-t">Agregar vidrio</p>
+  <div class="frow"><label>Medida (debe coincidir con el marco)</label><input type="text" id="vi-m" placeholder="4x6"></div>
+  <div class="frow"><label>Stock inicial</label><input type="number" id="vi-s" value="0" min="0"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-vid')">Cancelar</button><button class="btn bgreen" onclick="guardarVidrio()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-ticket"><div class="modal-box" style="width:300px;">
+  <div style="overflow-y:auto;max-height:70vh;"><div class="ticket-wrap" id="ticket-content"></div></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button><button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button></div>
+</div></div>
+
+<script>
+const CLAVE='8888';
+let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
+let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
+let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
+let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
+let epsonBodega=100,tbaritaBodega=50;
+let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
+let categoriasDinamicas = []; // {id, nombre, productos:[]}
+
+function guardarNuevaCat(){
+  const nombre = document.getElementById('nc-nombre').value.trim();
+  if(!nombre) return;
+  const id = 'cat_'+Date.now();
+  categoriasDinamicas.push({id, nombre, productos:[]});
+  closeM('m-nueva-cat');
+  document.getElementById('nc-nombre').value='';
+  rendCatsDinamicas();
+  agregarTabDinamica(id, nombre);
+  autoGuardar();
+}
+
+function agregarTabDinamica(id, nombre){
+  const tabs = document.getElementById('urgentes-tabs');
+  if(!tabs) return;
+  // Check if tab already exists
+  if(document.getElementById('tab-'+id)) return;
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-'+id;
+  tab.textContent = nombre;
+  tab.onclick = function(){ showT(id, this); };
+  tabs.appendChild(tab);
+}
+
+function rendCatsDinamicas(){
+  const cont = document.getElementById('cats-dinamicas');
+  if(!cont) return;
+  cont.innerHTML = categoriasDinamicas.map(cat=>`
+    <div id="t-${cat.id}" class="tsec">
+      <div class="hrow">
+        <p class="slabel" style="margin:0;">${cat.nombre}</p>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
+          <button class="btn" style="font-size:10px;padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #f5c0c0;" onclick="eliminarCat('${cat.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div id="grid-${cat.id}" class="g2"></div>
+    </div>
+  `).join('');
+  // Render products for each category
+  categoriasDinamicas.forEach(cat=>{
+    rendCatProds(cat.id);
+  });
+}
+
+function rendCatProds(catId){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat) return;
+  const grid = document.getElementById('grid-'+catId);
+  if(!grid) return;
+  if(!cat.productos.length){
+    grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
+    return;
+  }
+  grid.innerHTML = cat.productos.map((p,i)=>`
+    <div class="foto-card" style="position:relative;">
+      <div onclick="add('${p.nombre}',cat.productos[${i}].precio,'otro')">
+        <div class="fc-n">${p.nombre}</div>
+        <div class="fc-l">${p.desc||''}</div>
+        <div class="fc-p">$${p.precio}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatProd('${catId}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatProd('${catId}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function eliminarCat(catId){
+  const clave=prompt('Clave para eliminar categoría:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!confirm('¿Eliminar categoría "'+cat.nombre+'" y todos sus productos?'))return;
+  categoriasDinamicas=categoriasDinamicas.filter(c=>c.id!==catId);
+  const tab=document.getElementById('tab-'+catId);
+  if(tab)tab.remove();
+  rendCatsDinamicas();
+  autoGuardar();
+}
+
+function editarCatProd(catId, i){
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('ep-nombre').value=cat.productos[i].nombre;
+  document.getElementById('ep-desc').value=cat.productos[i].desc||'';
+  document.getElementById('ep-precio').value=cat.productos[i].precio;
+  document.getElementById('ep-cat').value=catId;
+  document.getElementById('ep-idx').value=i;
+  openM('m-prod-edit');
+}
+
+function eliminarCatProd(catId, i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
+  cat.productos.splice(i,1);
+  rendCatProds(catId);
+  autoGuardar();
+}
+
+let productos={
+  infantil:[
+    {nombre:'Infantil color 6 fotos',desc:'A color',precio:80,tipo:'infantil6'},
+    {nombre:'Infantil color 9 fotos',desc:'A color',precio:100,tipo:'infantil9'},
+    {nombre:'Infantil B/N 6 fotos',desc:'Blanco y negro',precio:80,tipo:'infantil6bn'},
+    {nombre:'Infantil B/N 9 fotos',desc:'Blanco y negro',precio:100,tipo:'infantil9bn'}
+  ],
+  credencial:[
+    {nombre:'Credencial color 4 fotos',desc:'A color',precio:100,tipo:'cred4'},
+    {nombre:'Credencial color 6 fotos',desc:'A color',precio:120,tipo:'cred6'},
+    {nombre:'Credencial B/N 4 fotos',desc:'Blanco y negro',precio:100,tipo:'cred4bn'},
+    {nombre:'Credencial B/N 6 fotos',desc:'Blanco y negro',precio:120,tipo:'cred6bn'}
+  ],
+  cartilla:[{nombre:'Cartilla militar 4 fotos',desc:'TBarita',precio:100,tipo:'cartilla'},{nombre:'Cartilla militar 6 fotos',desc:'TBarita',precio:120,tipo:'cartilla'}],
+  digital:[{nombre:'Imagen digital',desc:'',precio:250,tipo:'digital'}]
+};
+let escuelas=[{n:'Primaria Juárez',s:'2 fotos 5x7, 4 credencial, 1 grupal',p:'$320',img:null},{n:'Colegio San José',s:'3 infantil color, 2 B&N, porta-retrato',p:'$280',img:null}];
+let impresiones=[{sz:'6x8',p:100},{sz:'8x10',p:150},{sz:'11x14',p:350},{sz:'16x20',p:500}];
+let marcos=[{n:'Marco negro liso',t:'4x6',stock:24,img:null,precio:0},{n:'Marco dorado',t:'5x7',stock:8,img:null,precio:0},{n:'Marco plateado',t:'4x6',stock:3,img:null,precio:0},{n:'Marco madera natural',t:'8x10',stock:0,img:null,precio:0}];
+let vidrios=[{m:'4x6',stock:20},{m:'5x7',stock:10},{m:'8x10',stock:5}];
+let bitacora=[];
+let secretSeq=[];
+
+document.addEventListener('keydown',function(e){
+  secretSeq.push(e.key);if(secretSeq.length>4)secretSeq.shift();
+  if(secretSeq.join(',')===('ArrowUp,ArrowUp,ArrowDown,ArrowDown')){
+    const n=document.getElementById('nav-rep');n.style.display=n.style.display==='none'?'flex':'none';secretSeq=[];
+  }
+});
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  if(id==='reportes') cargarReportes();
+}
+function showT(id,el){
+  const tabsEl=el.closest('.tabs');
+  tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  let sib=tabsEl.nextElementSibling;
+  while(sib){if(sib.classList&&sib.classList.contains('tsec'))sib.classList.remove('active');sib=sib.nextElementSibling;}
+  const target=document.getElementById('t-'+id);
+  if(target)target.classList.add('active');
+}
+
+function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
+function delItem(i){carrito.splice(i,1);renderCarrito();}
+function limpiar(){carrito=[];document.getElementById('pago').value='';renderCarrito();}
+function renderCarrito(){
+  const el=document.getElementById('cart-items');
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  document.getElementById('cart-cnt').textContent=carrito.length+' producto'+(carrito.length!==1?'s':'');
+  document.getElementById('cart-total').textContent='$'+total;
+  if(!carrito.length){el.innerHTML='<div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div>';document.getElementById('btn-cobrar').disabled=true;calcCambio();return;}
+  el.innerHTML=carrito.map((c,i)=>`<div class="ci"><div class="ci-inf"><div class="ci-n">${c.nombre}</div><div class="ci-p">$${c.precio}</div></div><span class="ci-x" onclick="delItem(${i})"><i class="ti ti-x"></i></span></div>`).join('');
+  calcCambio();
+}
+function calcCambio(){
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  const pago=parseFloat(document.getElementById('pago').value)||0;
+  const row=document.getElementById('cambio-row');
+  const btn=document.getElementById('btn-cobrar');
+  if(pago>=total&&carrito.length){row.classList.remove('cambio-ins');btn.disabled=false;document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);}
+  else{row.classList.add('cambio-ins');btn.disabled=true;document.getElementById('cambio-val').textContent=pago>0&&pago<total?'Faltan $'+(total-pago).toFixed(0):'$0';}
+}
+function cobrar(){
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  const pago=parseFloat(document.getElementById('pago').value)||0;
+  const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
+  const now=new Date();
+  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const items=[...carrito];
+  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
+  ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
+  ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
+  totalDia+=total;updReportes();rendHist();
+  // Guardar venta en Firebase permanentemente
+  if(db){
+    const ventaData={
+      folio:f,
+      fecha:fecha,
+      hora:hora,
+      timestamp:now.toISOString(),
+      year:now.getFullYear(),
+      month:now.getMonth()+1,
+      dia:now.getDate(),
+      items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:total,
+      pago:pago,
+      cambio:pago-total,
+      // Escuelas vendidas en esta venta
+      escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))
+    };
+    db.collection('ventas').doc(f).set(ventaData).catch(e=>console.error('Error guardando venta:',e));
+  }
+  carrito=[];document.getElementById('pago').value='';renderCarrito();
+  mostrarTicket(ultimaVenta);
+}
+function regConsumo(tipo){
+  let desc='',imp='';
+  if(tipo==='infantil6'){cons.inf6++;desc='Infantil 6f vendido';imp='-¼ pieza 11x28';}
+  else if(tipo==='infantil9'){cons.inf9++;desc='Infantil 9f vendido';imp='-1 resto 11x8';}
+  else if(tipo==='cred4'){cons.cred4++;desc='Credencial 4f vendida';imp='-1 resto 11x8';}
+  else if(tipo==='cred6'){cons.cred6++;desc='Credencial 6f vendida';imp='-⅓ pieza 11x28';}
+  else if(tipo==='cartilla'){cons.cart++;desc='Cartilla militar vendida';imp='-½ hoja TBarita';}
+  else if(tipo==='visaUSA'){cons.visaUSA++;desc='Visa USA vendida';imp='-2 restos 11x8';}
+  else if(tipo==='visa'){cons.visas++;desc='Visa/Pasaporte vendido';imp='-1 resto 11x8';}
+  else{desc=tipo+' vendido';imp='—';}
+  regBit(desc,imp,'ok');
+  recalcPapel();
+}
+function recalcPapel(){
+  const pUsadas=Math.ceil(cons.inf6/4)+Math.ceil(cons.cred6/3);
+  const rUsados=cons.inf9+cons.visas+(cons.visaUSA*2)+cons.cred4;
+  const tUsada=Math.ceil(cons.cart/2);
+  const pD=Math.max(0,epsonBodega*2-pUsadas);
+  const rD=Math.max(0,epsonBodega*2-rUsados);
+  const tD=Math.max(0,tbaritaBodega-tUsada);
+  const sv=(id,val)=>{const e=document.getElementById(id);if(!e)return;e.textContent=val;e.className='sv '+(val>5?'green':val>2?'amber':'red');};
+  sv('rt-p',pD);sv('rt-r',rD);sv('rt-t',tD);sv('dp-p',pD);sv('dp-r',rD);sv('dp-t',tD);
+  const eh=document.getElementById('ep-hoy');if(eh)eh.textContent=Math.ceil(pUsadas/2);
+  const th=document.getElementById('tb-hoy');if(th)th.textContent=tUsada;
+}
+function updStock(){
+  epsonBodega=parseInt(document.getElementById('st-epson').value)||0;
+  tbaritaBodega=parseInt(document.getElementById('st-tbar').value)||0;
+  recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
+}
+function updReportes(){
+  document.getElementById('r-v').textContent=ventas.length;
+  document.getElementById('r-t').textContent='$'+totalDia;
+  document.getElementById('r-inf6').textContent=cnt.infantil6;
+  document.getElementById('r-inf9').textContent=cnt.infantil9;
+  document.getElementById('r-inf6bn').textContent=cnt.infantil6bn;
+  document.getElementById('r-inf9bn').textContent=cnt.infantil9bn;
+  document.getElementById('r-cred4').textContent=cnt.cred4;
+  document.getElementById('r-cred6').textContent=cnt.cred6;
+  document.getElementById('r-cred4bn').textContent=cnt.cred4bn;
+  document.getElementById('r-cred6bn').textContent=cnt.cred6bn;
+  document.getElementById('r-cart').textContent=cnt.cartilla;
+  document.getElementById('r-dig').textContent=cnt.digital;
+  document.getElementById('r-visa').textContent=cnt.visa;
+  document.getElementById('r-imp').textContent=cnt.impresion;
+  document.getElementById('r-esc').textContent=cnt.escuela;
+  document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9+cnt.infantil6bn+cnt.infantil9bn;
+}
+function rendHist(){
+  const el=document.getElementById('r-hist');
+  if(el) el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
+    ventas.map(v=>`<tr><td style="color:#1D9E75;font-weight:600">${v.f}</td><td style="font-size:11px;">${v.desc}</td><td style="color:#1D9E75;font-weight:600">$${v.total}</td></tr>`).join('')+'</tbody></table>';
+}
+
+// ============================================================
+// REPORTES AVANZADOS
+// ============================================================
+let periodoActual = 'hoy';
+let ventasFB = [];
+
+function cambiarPeriodo(periodo, el){
+  periodoActual = periodo;
+  document.querySelectorAll('#page-reportes .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  cargarReportes();
+}
+
+async function cargarReportes(){
+  if(!db){ mostrarReportesLocal(); return; }
+  const el=document.getElementById('rep-historial');
+  if(el) el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const now=new Date();
+    let query=db.collection('ventas').orderBy('timestamp','desc');
+    if(periodoActual==='hoy'){
+      const hoy=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+      query=query.where('fecha','==',hoy);
+    } else if(periodoActual==='mes'){
+      query=query.where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1);
+    } else if(periodoActual==='anio'){
+      query=query.where('year','==',now.getFullYear());
+    }
+    const snap=await query.limit(500).get();
+    ventasFB=[];
+    snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  } catch(e){
+    console.error(e);
+    mostrarReportesLocal();
+  }
+}
+
+function mostrarReportesLocal(){
+  ventasFB=ventas.map(v=>({folio:v.f,desc:v.desc,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}]}));
+  renderReportes();
+}
+
+function renderReportes(){
+  const total=ventasFB.reduce((s,v)=>s+v.total,0);
+  const num=ventasFB.length;
+  const prom=num?Math.round(total/num):0;
+
+  // Período label
+  const labels={hoy:'Hoy',mes:'Este mes',anio:'Este año',todo:'Todo el tiempo'};
+  const el_total=document.getElementById('rep-total');
+  const el_num=document.getElementById('rep-numventas');
+  const el_per=document.getElementById('rep-periodo');
+  const el_prom=document.getElementById('rep-ticketprom');
+  if(el_total) el_total.textContent='$'+total.toLocaleString();
+  if(el_num) el_num.textContent=num;
+  if(el_per) el_per.textContent=labels[periodoActual]||'—';
+  if(el_prom) el_prom.textContent='Ticket promedio: $'+prom.toLocaleString();
+
+  // Por categoría
+  const cats={};
+  ventasFB.forEach(v=>{
+    (v.items||[]).forEach(item=>{
+      const tipo=item.tipo||'otro';
+      if(!cats[tipo]) cats[tipo]={nombre:tipo,total:0,count:0};
+      cats[tipo].total+=item.precio||0;
+      cats[tipo].count++;
+    });
+  });
+  const catNombres={infantil6:'Infantil 6f',infantil9:'Infantil 9f',cred4:'Credencial 4f',cred6:'Credencial 6f',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',impresion:'Impresión',escuela:'Paquete escolar',marco:'Marco'};
+  const catsSorted=Object.values(cats).sort((a,b)=>b.total-a.total);
+  const maxTotal=catsSorted[0]?.total||1;
+  const elCats=document.getElementById('rep-categorias');
+  if(elCats) elCats.innerHTML=catsSorted.map(c=>{
+    const pct=Math.round(c.total/maxTotal*100);
+    const nombre=catNombres[c.nombre]||c.nombre;
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+        <span style="font-weight:500;">${nombre}</span>
+        <span style="color:#1D9E75;font-weight:600;">$${c.total.toLocaleString()} <span style="color:#888;font-weight:400;">(${c.count})</span></span>
+      </div>
+      <div style="background:#e0e0e0;border-radius:10px;height:8px;overflow:hidden;">
+        <div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;transition:width .3s;"></div>
+      </div>
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:#888;">Sin datos</p>';
+
+  // Escuelas
+  const escMap={};
+  ventasFB.forEach(v=>{
+    const mes=v.fecha?v.fecha.substring(3,10):'desconocido';
+    const anio=v.year||new Date().getFullYear();
+    (v.escuelas||[]).forEach(esc=>{
+      if(!escMap[esc]) escMap[esc]={nombre:esc,visitas:{}};
+      const key=anio+'-'+mes;
+      if(!escMap[esc].visitas[key]) escMap[esc].visitas[key]={count:0,total:0,mes,anio};
+      escMap[esc].visitas[key].count++;
+      escMap[esc].visitas[key].total+=v.total||0;
+    });
+  });
+  const elEsc=document.getElementById('rep-escuelas');
+  const escList=Object.values(escMap).sort((a,b)=>Object.keys(b.visitas).length-Object.keys(a.visitas).length);
+  if(elEsc) elEsc.innerHTML=escList.length?escList.map(e=>{
+    const visitas=Object.values(e.visitas).sort((a,b)=>b.anio-a.anio||b.mes.localeCompare(a.mes));
+    return `<div class="card" style="margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${e.nombre}</div>
+      ${visitas.map(v=>`<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;padding:3px 0;border-bottom:0.5px solid #e0e0e0;">
+        <span>${v.mes} — ${v.count} visita${v.count>1?'s':''}</span>
+        <span style="color:#1D9E75;font-weight:500;">$${v.total.toLocaleString()}</span>
+      </div>`).join('')}
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:#888;">Sin paquetes escolares en este período</p>' : '<p style="font-size:12px;color:#888;">Sin paquetes escolares en este período</p>';
+
+  // Historial
+  const elHist=document.getElementById('rep-historial');
+  if(elHist) elHist.innerHTML=ventasFB.length?
+    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
+    ventasFB.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:11px;color:#888;">${v.fecha||'—'}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||v.desc||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+
+    '</tbody></table>' :
+    '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
+}
+function mostrarTicket(v){
+  document.getElementById('ticket-content').innerHTML=`
+    <div class="tkt-hdr"><p>FotoEstudio</p><span>Fotografía profesional</span><br><span style="font-size:10px;color:#aaa;">- - - - - - - - - - - - - - -</span></div>
+    <div class="tkt-row tkt-bold"><span>Folio</span><span>${v.f}</span></div>
+    <div class="tkt-row"><span>Fecha</span><span>${v.fecha}</span></div>
+    <div class="tkt-row"><span>Hora</span><span>${v.hora}</span></div>
+    <hr class="tkt-div">
+    <div style="font-size:10px;color:#777;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Productos</div>
+    ${v.items.map(c=>`<div class="tkt-row"><span>${c.nombre}</span><span>$${c.precio}</span></div>`).join('')}
+    <div class="tkt-row tkt-total"><span>Total</span><span>$${v.total}</span></div>
+    <div class="tkt-row"><span>Pago recibido</span><span>$${v.pago.toFixed(0)}</span></div>
+    <div class="tkt-row tkt-bold"><span>Cambio</span><span>$${v.cambio.toFixed(0)}</span></div>
+    <hr class="tkt-div">
+    <div class="tkt-ftr">¡Gracias por su preferencia!<br>${v.f} · ${v.fecha}</div>`;
+  openM('m-ticket');
+}
+function imprimirTicket(){
+  const c=document.getElementById('ticket-content').innerHTML;
+  const w=window.open('','_blank','width=320,height=550');
+  w.document.write(`<!DOCTYPE html><html><head><title>Ticket</title><style>body{font-family:'Courier New',monospace;padding:16px;font-size:12px;color:#111;max-width:280px;}.tkt-row{display:flex;justify-content:space-between;padding:2px 0;}.tkt-bold{font-weight:700;}.tkt-total{border-top:2px solid #111;padding-top:6px;margin-top:4px;font-size:14px;font-weight:700;}.tkt-hdr{text-align:center;margin-bottom:12px;}.tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}.tkt-div{border:none;border-top:1px dashed #ccc;margin:8px 0;}</style></head><body>${c}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+function abrirTurno(){
+  if(document.getElementById('cl-turno').value!==CLAVE){alert('Clave incorrecta');return;}
+  turnoAbierto=true;
+  const now=new Date();
+  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
+  document.getElementById('turno-lock').style.display='none';
+  document.getElementById('turno-abierto').style.display='block';
+  recalcPapel();
+  regBit('Turno abierto','Epson:'+epsonBodega+' · TBarita:'+tbaritaBodega,'ok');
+}
+function cerrarTurno(){
+  const c=prompt('Ingresa la clave para cerrar el turno:');
+  if(c!==CLAVE){alert('Clave incorrecta');return;}
+  turnoAbierto=false;
+  document.getElementById('turno-lock').style.display='block';
+  document.getElementById('turno-abierto').style.display='none';
+  document.getElementById('cl-turno').value='';
+  regBit('Turno cerrado','Fin del día','ok');
+}
+function unlockPapel(){
+  if(document.getElementById('cl-papel').value!==CLAVE){alert('Clave incorrecta');return;}
+  document.getElementById('papel-lock').style.display='none';
+  document.getElementById('papel-cnt').style.display='block';
+  recalcPapel();
+}
+function unlockMarcos(){
+  if(document.getElementById('cl-marc').value!==CLAVE){alert('Clave incorrecta');return;}
+  marcosUnlocked=true;
+  document.getElementById('marc-lock').style.display='none';
+  rendMarcos();
+}
+function unlockVidrio(){
+  if(document.getElementById('cl-vid').value!==CLAVE){alert('Clave incorrecta');return;}
+  vidrioUnlocked=true;
+  document.getElementById('vid-lock').style.display='none';
+  rendVidrio();
+}
+
+function rendVisas(){
+  document.getElementById('visas-list').innerHTML=visas.map((v,i)=>`
+    <div class="visa-card">
+      <div class="vh" onclick="toggleVisa(${i})">
+        <span style="font-size:13px;font-weight:500;">${v.n}</span>
+        <div style="display:flex;align-items:center;gap:9px;">
+          <span style="font-size:13px;color:#1D9E75;font-weight:600;">$${v.p}</span>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:3px;" onclick="event.stopPropagation();editarVisa(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <i class="ti ti-chevron-down" style="font-size:13px;color:#888;"></i>
+        </div>
+      </div>
+      <div class="vb" id="vb-${i}">
+        ${v.img?`<img src="${v.img}" class="vsp" alt="specs">`:'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>'}
+        <div class="vbtns">
+          <label class="bsm" style="cursor:pointer;"><i class="ti ti-upload"></i> Subir specs<input type="file" accept="image/*" style="display:none;" onchange="updVisaImg(${i},this)"></label>
+          <button class="bsmg" onclick="add('${v.n}',${v.p},'${v.usa?'visaUSA':'visa'}')"><i class="ti ti-shopping-cart"></i> Vender</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function editarVisa(i){
+  document.getElementById('ev-n').value=visas[i].n;
+  document.getElementById('ev-p').value=visas[i].p;
+  document.getElementById('ev-usa').value=visas[i].usa;
+  document.getElementById('ev-idx').value=i;
+  openM('m-visa-edit');
+}
+function guardarVisaEdit(){
+  const i=parseInt(document.getElementById('ev-idx').value);
+  visas[i].n=document.getElementById('ev-n').value.trim()||visas[i].n;
+  visas[i].p=parseInt(document.getElementById('ev-p').value)||visas[i].p;
+  visas[i].usa=parseInt(document.getElementById('ev-usa').value);
+  rendVisas();closeM('m-visa-edit');autoGuardar();
+}
+function toggleVisa(i){document.getElementById('vb-'+i).classList.toggle('open');}
+function updVisaImg(i,input){
+  if(!input.files[0])return;
+  setDriveStatus(true,'Subiendo imagen...');
+  subirImagenCloudinary(input.files[0]).then(url=>{
+    visas[i].img=url;
+    rendVisas();
+    document.getElementById('vb-'+i).classList.add('open');
+    autoGuardar();
+  }).catch(()=>{setDriveStatus(false,'Error imagen');});
+}
+
+function filtrarEscuelas(){
+  const q=document.getElementById('esc-buscar').value.toLowerCase().trim();
+  const filtradas=escuelas
+    .map((e,i)=>({...e,idx:i}))
+    .filter(e=>e.n.toLowerCase().includes(q))
+    .sort((a,b)=>a.n.localeCompare(b.n,'es'));
+  const contador=document.getElementById('esc-contador');
+  if(q){
+    contador.textContent=filtradas.length+' resultado'+(filtradas.length!==1?'s':'')+' de '+escuelas.length+' escuelas';
+  } else {
+    contador.textContent=escuelas.length+' escuela'+(escuelas.length!==1?'s':'')+' — ordenadas alfabéticamente';
+  }
+  renderEscGrid(filtradas);
+}
+
+function rendEsc(){
+  const q=document.getElementById('esc-buscar')?document.getElementById('esc-buscar').value.toLowerCase().trim():'';
+  const filtradas=escuelas
+    .map((e,i)=>({...e,idx:i}))
+    .filter(e=>!q||e.n.toLowerCase().includes(q))
+    .sort((a,b)=>a.n.localeCompare(b.n,'es'));
+  const contador=document.getElementById('esc-contador');
+  if(contador){
+    if(q){
+      contador.textContent=filtradas.length+' resultado'+(filtradas.length!==1?'s':'')+' de '+escuelas.length+' escuelas';
+    } else {
+      contador.textContent=escuelas.length+' escuela'+(escuelas.length!==1?'s':'')+' — ordenadas alfabéticamente';
+    }
+  }
+  renderEscGrid(filtradas);
+}
+
+function renderEscGrid(lista){
+  if(!lista.length){
+    grid.innerHTML = '';
+    grid.insertAdjacentHTML('beforeend','<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">No se encontraron escuelas</div>');
+    const ac2=document.createElement('div');ac2.className='add-card';ac2.onclick=function(){openM('m-esc');};ac2.innerHTML='<i class="ti ti-plus"></i><span>Agregar escuela</span>';grid.appendChild(ac2);
+    return;
+  }
+  document.getElementById('esc-grid').innerHTML=lista.map((e)=>`
+    <div class="esc-card">
+      <div class="esc-img" onclick="abrirLb(${e.idx},'esc')">
+        ${e.img?`<img src="${e.img}" alt="${e.n}"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span>Sin imagen — toca para ver</span>'}
+      </div>
+      <div class="esc-body">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
+          <p class="esc-n">${e.n}</p><span style="font-size:12px;color:#1D9E75;font-weight:600;white-space:nowrap;">${e.p}</span>
+        </div>
+        <p class="esc-s">${e.s}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <button class="bsm" onclick="add('Paquete ${e.n}',${parseInt(e.p.replace('$',''))||0},'escuela')"><i class="ti ti-shopping-cart"></i> Agregar</button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
+        </div>
+      </div>
+    </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
+}
+function abrirLb(i,tipo){
+  let obj=tipo==='esc'?escuelas[i]:marcos[i];
+  document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
+  document.getElementById('lb-t').textContent=obj.n||obj.nombre||'';
+  document.getElementById('lb-s').textContent=obj.s||obj.t||('Stock: '+(obj.stock||0));
+  document.getElementById('lb-p').textContent=obj.p||('$'+( obj.precio||0));
+  if(tipo==='esc'){
+    document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
+    document.getElementById('lb-add-btn').onclick=()=>{add('Paquete '+(obj.n||obj.nombre),parseInt((obj.p||'$0').replace('$',''))||0,'escuela');closeLb();};
+  } else if(tipo==='marco'){
+    document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Vender marco';
+    document.getElementById('lb-add-btn').onclick=()=>{venderMarcoVenta(i);closeLb();};
+  } else {
+    document.getElementById('lb-add-btn').style.display='none';
+  }
+  document.getElementById('lb').classList.add('open');
+}
+
+function venderMarcoVenta(i){
+  if(!marcos[i]||marcos[i].stock<=0){alert('Sin stock disponible');return;}
+  const precio=marcos[i].precio||0;
+  add('Marco '+marcos[i].n, precio, 'marco');
+  marcos[i].stock--;
+  rendMarcosVenta();
+  rendMarcos();
+  autoGuardar();
+}
+
+function rendMarcosVenta(){
+  const grid=document.getElementById('marcos-venta-grid');
+  if(!grid)return;
+  const disponibles=marcos.filter((m,i)=>({...m,idx:i})).map((m,i)=>({...m,idx:i}));
+  if(!disponibles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-frame" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin marcos en inventario</div>';
+    return;
+  }
+  grid.innerHTML=disponibles.map((m,i)=>{
+    const agotado=m.stock<=0;
+    return `<div class="esc-card" style="${agotado?'opacity:0.5;':''}">
+      <div class="esc-img" onclick="abrirLb(${m.idx},'marco')" style="cursor:pointer;">
+        ${m.img?`<img src="${m.img}" alt="${m.n}" style="width:100%;height:110px;object-fit:cover;"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto</span>'}
+      </div>
+      <div class="esc-body">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
+          <p class="esc-n">${m.n}</p>
+          <span style="font-size:12px;color:#1D9E75;font-weight:600;">$${m.precio||0}</span>
+        </div>
+        <p class="esc-s">${m.t} · Stock: ${m.stock}</p>
+        <div style="margin-top:8px;">
+          ${agotado
+            ? '<span style="font-size:11px;color:#A32D2D;font-weight:500;">Agotado</span>'
+            : `<button class="bsm" onclick="venderMarcoVenta(${m.idx})"><i class="ti ti-shopping-cart"></i> Vender</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function closeLb(){document.getElementById('lb').classList.remove('open');}
+function editarEsc(i){
+  document.getElementById('ee-n').value=escuelas[i].n;
+  document.getElementById('ee-s').value=escuelas[i].s;
+  document.getElementById('ee-p').value=escuelas[i].p;
+  document.getElementById('ee-idx').value=i;
+  openM('m-esc-edit');
+}
+
+function eliminarEsc(i){
+  const clave=prompt('Clave para eliminar escuela:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+escuelas[i].n+'"?'))return;
+  const docId=escuelas[i]._id||('e'+i);
+  escuelas.splice(i,1);
+  rendEsc();
+  guardarLocal();
+  if(db){
+    db.collection('escuelas').doc(docId).delete()
+      .then(()=>setDriveStatus(true,'Eliminado ✓'))
+      .catch(err=>setDriveStatus(false,'Error: '+err.code));
+  }
+}
+function guardarEscEdit(){
+  const i=parseInt(document.getElementById('ee-idx').value);
+  escuelas[i].n=document.getElementById('ee-n').value.trim()||escuelas[i].n;
+  escuelas[i].s=document.getElementById('ee-s').value.trim()||escuelas[i].s;
+  escuelas[i].p=document.getElementById('ee-p').value.trim()||escuelas[i].p;
+  const img=document.getElementById('ee-img');
+  const docId=escuelas[i]._id||('e'+i);
+  const save=()=>{
+    rendEsc();closeM('m-esc-edit');guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escuelas[i])
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>setDriveStatus(false,'Error: '+err.code));
+    }
+  };
+  if(img.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(img.files[0]).then(url=>{escuelas[i].img=url;save();}).catch(()=>save());
+  } else save();
+}
+function eliminarImp(i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar impresión "'+impresiones[i].sz+'"?'))return;
+  impresiones.splice(i,1);
+  rendImp();
+  autoGuardar();
+}
+
+function rendImp(){
+  document.getElementById('imp-grid').innerHTML=impresiones.map((im,i)=>`
+    <div class="foto-card" style="position:relative;">
+      <div onclick="add('Impresión ${im.sz}',impresiones[${i}].p,'impresion')" style="cursor:pointer;">
+        <div class="fc-n">${im.sz}"</div>
+        <div class="fc-l">Impresión fotográfica</div>
+        <div class="fc-p">$${im.p}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarImp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarImp(${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function rendMarcos(){
+  document.getElementById('marcos-list').innerHTML=marcos.map((m,i)=>{
+    const b=m.stock===0?'bout':m.stock<=3?'blow':'bok';
+    const bt=m.stock===0?'Agotado':m.stock<=3?'Stock bajo':'Disponible';
+    return `<div class="marco-card">
+      <div class="marco-img" onclick="abrirLb(${i},'marco')">
+        ${m.img?`<img src="${m.img}" alt="${m.n}"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto — toca para ver</span>'}
+      </div>
+      <div class="marco-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="marco-n">${m.n}</div><div style="font-size:11px;color:#888;margin-top:3px;">${m.t} · <span class="badge ${b}">${bt}</span></div></div>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:4px;" onclick="editarMarco(${i})" title="Editar marco"><i class="ti ti-pencil"></i></button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
+          <div class="stk-ctrl">
+            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},-1)" ${m.stock===0?'disabled':''}>−</button>`:''}
+            <span class="stk-n">${m.stock}</span>
+            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},1)">+</button>`:''}
+          </div>
+          <button class="btn bgreen" style="font-size:11px;padding:5px 11px;" onclick="venderMarco(${i})" ${m.stock===0?'disabled style="opacity:.4;cursor:not-allowed;"':''}><i class="ti ti-shopping-cart"></i> Vender</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function ajMarco(i,d){marcos[i].stock=Math.max(0,marcos[i].stock+d);regBit('Stock marco editado',marcos[i].n+': '+marcos[i].stock,'ok');rendMarcos();}
+function venderMarco(i){
+  if(marcos[i].stock===0)return;
+  add('Marco '+marcos[i].n,0,'marco');
+  marcos[i].stock--;
+  regBit('Marco vendido',marcos[i].n,'−1 stock');
+  rendMarcos();
+}
+function editarMarco(i){
+  document.getElementById('me-n').value=marcos[i].n;
+  document.getElementById('me-t').value=marcos[i].t;
+  document.getElementById('me-idx').value=i;
+  openM('m-marc-edit');
+}
+function guardarMarcoEdit(){
+  const i=parseInt(document.getElementById('me-idx').value);
+  marcos[i].n=document.getElementById('me-n').value.trim()||marcos[i].n;
+  marcos[i].t=document.getElementById('me-t').value.trim()||marcos[i].t;
+  const img=document.getElementById('me-img');
+  const save=()=>{rendMarcos();closeM('m-marc-edit');autoGuardar();};
+  if(img.files[0]){const r=new FileReader();r.onload=e=>{marcos[i].img=e.target.result;save();};r.readAsDataURL(img.files[0]);}else save();
+}
+
+function rendVidrio(){
+  document.getElementById('vidrio-list').innerHTML=vidrios.map((v,i)=>{
+    const b=v.stock===0?'bout':v.stock<=3?'blow':'bok';
+    const bt=v.stock===0?'Agotado':v.stock<=3?'Bajo':'OK';
+    return `<div class="vrow">
+      <div><div style="font-size:13px;font-weight:500;">Vidrio ${v.m}"</div><span class="badge ${b}">${bt}</span></div>
+      <div class="stk-ctrl">
+        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},-1)" ${v.stock===0?'disabled':''}>−</button>`:''}
+        <span class="stk-n">${v.stock}</span>
+        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},1)">+</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function ajVidrio(i,d){vidrios[i].stock=Math.max(0,vidrios[i].stock+d);regBit('Stock vidrio editado','Vidrio '+vidrios[i].m+': '+vidrios[i].stock,'ok');rendVidrio();}
+
+function regBit(desc,det,tipo){
+  const now=new Date();
+  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  bitacora.unshift({desc,det,tipo,hora});
+  const el=document.getElementById('bit-list');
+  if(el)el.innerHTML=bitacora.map(b=>`<div class="bit-row"><div><div class="bd">${b.desc}</div><div class="bh">${b.hora}</div></div><div style="font-size:12px;font-weight:500;color:${b.tipo==='ok'?'#1D9E75':'#A32D2D'}">${b.det}</div></div>`).join('');
+}
+
+function guardarVisa(){
+  const n=document.getElementById('v-n').value.trim();const p=parseInt(document.getElementById('v-p').value.replace('$',''))||0;if(!n)return;
+  const usa=parseInt(document.getElementById('v-usa').value);
+  const v={n,p,usa,img:null};const imgI=document.getElementById('v-img');
+  const s=()=>{visas.push(v);rendVisas();closeM('m-visa');autoGuardar();document.getElementById('v-n').value='';document.getElementById('v-p').value='';};
+  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{v.img=e.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
+}
+function guardarEsc(){
+  const n=document.getElementById('e-n').value.trim();
+  const sp=document.getElementById('e-s').value.trim();
+  const p=document.getElementById('e-p').value.trim();
+  if(!n)return;
+  const docId='e_'+Date.now();
+  const e={n,s:sp||'Sin especificaciones',p:p||'$0',img:null,_id:docId};
+  const imgI=document.getElementById('e-img');
+  const guardar=(escData)=>{
+    escuelas.push(escData);
+    rendEsc();
+    closeM('m-esc');
+    ['e-n','e-s','e-p'].forEach(id2=>document.getElementById(id2).value='');
+    guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escData)
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>{setDriveStatus(false,'Error: '+err.code);console.error(err);});
+    }
+  };
+  if(imgI.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(imgI.files[0])
+      .then(url=>{e.img=url;guardar(e);})
+      .catch(()=>guardar(e));
+  } else guardar(e);
+}
+function guardarImp(){
+  const sz=document.getElementById('im-s').value.trim();const p=parseInt(document.getElementById('im-p').value.replace('$',''))||0;if(!sz)return;
+  impresiones.push({sz,p});rendImp();closeM('m-imp');autoGuardar();document.getElementById('im-s').value='';document.getElementById('im-p').value='';
+}
+function guardarMarco(){
+  const n=document.getElementById('ma-n').value.trim();const t=document.getElementById('ma-t').value.trim();const s=parseInt(document.getElementById('ma-s').value)||0;if(!n)return;
+  const m={n,t,stock:s,img:null};const imgI=document.getElementById('ma-img');
+  const save=()=>{marcos.push(m);rendMarcos();closeM('m-marc');autoGuardar();['ma-n','ma-t'].forEach(id=>document.getElementById(id).value='');document.getElementById('ma-s').value='0';};
+  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{m.img=e.target.result;save();};r.readAsDataURL(imgI.files[0]);}else save();
+}
+function guardarVidrio(){
+  const med=document.getElementById('vi-m').value.trim();const s=parseInt(document.getElementById('vi-s').value)||0;if(!med)return;
+  vidrios.push({m:med,stock:s});rendVidrio();closeM('m-vid');autoGuardar();document.getElementById('vi-m').value='';document.getElementById('vi-s').value='0';
+}
+function prevSpec(input,id){if(!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(id);img.src=e.target.result;img.style.display='block';};r.readAsDataURL(input.files[0]);}
+function openM(id){document.getElementById(id).classList.add('open');}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+
+function eliminarProd(cat,i){
+  const clave=prompt('Ingresa la clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+productos[cat][i].nombre+'"?'))return;
+  productos[cat].splice(i,1);
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(cat,gridMap[cat]);
+  autoGuardar();
+}
+
+function rendProds(cat,gridId){
+  const el=document.getElementById(gridId);if(!el)return;
+  const isDigital=cat==='digital';
+  if(isDigital){
+    el.innerHTML=productos[cat].map((p,i)=>`
+      <div class="dig-card" style="position:relative;" onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+        <i class="ti ti-device-floppy"></i><div class="dn">${p.nombre}</div><div class="dp">$${p.precio}</div>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="event.stopPropagation();eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  } else {
+    el.innerHTML=productos[cat].map((p,i)=>`
+      <div class="foto-card" style="position:relative;">
+        <div onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+          <div class="fc-n">${p.nombre.replace(/.*?(\d+\s*fotos?)/i,'$1')}</div>
+          <div class="fc-l">${p.desc}</div>
+          <div class="fc-p">$${p.precio}</div>
+        </div>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function editarProd(cat,i){
+  const p=productos[cat][i];
+  document.getElementById('ep-cat').value=cat;
+  document.getElementById('ep-idx').value=i;
+  document.getElementById('ep-nombre').value=p.nombre;
+  document.getElementById('ep-desc').value=p.desc||'';
+  document.getElementById('ep-precio').value=p.precio;
+  openM('m-prod-edit');
+}
+function guardarProdEdit(){
+  const cat=document.getElementById('ep-cat').value;
+  const i=parseInt(document.getElementById('ep-idx').value);
+  productos[cat][i].nombre=document.getElementById('ep-nombre').value.trim()||productos[cat][i].nombre;
+  productos[cat][i].desc=document.getElementById('ep-desc').value.trim();
+  productos[cat][i].precio=parseInt(document.getElementById('ep-precio').value)||productos[cat][i].precio;
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(cat,gridMap[cat]);
+  closeM('m-prod-edit');autoGuardar();
+}
+function agregarProd(){
+  const cat=document.getElementById('ap-tipo').value;
+  const nombre=document.getElementById('ap-nombre').value.trim();
+  const desc=document.getElementById('ap-desc').value.trim();
+  const precio=parseInt(document.getElementById('ap-precio').value)||0;
+  if(!nombre)return;
+  const tipoMap={infantil6:'infantil6',infantil9:'infantil9',cred4:'cred4',cred6:'cred6',cartilla:'cartilla',digital:'digital'};
+  const catMap={infantil6:'infantil',cred4:'credencial',cartilla:'cartilla',digital:'digital'};
+  const finalCat=catMap[cat]||cat;
+  productos[finalCat].push({nombre,desc,precio,tipo:cat});autoGuardar();
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(finalCat,gridMap[finalCat]);
+  closeM('m-add-prod');
+  ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+}
+function editarImp(i){
+  document.getElementById('ei-sz').textContent=impresiones[i].sz+'"';
+  document.getElementById('ei-nombre').value=impresiones[i].sz;
+  document.getElementById('ei-p').value=impresiones[i].p;
+  document.getElementById('ei-idx').value=i;
+  openM('m-imp-edit');
+}
+function guardarImpEdit(){
+  const i=parseInt(document.getElementById('ei-idx').value);
+  const nombre=document.getElementById('ei-nombre').value.trim();
+  const precio=parseInt(document.getElementById('ei-p').value)||0;
+  if(nombre)impresiones[i].sz=nombre;
+  if(precio)impresiones[i].p=precio;
+  rendImp();
+  closeM('m-imp-edit');autoGuardar();
+}
+
+
+// ============================================================
+// LOCAL STORAGE — respaldo inmediato
+// ============================================================
+function guardarLocal(){
+  try{
+    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas};
+    localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
+  } catch(e){}
+}
+function cargarLocal(){
+  try{
+    const raw = localStorage.getItem('fotoestudio_datos');
+    if(!raw) return false;
+    const datos = JSON.parse(raw);
+    if(datos.visas) visas=datos.visas;
+    if(datos.escuelas) escuelas=datos.escuelas;
+    if(datos.impresiones) impresiones=datos.impresiones;
+    if(datos.marcos) marcos=datos.marcos;
+    if(datos.vidrios) vidrios=datos.vidrios;
+    if(datos.productos) productos=datos.productos;
+    if(datos.epsonBodega) epsonBodega=datos.epsonBodega;
+    if(datos.tbaritaBodega) tbaritaBodega=datos.tbaritaBodega;
+    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();rendMarcosVenta();
+    rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
+    rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    return true;
+  } catch(e){ return false; }
+}
+
+// ============================================================
+// FIREBASE SYNC
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDrc9B_GIho2WOgsCTloTFBap--f9mWT2k",
+  authDomain: "fotoestudio-app-642d4.firebaseapp.com",
+  projectId: "fotoestudio-app-642d4",
+  storageBucket: "fotoestudio-app-642d4.firebasestorage.app",
+  messagingSenderId: "268228195404",
+  appId: "1:268228195404:web:9c86817d41a88067c430e9"
+};
+
+let db = null;
+let DOC_REF = null;
+let fbListo = false;
+let ultimoGuardado = 0;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  DOC_REF = db.collection('datos').doc('principal');
+  fbListo = true;
+} catch(e) {
+  console.warn('Firebase init error:', e);
+}
+
+function setDriveStatus(ok, txt){
+  const el = document.getElementById('drive-status');
+  const tx = document.getElementById('drive-status-txt');
+  const ic = el.querySelector('i');
+  if(ok){
+    el.style.background='#E1F5EE';el.style.border='1px solid #a0dcc8';el.style.color='#085041';
+    ic.className='ti ti-cloud-check';ic.style.fontSize='13px';
+  } else {
+    el.style.background='#FCEBEB';el.style.border='1px solid #f5c0c0';el.style.color='#A32D2D';
+    ic.className='ti ti-cloud-off';ic.style.fontSize='13px';
+  }
+  tx.textContent = txt;
+}
+
+function iniciarSesionDrive(){ iniciarFirebase(); }
+
+function iniciarFirebase(){
+  if(!DOC_REF){ setDriveStatus(false,'Firebase no disponible'); return; }
+  setDriveStatus(true,'Conectando...');
+  
+  // Cargar datos UNA SOLA VEZ al inicio (get, no onSnapshot)
+  Promise.all([
+    db.collection('datos').doc('precios').get(),
+    db.collection('datos').doc('productos').get(),
+    db.collection('visas').get(),
+    db.collection('marcos').get(),
+    db.collection('escuelas').get()
+  ]).then(([precDoc,prodDoc,visSnap,marcSnap,escSnap])=>{
+    firebaseConectado=true; fbListo=true;
+    if(precDoc.exists){
+      const d=precDoc.data();
+      if(d.impresiones)impresiones=d.impresiones;
+      if(d.vidrios)vidrios=d.vidrios;
+      if(d.epsonBodega!==undefined)epsonBodega=d.epsonBodega;
+      if(d.tbaritaBodega!==undefined)tbaritaBodega=d.tbaritaBodega;
+    }
+    if(prodDoc.exists){
+      const d=prodDoc.data();
+      if(d.infantil)productos.infantil=d.infantil;
+      if(d.credencial)productos.credencial=d.credencial;
+      if(d.cartilla)productos.cartilla=d.cartilla;
+      if(d.digital)productos.digital=d.digital;
+      if(d.categoriasDinamicas)categoriasDinamicas=d.categoriasDinamicas;
+    }
+    if(!visSnap.empty){const arr=[];visSnap.forEach(d=>arr.push(d.data()));visas=arr;}
+    if(!marcSnap.empty){const arr=[];marcSnap.forEach(d=>arr.push(d.data()));marcos=arr;}
+    if(!escSnap.empty){
+      const arr=[];
+      escSnap.forEach(d=>arr.push({...d.data(),_id:d.id}));
+      arr.sort((a,b)=>a.n.localeCompare(b.n,'es'));
+      escuelas=arr;
+    }
+    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+    rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
+    rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    rendCatsDinamicas();
+    categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
+    guardarLocal();
+    setDriveStatus(true,'Datos cargados ✓');
+    if(!precDoc.exists) guardarFirebase();
+  }).catch(e=>{
+    fbListo=true;
+    setDriveStatus(false,'Error cargando datos');
+    cargarLocal();
+  });
+}
+
+// ============================================================
+// CLOUDINARY — imágenes en la nube, se ven en todos los dispositivos
+// ============================================================
+async function subirImagenCloudinary(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = async function(ev){
+      try{
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'fotoestudio');
+        formData.append('folder', 'fotoestudio');
+        const res = await fetch('https://api.cloudinary.com/v1_1/dgnrfoxez/image/upload',
+          {method:'POST', body:formData});
+        const data = await res.json();
+        resolve(data.secure_url || null);
+      } catch(e){
+        console.error('Cloudinary error:', e);
+        resolve(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// FIREBASE — cada colección en documentos separados
+// ============================================================
+async function guardarFirebase(){
+  if(!db) return;
+  setDriveStatus(true,'Guardando...');
+  try{
+    await db.collection('datos').doc('precios').set({
+      impresiones, vidrios, epsonBodega, tbaritaBodega,
+      actualizado: new Date().toISOString()
+    });
+    await db.collection('datos').doc('productos').set({
+      infantil:productos.infantil, credencial:productos.credencial,
+      cartilla:productos.cartilla, digital:productos.digital,
+      categoriasDinamicas:categoriasDinamicas
+    });
+    for(let i=0;i<visas.length;i++){
+      await db.collection('visas').doc('v'+i).set(visas[i]);
+    }
+    for(let i=0;i<marcos.length;i++){
+      await db.collection('marcos').doc('m'+i).set(marcos[i]);
+    }
+    for(let i=0;i<escuelas.length;i++){
+      await db.collection('escuelas').doc(escuelas[i]._id||('e'+i)).set(escuelas[i]);
+    }
+    guardarLocal();
+    setDriveStatus(true,'Guardado ✓');
+  } catch(e){
+    setDriveStatus(false,'Error: '+e.code);
+    console.error('Firebase error:', e);
+  }
+}
+
+function autoGuardar(){
+  guardarLocal();
+  if(db) setTimeout(guardarFirebase, 500);
+}
+
+// ============================================================
+
+rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+rendProds('infantil','inf-grid');
+rendProds('credencial','cred-grid');
+rendProds('cartilla','cart-grid');
+rendProds('digital','dig-grid');
+
+// Cargar local inmediatamente, luego Firebase sobreescribe si hay datos
+cargarLocal();
+let firebaseConectado = false;
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    try{ iniciarFirebase(); } 
+    catch(e){ console.warn('Firebase error:', e); }
+  }, 600);
+});
+rendProds('infantil','inf-grid');
+rendProds('credencial','cred-grid');
+rendProds('cartilla','cart-grid');
+rendProds('digital','dig-grid');
+
+
+</script>
+<div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
+  <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ei-p" min="0"></div>
+  <input type="hidden" id="ei-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarImpEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-prod-edit"><div class="modal-box"><p class="modal-t">Editar producto</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ep-nombre"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ep-desc"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ep-precio" min="0"></div>
+  <input type="hidden" id="ep-cat"><input type="hidden" id="ep-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-prod-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarProdEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-add-prod"><div class="modal-box"><p class="modal-t" id="ap-titulo">Agregar producto</p>
+  <div class="frow"><label>Nombre del producto</label><input type="text" id="ap-nombre" placeholder="Ej: Infantil 12 fotos"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ap-desc" placeholder="Color o B&N"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ap-precio" min="0" placeholder="0"></div>
+  <input type="hidden" id="ap-tipo">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-add-prod')">Cancelar</button><button class="btn bgreen" onclick="agregarProd()">Agregar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-visa-edit"><div class="modal-box"><p class="modal-t">Editar visa / pasaporte</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ev-n"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ev-p" min="0"></div>
+  <div class="frow"><label>¿Es Visa USA?</label><select id="ev-usa"><option value="0">No</option><option value="1">Sí</option></select></div>
+  <input type="hidden" id="ev-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarVisaEdit()">Guardar</button></div>
+</div></div>
+
+</body>
+</html>
