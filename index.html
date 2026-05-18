@@ -853,18 +853,28 @@ function rendCatProds(catId){
     grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
     return;
   }
-  grid.innerHTML = cat.productos.map((p,i)=>`
-    <div class="foto-card" style="position:relative;">
-      <div onclick="add('${p.nombre}',cat.productos[${i}].precio,'otro')">
-        <div class="fc-n">${p.nombre}</div>
-        <div class="fc-l">${p.desc||''}</div>
-        <div class="fc-p">$${p.precio}</div>
+  grid.innerHTML = cat.productos.map((p,i)=>{
+    const precio = p.precio||0;
+    const nombre = p.nombre||'';
+    const desc = p.desc||'';
+    return `<div class="foto-card" style="position:relative;">
+      <div onclick="addCatProd('${catId}',${i})" style="cursor:pointer;">
+        <div class="fc-n">${nombre}</div>
+        <div class="fc-l">${desc}</div>
+        <div class="fc-p">$${precio}</div>
       </div>
       <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
         <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatProd('${catId}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
         <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatProd('${catId}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function addCatProd(catId, i){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!cat.productos[i])return;
+  add(cat.productos[i].nombre, cat.productos[i].precio, 'otro');
 }
 
 function eliminarCat(catId){
@@ -940,12 +950,13 @@ function showPage(id,el){
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
   if(!tabsEl)return;
+  // Deactivate all tabs in this tabs container
   tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  // Hide all tsec within the same parent container
-  const parent=tabsEl.parentElement;
-  if(parent){
-    parent.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active'));
+  // Find the page container and hide ALL tsec inside it
+  const page=tabsEl.closest('.page');
+  if(page){
+    page.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active'));
   }
   const target=document.getElementById('t-'+id);
   if(target)target.classList.add('active');
