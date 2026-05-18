@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v1.9</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.0</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -574,6 +574,124 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
       </div>
       <div class="esc-grid" id="marcos-venta-grid"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p>
+      <p class="psub">Historial permanente de ventas</p>
+      <div class="tabs" style="margin-bottom:16px;" id="rep-tabs">
+        <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+        <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
+        <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+        <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
+        <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
+          <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-periodo">—</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
+          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+        </div>
+      </div>
+      <p class="slabel">Urgentes</p>
+      <div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <p class="slabel">Paquetes escolares</p>
+      <div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <p class="slabel">Impresiones</p>
+      <div id="rep-impresiones" style="margin-bottom:14px;"></div>
+      <p class="slabel">Marcos</p>
+      <div id="rep-marcos" style="margin-bottom:14px;"></div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
     </div>
 
     <!-- INVENTARIO -->
@@ -945,7 +1063,7 @@ function showPage(id,el){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  if(id==='reportes') cargarReportes();
+  if(id==='reportes')setTimeout(cargarReportes,300);
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -1046,105 +1164,72 @@ function updStock(){
   tbaritaBodega=parseInt(document.getElementById('st-tbar').value)||0;
   recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
 }
-function updReportes(){
-  document.getElementById('r-v').textContent=ventas.length;
-  document.getElementById('r-t').textContent='$'+totalDia;
-  document.getElementById('r-inf6').textContent=cnt.infantil6;
-  document.getElementById('r-inf9').textContent=cnt.infantil9;
-  document.getElementById('r-inf6bn').textContent=cnt.infantil6bn;
-  document.getElementById('r-inf9bn').textContent=cnt.infantil9bn;
-  document.getElementById('r-cred4').textContent=cnt.cred4;
-  document.getElementById('r-cred6').textContent=cnt.cred6;
-  document.getElementById('r-cred4bn').textContent=cnt.cred4bn;
-  document.getElementById('r-cred6bn').textContent=cnt.cred6bn;
-  document.getElementById('r-cart').textContent=cnt.cartilla;
-  document.getElementById('r-dig').textContent=cnt.digital;
-  document.getElementById('r-visa').textContent=cnt.visa;
-  document.getElementById('r-imp').textContent=cnt.impresion;
-  document.getElementById('r-esc').textContent=cnt.escuela;
-  document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9+cnt.infantil6bn+cnt.infantil9bn;
-}
+function updReportes(){}
+
 function rendHist(){
   const el=document.getElementById('r-hist');
-  if(el) el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
-    ventas.map(v=>`<tr><td style="color:#1D9E75;font-weight:600">${v.f}</td><td style="font-size:11px;">${v.desc}</td><td style="color:#1D9E75;font-weight:600">$${v.total}</td></tr>`).join('')+'</tbody></table>';
+  if(!el)return;
+  el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Desc</th><th>Total</th></tr></thead><tbody>'+
+    ventas.map(function(v){return '<tr><td style="color:#1D9E75;font-weight:600">'+v.f+'</td><td style="font-size:11px;">'+v.desc+'</td><td>$'+v.total+'</td></tr>';}).join('')+'</tbody></table>';
 }
 
-// ============================================================
-// REPORTES AVANZADOS
-// ============================================================
-let periodoActual = 'hoy';
-let ventasFB = [];
+let periodoActual='hoy',ventasFB=[];
 
-function cambiarPeriodo(periodo, el){
-  periodoActual = periodo;
+function cambiarPeriodo(p,el){
+  periodoActual=p;
   document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
+  if(el)el.classList.add('active');
   cargarReportes();
 }
 
-function getFechaStr(date){
-  return date.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
-}
+function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
 
 async function cargarReportes(){
-  if(!db){ mostrarReportesLocal(); return; }
+  if(!db){mostrarReportesLocal();return;}
   const el=document.getElementById('rep-historial');
-  if(el) el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   try{
     const now=new Date();
     let snap;
     if(periodoActual==='hoy'){
-      const hoy=getFechaStr(now);
-      snap=await db.collection('ventas').where('fecha','==',hoy).get();
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else if(periodoActual==='ayer'){
-      const ayer=new Date(now); ayer.setDate(ayer.getDate()-1);
-      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ayer)).get();
+      const ay=new Date(now);ay.setDate(ay.getDate()-1);
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ay)).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else if(periodoActual==='semana'){
-      // Get last 7 days — fetch all from this month and filter client side
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
       ventasFB=[];
-      const hace7=new Date(now); hace7.setDate(hace7.getDate()-7);
-      snap.forEach(d=>{
-        const v=d.data();
-        if(v.timestamp && new Date(v.timestamp)>=hace7) ventasFB.push(v);
-      });
-      renderReportes();
-      return;
+      const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
     } else if(periodoActual==='mes'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else {
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     }
-    ventasFB=[];
-    snap.forEach(d=>ventasFB.push(d.data()));
     renderReportes();
-  } catch(e){
-    console.error('Error cargando reportes:',e);
-    mostrarReportesLocal();
-  }
+  }catch(e){console.error(e);mostrarReportesLocal();}
 }
 
 function mostrarReportesLocal(){
-  ventasFB=ventas.map(v=>({
-    folio:v.f, total:v.total, fecha:'hoy',
-    items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],
-    escuelas:[]
-  }));
+  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
   renderReportes();
 }
 
-function barraCategoria(nombre, total, count, maxTotal){
-  const pct=Math.round(total/maxTotal*100);
-  return `<div style="margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-      <span style="font-weight:500;">${nombre}</span>
-      <span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;font-weight:400;">(${count})</span></span>
-    </div>
-    <div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;">
-      <div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div>
-    </div>
-  </div>`;
+function barraItem(n,total,count,max){
+  const pct=Math.round(total/max*100);
+  return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">${n}</span><span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;">(${count})</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div></div></div>`;
+}
+
+function renderSeccion(id,mapa){
+  const el=document.getElementById(id);if(!el)return;
+  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
+  const max=items[0][1].total||1;
+  el.innerHTML=items.map(([n,d])=>barraItem(n,d.total,d.count,max)).join('');
 }
 
 function renderReportes(){
@@ -1152,147 +1237,35 @@ function renderReportes(){
   const num=ventasFB.length;
   const prom=num?Math.round(total/num):0;
   const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
-
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set('rep-total','$'+total.toLocaleString());
   set('rep-numventas',num);
   set('rep-periodo',labels[periodoActual]||'—');
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
-
-  // Agrupar items por categoría
-  const urgentes={};
-  const escuelas_map={};
-  const impresiones_map={};
-  const marcos_map={};
-
-  const catNombres={
-    infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',
-    cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',
-    cartilla:'Cartilla militar',digital:'Imagen digital',
-    visa:'Visa',visaUSA:'Visa USA',otro:'Otro'
-  };
-
+  const urg={},esc={},imp={},marc={};
+  const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
   ventasFB.forEach(v=>{
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
       const precio=item.precio||0;
-      const nombre=catNombres[tipo]||item.nombre||tipo;
-      if(tipo==='escuela'){
-        const n=item.nombre||'Escuela';
-        if(!escuelas_map[n])escuelas_map[n]={total:0,count:0};
-        escuelas_map[n].total+=precio;escuelas_map[n].count++;
-      } else if(tipo==='impresion'){
-        if(!impresiones_map[nombre])impresiones_map[nombre]={total:0,count:0};
-        impresiones_map[nombre].total+=precio;impresiones_map[nombre].count++;
-      } else if(tipo==='marco'){
-        if(!marcos_map[nombre])marcos_map[nombre]={total:0,count:0};
-        marcos_map[nombre].total+=precio;marcos_map[nombre].count++;
-      } else {
-        if(!urgentes[nombre])urgentes[nombre]={total:0,count:0};
-        urgentes[nombre].total+=precio;urgentes[nombre].count++;
-      }
+      const n=catN[tipo]||item.nombre||tipo;
+      const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela')add(esc,item.nombre||'Escuela');
+      else if(tipo==='impresion')add(imp,n);
+      else if(tipo==='marco')add(marc,n);
+      else add(urg,n);
     });
   });
-
-  const renderSeccion=(elId, mapa)=>{
-    const el=document.getElementById(elId);
-    if(!el)return;
-    const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
-    if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas en este período</p>';return;}
-    const max=items[0][1].total||1;
-    el.innerHTML=items.map(([n,d])=>barraCategoria(n,d.total,d.count,max)).join('');
-  };
-
-  renderSeccion('rep-urgentes', urgentes);
-  renderSeccion('rep-impresiones', impresiones_map);
-  renderSeccion('rep-marcos', marcos_map);
-
-  // Escuelas con detalle
-  const elEsc=document.getElementById('rep-escuelas');
-  if(elEsc){
-    const escItems=Object.entries(escuelas_map).sort((a,b)=>b[1].total-a[1].total);
-    if(!escItems.length){
-      elEsc.innerHTML='<p style="font-size:12px;color:#888;">Sin paquetes en este período</p>';
-    } else {
-      const max=escItems[0][1].total||1;
-      elEsc.innerHTML=escItems.map(([n,d])=>barraCategoria(n,d.total,d.count,max)).join('');
-    }
-  }
-
-  // Historial
+  renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-escuelas',esc);
+  renderSeccion('rep-impresiones',imp);
+  renderSeccion('rep-marcos',marc);
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
-  const elHist=document.getElementById('rep-historial');
-  if(elHist) elHist.innerHTML=sorted.length?
+  const elH=document.getElementById('rep-historial');
+  if(elH)elH.innerHTML=sorted.length?
     '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
-    sorted.map(v=>`<tr>
-      <td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td>
-      <td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td>
-      <td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td>
-      <td style="color:#1D9E75;font-weight:600;">$${v.total}</td>
-    </tr>`).join('')+'</tbody></table>':
+    sorted.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+'</tbody></table>':
     '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
-}
-function mostrarTicket(v){
-  document.getElementById('ticket-content').innerHTML=`
-    <div class="tkt-hdr"><p>FotoEstudio</p><span>Fotografía profesional</span><br><span style="font-size:10px;color:#aaa;">- - - - - - - - - - - - - - -</span></div>
-    <div class="tkt-row tkt-bold"><span>Folio</span><span>${v.f}</span></div>
-    <div class="tkt-row"><span>Fecha</span><span>${v.fecha}</span></div>
-    <div class="tkt-row"><span>Hora</span><span>${v.hora}</span></div>
-    <hr class="tkt-div">
-    <div style="font-size:10px;color:#777;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Productos</div>
-    ${v.items.map(c=>`<div class="tkt-row"><span>${c.nombre}</span><span>$${c.precio}</span></div>`).join('')}
-    <div class="tkt-row tkt-total"><span>Total</span><span>$${v.total}</span></div>
-    <div class="tkt-row"><span>Pago recibido</span><span>$${v.pago.toFixed(0)}</span></div>
-    <div class="tkt-row tkt-bold"><span>Cambio</span><span>$${v.cambio.toFixed(0)}</span></div>
-    <hr class="tkt-div">
-    <div class="tkt-ftr">¡Gracias por su preferencia!<br>${v.f} · ${v.fecha}</div>`;
-  openM('m-ticket');
-}
-function imprimirTicket(){
-  const c=document.getElementById('ticket-content').innerHTML;
-  const w=window.open('','_blank','width=320,height=550');
-  w.document.write(`<!DOCTYPE html><html><head><title>Ticket</title><style>body{font-family:'Courier New',monospace;padding:16px;font-size:12px;color:#111;max-width:280px;}.tkt-row{display:flex;justify-content:space-between;padding:2px 0;}.tkt-bold{font-weight:700;}.tkt-total{border-top:2px solid #111;padding-top:6px;margin-top:4px;font-size:14px;font-weight:700;}.tkt-hdr{text-align:center;margin-bottom:12px;}.tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}.tkt-div{border:none;border-top:1px dashed #ccc;margin:8px 0;}</style></head><body>${c}<script>window.onload=function(){window.print();}<\/script></body></html>`);
-  w.document.close();
-}
-
-function abrirTurno(){
-  if(document.getElementById('cl-turno').value!==CLAVE){alert('Clave incorrecta');return;}
-  turnoAbierto=true;
-  const now=new Date();
-  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
-  document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
-  document.getElementById('turno-lock').style.display='none';
-  document.getElementById('turno-abierto').style.display='block';
-  recalcPapel();
-  regBit('Turno abierto','Epson:'+epsonBodega+' · TBarita:'+tbaritaBodega,'ok');
-}
-function cerrarTurno(){
-  const c=prompt('Ingresa la clave para cerrar el turno:');
-  if(c!==CLAVE){alert('Clave incorrecta');return;}
-  turnoAbierto=false;
-  document.getElementById('turno-lock').style.display='block';
-  document.getElementById('turno-abierto').style.display='none';
-  document.getElementById('cl-turno').value='';
-  regBit('Turno cerrado','Fin del día','ok');
-}
-function unlockPapel(){
-  if(document.getElementById('cl-papel').value!==CLAVE){alert('Clave incorrecta');return;}
-  document.getElementById('papel-lock').style.display='none';
-  document.getElementById('papel-cnt').style.display='block';
-  recalcPapel();
-}
-function unlockMarcos(){
-  if(document.getElementById('cl-marc').value!==CLAVE){alert('Clave incorrecta');return;}
-  marcosUnlocked=true;
-  document.getElementById('marc-lock').style.display='none';
-  rendMarcos();
-}
-function unlockVidrio(){
-  if(document.getElementById('cl-vid').value!==CLAVE){alert('Clave incorrecta');return;}
-  vidrioUnlocked=true;
-  document.getElementById('vid-lock').style.display='none';
-  rendVidrio();
 }
 
 function rendVisas(){
