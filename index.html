@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.3</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.4</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -675,10 +675,21 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
         <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
       </div>
-      <!-- Input calendario -->
-      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;">
-        <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)"
-          style="padding:8px 12px;border:1px solid #a0dcc8;border-radius:10px;font-size:14px;color:#111;background:#f0fbf6;width:100%;max-width:220px;">
+      <!-- Selector de fecha/mes -->
+      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;">
+        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Buscar por fecha</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label>
+            <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label>
+            <input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+        </div>
       </div>
       <div class="g2" style="margin-bottom:14px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
@@ -1224,6 +1235,32 @@ async function cargarReportesFecha(fecha){
   if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   try{
     const snap=await db.collection('ventas').where('fecha','==',fecha).get();
+    ventasFB=[];
+    snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){
+    console.error(e);
+    mostrarReportesLocal();
+  }
+}
+
+function cambiarPeriodoMes(mesISO){
+  if(!mesISO)return;
+  const [anio,mes]=mesISO.split('-');
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='mes_especifico';
+  const btn=document.querySelector('button[onclick="abrirCalendario()"]');
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  if(btn) btn.innerHTML=`<i class="ti ti-calendar"></i> ${meses[parseInt(mes)-1]} ${anio}`;
+  cargarReportesMes(parseInt(anio), parseInt(mes));
+}
+
+async function cargarReportesMes(anio, mes){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('year','==',anio).where('month','==',mes).get();
     ventasFB=[];
     snap.forEach(d=>ventasFB.push(d.data()));
     renderReportes();
@@ -1962,6 +1999,52 @@ async function guardarFirebase(){
 function autoGuardar(){
   guardarLocal();
   if(db) setTimeout(guardarFirebase, 500);
+}
+
+function mostrarTicket(venta){
+  if(!venta)return;
+  const lineas=venta.items.map(c=>{
+    const nom=c.nombre.substring(0,22).padEnd(22,' ');
+    const pre=('$'+c.precio).padStart(7,' ');
+    return nom+pre;
+  }).join('\n');
+  document.getElementById('ticket-content').innerHTML=`
+    <div style="text-align:center;margin-bottom:10px;">
+      <strong style="font-size:15px;">📸 Foto Bernal</strong><br>
+      <span style="font-size:11px;">Ocampo 407, Chihuahua, Chih.</span><br>
+      <span style="font-size:11px;">Tel 614 4 15 42 42</span>
+    </div>
+    <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin:6px 0;font-size:11px;">
+      Folio: <strong>${venta.f}</strong><br>
+      Fecha: ${venta.fecha} ${venta.hora}
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:11px;white-space:pre;">${lineas}</div>
+    <div style="border-top:1px dashed #ccc;margin:6px 0;padding-top:6px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;">
+        <span>TOTAL</span><span>$${venta.total}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:3px;">
+        <span>Pagó</span><span>$${venta.pago}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">
+        <span>Cambio</span><span>$${venta.cambio}</span>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:#888;margin-top:8px;">¡Gracias por su preferencia!</div>
+  `;
+  openM('m-ticket');
+}
+
+function imprimirTicket(){
+  const contenido=document.getElementById('ticket-content').innerHTML;
+  const win=window.open('','_blank','width=320,height=500');
+  win.document.write(`<html><head><style>
+    body{font-family:'Courier New',monospace;font-size:12px;margin:10px;}
+    @media print{button{display:none;}}
+  </style></head><body>${contenido}<br><button onclick="window.print()">Imprimir</button></body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(),300);
 }
 
 // ============================================================
