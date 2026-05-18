@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.6</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.7</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -925,7 +925,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
 <script>
 const CLAVE='8888';
-let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
+let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
+// Load folioNum from localStorage to avoid reusing folios
+let folioNum=1;
+try{const fn=localStorage.getItem('folioNum');if(fn)folioNum=parseInt(fn)||1;}catch(e){}
 let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
 let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
 let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
@@ -1120,7 +1123,10 @@ function calcCambio(){
 function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
+  // Use timestamp-based folio to avoid collisions across devices
   const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
+  // Save folioNum immediately to localStorage
+  try{localStorage.setItem('folioNum',folioNum);}catch(e){}
   const now=new Date();
   const dia=String(now.getDate()).padStart(2,'0');
   const mes=String(now.getMonth()+1).padStart(2,'0');
@@ -1148,7 +1154,12 @@ function cobrar(){
       // Escuelas vendidas en esta venta
       escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))
     };
-    db.collection('ventas').doc(f).set(ventaData).catch(e=>console.error('Error guardando venta:',e));
+    db.collection('ventas').doc(f).set(ventaData)
+      .then(()=>setDriveStatus(true,'Venta guardada ✓'))
+      .catch(e=>{
+        console.error('Error guardando venta:',e);
+        setDriveStatus(false,'Error al guardar venta');
+      });
   }
   carrito=[];document.getElementById('pago').value='';renderCarrito();
   guardarLocal(); // Guardar ventas del día en localStorage
@@ -1930,6 +1941,14 @@ function iniciarFirebase(){
     rendCatsDinamicas();
     categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
     guardarLocal();
+    // Sync folioNum with Firebase to avoid duplicate folios across devices
+    db.collection('ventas').get().then(snap=>{
+      const maxFolio=snap.size+1;
+      if(maxFolio>folioNum){
+        folioNum=maxFolio;
+        try{localStorage.setItem('folioNum',folioNum);}catch(e){}
+      }
+    }).catch(()=>{});
     setDriveStatus(true,'Datos cargados ✓');
     if(!precDoc.exists) guardarFirebase();
   }).catch(e=>{
