@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.4</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.6</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -668,9 +668,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
         <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
           <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
-          <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
           <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
-          <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
           <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
         </div>
         <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
@@ -1124,7 +1122,9 @@ function cobrar(){
   const pago=parseFloat(document.getElementById('pago').value)||0;
   const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
   const now=new Date();
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dia=String(now.getDate()).padStart(2,'0');
+  const mes=String(now.getMonth()+1).padStart(2,'0');
+  const fecha=dia+'/'+mes+'/'+now.getFullYear();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
@@ -1151,6 +1151,7 @@ function cobrar(){
     db.collection('ventas').doc(f).set(ventaData).catch(e=>console.error('Error guardando venta:',e));
   }
   carrito=[];document.getElementById('pago').value='';renderCarrito();
+  guardarLocal(); // Guardar ventas del día en localStorage
   mostrarTicket(ultimaVenta);
 }
 function regConsumo(tipo){
@@ -1270,7 +1271,13 @@ async function cargarReportesMes(anio, mes){
   }
 }
 
-function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function getFechaStr(d){
+  // Always produce DD/MM/YYYY format regardless of browser locale
+  const dia=String(d.getDate()).padStart(2,'0');
+  const mes=String(d.getMonth()+1).padStart(2,'0');
+  const anio=d.getFullYear();
+  return dia+'/'+mes+'/'+anio;
+}
 
 async function cargarReportes(){
   if(!db){mostrarReportesLocal();return;}
@@ -1281,25 +1288,19 @@ async function cargarReportes(){
     let snap;
     if(periodoActual==='hoy'){
       snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else if(periodoActual==='ayer'){
-      const ay=new Date(now);ay.setDate(ay.getDate()-1);
-      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ay)).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+      ventasFB=[];
+      snap.forEach(d=>ventasFB.push(d.data()));
     } else if(periodoActual==='semana'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
       ventasFB=[];
       const h7=new Date(now);h7.setDate(h7.getDate()-7);
       snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
-    } else if(periodoActual==='mes'){
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else {
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
       ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     }
     renderReportes();
-  }catch(e){console.error(e);mostrarReportesLocal();}
+  }catch(e){console.error('Error reportes:',e);mostrarReportesLocal();}
 }
 
 function mostrarReportesLocal(){
