@@ -1671,14 +1671,28 @@ function agregarProd(){
   const desc=document.getElementById('ap-desc').value.trim();
   const precio=parseInt(document.getElementById('ap-precio').value)||0;
   if(!nombre)return;
-  const tipoMap={infantil6:'infantil6',infantil9:'infantil9',cred4:'cred4',cred6:'cred6',cartilla:'cartilla',digital:'digital'};
-  const catMap={infantil6:'infantil',cred4:'credencial',cartilla:'cartilla',digital:'digital'};
+
+  // Categoría dinámica (militares, etc.)
+  const dynCat=categoriasDinamicas.find(c=>c.id===cat);
+  if(dynCat){
+    dynCat.productos.push({nombre,desc,precio,tipo:'otro'});
+    rendCatProds(cat);
+    closeM('m-add-prod');
+    ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+    autoGuardar();
+    return;
+  }
+
+  // Categorías fijas
+  const catMap={infantil6:'infantil',infantil9:'infantil',cred4:'credencial',cred6:'credencial',cartilla:'cartilla',digital:'digital'};
   const finalCat=catMap[cat]||cat;
-  productos[finalCat].push({nombre,desc,precio,tipo:cat});autoGuardar();
+  if(!productos[finalCat]){closeM('m-add-prod');return;}
+  productos[finalCat].push({nombre,desc,precio,tipo:cat});
   const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
   rendProds(finalCat,gridMap[finalCat]);
   closeM('m-add-prod');
   ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+  autoGuardar();
 }
 function editarImp(i){
   document.getElementById('ei-sz').textContent=impresiones[i].sz+'"';
