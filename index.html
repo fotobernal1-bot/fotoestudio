@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.0</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.2</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -665,13 +665,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     <div id="page-reportes" class="page">
       <p class="ptitle">Reportes</p>
       <p class="psub">Historial permanente de ventas</p>
-      <div class="tabs" style="margin-bottom:16px;" id="rep-tabs">
-        <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
-        <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
-        <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
-        <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
-        <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
+          <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+          <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
+          <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+          <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
+          <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+        </div>
+        <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
       </div>
+      <!-- Input calendario oculto -->
+      <input type="date" id="rep-fecha-cal" style="display:none;" onchange="cambiarPeriodoFecha(this.value)">
       <div class="g2" style="margin-bottom:14px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
           <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
@@ -1182,6 +1187,44 @@ function cambiarPeriodo(p,el){
   cargarReportes();
 }
 
+function abrirCalendario(){
+  const inp=document.getElementById('rep-fecha-cal');
+  // Set max to today
+  const hoy=new Date();
+  inp.max=hoy.toISOString().split('T')[0];
+  inp.click();
+}
+
+function cambiarPeriodoFecha(fechaISO){
+  if(!fechaISO)return;
+  // Convert YYYY-MM-DD to DD/MM/YYYY for Firebase query
+  const [anio,mes,dia]=fechaISO.split('-');
+  const fechaMX=`${dia}/${mes}/${anio}`;
+  // Deactivate all tabs
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='fecha';
+  // Show selected date on button
+  const btn=document.querySelector('button[onclick="abrirCalendario()"]');
+  if(btn) btn.innerHTML=`<i class="ti ti-calendar"></i> ${dia}/${mes}`;
+  // Load that specific date
+  cargarReportesFecha(fechaMX);
+}
+
+async function cargarReportesFecha(fecha){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('fecha','==',fecha).get();
+    ventasFB=[];
+    snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){
+    console.error(e);
+    mostrarReportesLocal();
+  }
+}
+
 function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
 
 async function cargarReportes(){
@@ -1248,9 +1291,10 @@ function renderReportes(){
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
       const precio=item.precio||0;
-      const n=catN[tipo]||item.nombre||tipo;
+      // Usar el nombre exacto del producto para máximo detalle
+      const n=item.nombre||catN[tipo]||tipo;
       const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
-      if(tipo==='escuela')add(esc,item.nombre||'Escuela');
+      if(tipo==='escuela')add(esc,n);
       else if(tipo==='impresion')add(imp,n);
       else if(tipo==='marco')add(marc,n);
       else add(urg,n);
