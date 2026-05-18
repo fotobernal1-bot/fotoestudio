@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.7</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.8</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -1333,8 +1333,9 @@ function renderSeccion(id,mapa){
 }
 
 function renderReportes(){
-  const total=ventasFB.reduce((s,v)=>s+v.total,0);
-  const num=ventasFB.length;
+  const ventasActivas=ventasFB.filter(v=>!v.cancelada);
+  const total=ventasActivas.reduce((s,v)=>s+v.total,0);
+  const num=ventasActivas.length;
   const prom=num?Math.round(total/num):0;
   const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
@@ -1344,7 +1345,7 @@ function renderReportes(){
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
   const urg={},esc={},imp={},marc={};
   const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
-  ventasFB.forEach(v=>{
+  ventasFB.filter(v=>!v.cancelada).forEach(v=>{
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
       const precio=item.precio||0;
@@ -2019,6 +2020,28 @@ async function guardarFirebase(){
 function autoGuardar(){
   guardarLocal();
   if(db) setTimeout(guardarFirebase, 500);
+}
+
+async function cancelarVenta(folio){
+  if(!folio)return;
+  const clave=prompt('Clave para cancelar venta '+folio+':');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Cancelar venta '+folio+'?\nEsta acción quedará registrada en el historial.'))return;
+  if(!db){alert('Sin conexión a Firebase');return;}
+  try{
+    setDriveStatus(true,'Cancelando...');
+    await db.collection('ventas').doc(folio).update({
+      cancelada: true,
+      fechaCancelacion: new Date().toISOString(),
+      canceladaPor: 'usuario'
+    });
+    setDriveStatus(true,'Venta cancelada ✓');
+    // Reload reports
+    setTimeout(cargarReportes, 500);
+  }catch(e){
+    console.error(e);
+    setDriveStatus(false,'Error al cancelar');
+  }
 }
 
 function mostrarTicket(venta){
