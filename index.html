@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.8</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.9</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -1366,7 +1366,20 @@ function renderReportes(){
   const elH=document.getElementById('rep-historial');
   if(elH)elH.innerHTML=sorted.length?
     '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
-    sorted.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+'</tbody></table>':
+    sorted.map(v=>{
+      const cancelada=v.cancelada===true;
+      const rowStyle=cancelada?'opacity:0.5;background:#fff5f5;':'';
+      const totalStyle=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';
+      const badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 5px;border-radius:4px;margin-left:4px;">✕</span>':'';
+      const btnCancelar=!cancelada?`<button onclick="cancelarVenta('${v.folio||''}')" style="background:transparent;border:1px solid #eee;border-radius:6px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;" title="Cancelar venta">✕</button>`:'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';
+      return `<tr style="${rowStyle}">
+        <td style="font-weight:600;font-size:11px;${cancelada?'color:#A32D2D;':'color:#1D9E75;'}">${v.folio||'—'}${badge}</td>
+        <td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td>
+        <td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td>
+        <td style="${totalStyle}">$${v.total}</td>
+        <td style="text-align:right;">${btnCancelar}</td>
+      </tr>`;
+    }).join('')+'</tbody></table>':
     '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
 }
 
