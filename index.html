@@ -495,7 +495,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v1.9</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -1394,6 +1394,7 @@ function renderEscGrid(lista){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
           <button class="bsm" onclick="add('Paquete ${e.n}',${parseInt(e.p.replace('$',''))||0},'escuela')"><i class="ti ti-shopping-cart"></i> Agregar</button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
+            <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
         </div>
       </div>
     </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
