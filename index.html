@@ -497,7 +497,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.2</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.5</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -869,6 +869,343 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     </div>
 
   </div>
+
+    <!-- ORDINARIAS -->
+    <div id="page-ordinarias" class="page">
+      <p class="ptitle">Ordinarias</p>
+      <p class="psub">Toca un producto para agregar al carrito</p>
+
+      <!-- Tabs igual que urgentes -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="ord-tabs">
+          <div class="tab active" onclick="showOrdTab('esc',this)">Paquetes escolares</div>
+          <div class="tab" onclick="showOrdTab('imp',this)">Impresiones</div>
+        </div>
+        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat-ord')"><i class="ti ti-plus"></i> Nueva</button>
+      </div>
+
+      <!-- Paquetes escolares -->
+      <div id="ord-esc" class="ord-sec">
+        <div class="hrow"><div><p class="slabel" style="margin:0;">Paquetes escolares</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
+        <div style="position:relative;margin-bottom:12px;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+          <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+        </div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
+        <div class="esc-grid" id="esc-grid"></div>
+      </div>
+
+      <!-- Impresiones -->
+      <div id="ord-imp" class="ord-sec" style="display:none;">
+        <div class="hrow"><p class="slabel" style="margin:0;">Impresiones fotográficas</p><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="g2" id="imp-grid"></div>
+      </div>
+
+      <!-- Categorías dinámicas ordinarias -->
+      <div id="ord-cats-dinamicas"></div>
+    </div>
+
+    <!-- MARCOS VENTA -->
+    <div id="page-marcos-venta" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
+      </div>
+      <div class="esc-grid" id="marcos-venta-grid"></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p>
+      <p class="psub">Historial permanente de ventas</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
+          <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+          <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+          <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+        </div>
+        <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
+      </div>
+      <!-- Selector de fecha/mes -->
+      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;">
+        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Buscar por fecha</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label>
+            <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label>
+            <input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
+          <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-periodo">—</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
+          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+        </div>
+      </div>
+      <p class="slabel">Urgentes</p>
+      <div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <p class="slabel">Paquetes escolares</p>
+      <div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <p class="slabel">Impresiones</p>
+      <div id="rep-impresiones" style="margin-bottom:14px;"></div>
+      <p class="slabel">Marcos</p>
+      <div id="rep-marcos" style="margin-bottom:14px;"></div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
+        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
+        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
+        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
+      </div>
+      <p class="slabel">Infantil</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-inf6">0</div></div>
+        <div class="stat"><div class="sl">Color 9 fotos</div><div class="sv" id="r-inf9">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-inf6bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 9 fotos</div><div class="sv" id="r-inf9bn">0</div></div>
+      </div>
+      <p class="slabel">Credencial</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 4 fotos</div><div class="sv" id="r-cred4">0</div></div>
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-cred6">0</div></div>
+        <div class="stat"><div class="sl">B/N 4 fotos</div><div class="sv" id="r-cred4bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-cred6bn">0</div></div>
+      </div>
+      <div class="g4" style="margin-bottom:14px;">
+        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
+        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
+        <div class="stat"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
+        <div class="stat"><div class="sl">Total infantil</div><div class="sv" id="r-inf">0</div></div>
+      </div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
+    </div>
+
+  </div>
+
 
   <!-- CARRITO LATERAL -->
   <div class="cart-panel">
@@ -2561,42 +2898,7 @@ rendProds('digital','dig-grid');
 </div></div>
 
 </body>
-</html>    <!-- ORDINARIAS -->
-    <div id="page-ordinarias" class="page">
-      <p class="ptitle">Ordinarias</p>
-      <p class="psub">Entregas para después — toca para agregar al carrito</p>
-
-      <!-- Tabs -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;">
-        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="ord-tabs">
-          <div class="tab active" onclick="showOrdTab('esc',this)">Paquetes escolares</div>
-          <div class="tab" onclick="showOrdTab('imp',this)">Impresiones</div>
-        </div>
-        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat-ord')" title="Nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
-      </div>
-
-      <!-- Paquetes escolares -->
-      <div id="ord-esc" class="ord-sec">
-        <div class="hrow"><div><p class="ptitle" style="font-size:14px;margin-bottom:2px;">Paquetes escolares</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
-        <div style="position:relative;margin-bottom:12px;">
-          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
-          <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
-        </div>
-        <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
-        <div class="esc-grid" id="esc-grid"></div>
-      </div>
-
-      <!-- Impresiones -->
-      <div id="ord-imp" class="ord-sec" style="display:none;">
-        <div class="hrow"><p class="slabel" style="margin:0;">Impresiones fotográficas</p><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div class="g2" id="imp-grid"></div>
-      </div>
-
-      <!-- Categorías ordinarias dinámicas -->
-      <div id="ord-cats-dinamicas"></div>
-    </div>
-
-    <!-- MARCOS VENTA -->
+</html>    <!-- MARCOS VENTA -->
     <div id="page-marcos-venta" class="page">
       <div class="hrow">
         <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
@@ -2897,19 +3199,7 @@ rendProds('digital','dig-grid');
 
   </div>
 
-  <!-- CARRITO LATERAL -->
-  <div class="cart-panel">
-    <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
-    <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
-    <div class="cart-ftr">
-      <div class="trow big"><span>Total</span><span id="cart-total">$0</span></div>
-      <p class="pago-lbl">¿Con cuánto paga?</p>
-      <input class="pago-inp" type="number" id="pago" placeholder="0" min="0" oninput="calcCambio()">
-      <div class="cambio-row" id="cambio-row"><span>Cambio</span><strong id="cambio-val">$0</strong></div>
-      <button class="bcobrar" id="btn-cobrar" onclick="cobrar()" disabled><i class="ti ti-check"></i> Cobrar</button>
-      <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
-    </div>
-  </div>
+
 </div>
 
 <!-- LIGHTBOX -->
