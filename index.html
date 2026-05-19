@@ -200,7 +200,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <div class="app">
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.8</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.9</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -262,7 +262,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
         <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat-ord')"><i class="ti ti-plus"></i> Nueva</button>
       </div>
-      <div id="ord-esc">
+      <div id="ord-esc" class="ord-sec">
         <div class="hrow"><p class="slabel" style="margin:0;">Paquetes escolares</p><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
         <div style="position:relative;margin-bottom:12px;">
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
@@ -271,7 +271,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
         <div class="esc-grid" id="esc-grid"></div>
       </div>
-      <div id="ord-imp" style="display:none;">
+      <div id="ord-imp" class="ord-sec" style="display:none;">
         <div class="hrow"><p class="slabel" style="margin:0;">Impresiones fotográficas</p><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar</button></div>
         <div class="g2" id="imp-grid"></div>
       </div>
