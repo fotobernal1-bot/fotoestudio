@@ -200,7 +200,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <div class="app">
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v4.0</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v4.3</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -529,7 +529,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
 <script>
 const CLAVE='8888';
-let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
+let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
+let folioNum=1; // Will be synced from Firebase on load
 let cnt={infantil6:0,infantil9:0,cred4:0,cred6:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
 let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
 let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
@@ -606,23 +607,73 @@ function calcCambio(){
 function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
-  const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
+  if(total<=0)return;
   const now=new Date();
-  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
+  const dia=String(now.getDate()).padStart(2,'0');
+  const mes=String(now.getMonth()+1).padStart(2,'0');
+  const fecha=dia+'/'+mes+'/'+now.getFullYear();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
-  ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
-  ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
-  // Save to Firebase
-  if(db){
-    const ventaData={folio:f,fecha:fecha,hora:hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:total,pago:pago,cambio:pago-total,escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))};
-    db.collection('ventas').doc(f).set(ventaData).then(()=>setDriveStatus(true,'Venta guardada ✓')).catch(e=>console.error(e));
+
+  // Separar urgentes y ordinarios
+  const tiposOrdinarios=['escuela','impresion','ordinaria'];
+  const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
+  const itemsO=items.filter(c=>tiposOrdinarios.includes(c.tipo));
+
+  const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
+  const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
+
+  // Calcular cambio proporcional
+  const cambioU=itemsU.length&&itemsO.length ? 0 : (itemsU.length ? pago-totalU : 0);
+  const cambioO=itemsO.length ? pago-totalO : 0;
+
+  const tickets=[];
+
+  if(itemsU.length>0){
+    const fU='FU-'+String(folioNum).padStart(4,'0');folioNum++;
+    const ventaU={folio:fU,tipo:'urgente',fecha,hora,
+      timestamp:now.toISOString(),year:now.getFullYear(),
+      month:now.getMonth()+1,dia:now.getDate(),
+      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:totalU,pago:itemsO.length?totalU:pago,cambio:cambioU,
+      escuelas:[]};
+    ventas.push({f:fU,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
+    if(db) db.collection('ventas').doc(fU).set(ventaU)
+      .then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
+    tickets.push({f:fU,fecha,hora,items:itemsU,total:totalU,
+      pago:itemsO.length?totalU:pago,cambio:cambioU});
   }
+
+  if(itemsO.length>0){
+    const fO='FO-'+String(folioNum).padStart(4,'0');folioNum++;
+    const ventaO={folio:fO,tipo:'ordinario',fecha,hora,
+      timestamp:now.toISOString(),year:now.getFullYear(),
+      month:now.getMonth()+1,dia:now.getDate(),
+      items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:totalO,pago:itemsU.length?totalO:pago,cambio:cambioO,
+      escuelas:itemsO.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))};
+    ventas.push({f:fO,desc:itemsO.map(c=>c.nombre).join(', '),total:totalO});
+    if(db) db.collection('ventas').doc(fO).set(ventaO)
+      .then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
+    tickets.push({f:fO,fecha,hora,items:itemsO,total:totalO,
+      pago:itemsU.length?totalO:pago,cambio:cambioO});
+    // Auto-crear pedido para ordinarios
+    setTimeout(()=>{
+      const desc=itemsO.map(c=>c.nombre).join(', ');
+      abrirNuevoPedido(desc,totalO);
+    },800);
+  }
+
   totalDia+=total;updReportes();rendHist();
   carrito=[];document.getElementById('pago').value='';renderCarrito();
-  mostrarTicket(ultimaVenta);
+
+  // Mostrar tickets
+  ultimaVenta=tickets[0];
+  mostrarTicket(tickets[0],tickets[1]);
 }
+
+
 function regConsumo(tipo){
   let desc='',imp='';
   if(tipo==='infantil6'){cons.inf6++;desc='Infantil 6f vendido';imp='-¼ pieza 11x28';}
@@ -675,22 +726,48 @@ function rendHist(){
     });
   },100);
 }
-function mostrarTicket(v){
-  document.getElementById('ticket-content').innerHTML=`
-    <div class="tkt-hdr"><p>FotoEstudio</p><span>Fotografía profesional</span><br><span style="font-size:10px;color:#aaa;">- - - - - - - - - - - - - - -</span></div>
-    <div class="tkt-row tkt-bold"><span>Folio</span><span>${v.f}</span></div>
-    <div class="tkt-row"><span>Fecha</span><span>${v.fecha}</span></div>
-    <div class="tkt-row"><span>Hora</span><span>${v.hora}</span></div>
-    <hr class="tkt-div">
-    <div style="font-size:10px;color:#777;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Productos</div>
-    ${v.items.map(c=>`<div class="tkt-row"><span>${c.nombre}</span><span>$${c.precio}</span></div>`).join('')}
-    <div class="tkt-row tkt-total"><span>Total</span><span>$${v.total}</span></div>
-    <div class="tkt-row"><span>Pago recibido</span><span>$${v.pago.toFixed(0)}</span></div>
-    <div class="tkt-row tkt-bold"><span>Cambio</span><span>$${v.cambio.toFixed(0)}</span></div>
-    <hr class="tkt-div">
-    <div class="tkt-ftr">¡Gracias por su preferencia!<br>${v.f} · ${v.fecha}</div>`;
+function mostrarTicket(v1, v2){
+  if(!v1)return;
+  function ticketHtml(v){
+    const badge=v.f.startsWith('FU')?
+      '<span style="background:#E1F5EE;color:#085041;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">URGENTE</span>':
+      '<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">ORDINARIO</span>';
+    const lineas=v.items.map(c=>{
+      const nom=(c.nombre||'').substring(0,22).padEnd(22,' ');
+      const pre=('$'+c.precio).padStart(7,' ');
+      return nom+pre;
+    }).join('\n');
+    return `<div style="font-family:'Courier New',monospace;background:white;border:1px dashed #ccc;border-radius:8px;padding:16px;margin-bottom:${v2?'12px':'0'};">
+      <div style="text-align:center;margin-bottom:10px;">
+        <strong style="font-size:15px;">📸 Foto Bernal</strong><br>
+        <span style="font-size:11px;">Ocampo 407, Chihuahua, Chih.</span><br>
+        <span style="font-size:11px;">Tel 614 4 15 42 42</span>
+      </div>
+      <div style="text-align:center;margin-bottom:8px;">${badge}</div>
+      <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin:6px 0;font-size:11px;">
+        Folio: <strong>${v.f}</strong><br>
+        Fecha: ${v.fecha} ${v.hora}
+      </div>
+      <div style="font-size:11px;white-space:pre;">${lineas}</div>
+      <div style="border-top:1px dashed #ccc;margin:6px 0;padding-top:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;">
+          <span>TOTAL</span><span>$${v.total}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:3px;">
+          <span>Pagó</span><span>$${v.pago}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">
+          <span>Cambio</span><span>$${v.cambio}</span>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:#888;margin-top:8px;">¡Gracias por su preferencia!</div>
+    </div>`;
+  }
+  document.getElementById('ticket-content').innerHTML=ticketHtml(v1)+(v2?ticketHtml(v2):'');
   openM('m-ticket');
 }
+
+
 function imprimirTicket(){
   const c=document.getElementById('ticket-content').innerHTML;
   const w=window.open('','_blank','width=320,height=550');
@@ -1145,7 +1222,21 @@ function iniciarFirebase(){
       rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
       rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
       guardarLocal();
+      // Sync folioNum from Firebase
+    if(db){
+      db.collection('ventas').get().then(snap=>{
+        let maxNum=0;
+        snap.forEach(doc=>{
+          // Handle FU-0001, FO-0001, FS-0001 formats
+          const num=parseInt(doc.id.replace(/^[A-Z]+-/,''))||0;
+          if(num>maxNum) maxNum=num;
+        });
+        folioNum=maxNum+1;
+        setDriveStatus(true,'Datos cargados ✓');
+      }).catch(()=>{setDriveStatus(true,'Datos cargados ✓');});
+    } else {
       setDriveStatus(true,'Datos cargados ✓');
+    }
     } else {
       // Primera vez — subir datos locales
       guardarFirebase();
