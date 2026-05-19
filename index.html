@@ -490,19 +490,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   .nav { padding: 8px 10px; font-size: 9px; min-width: 52px; }
   .nav i { font-size: 18px; }
 }
+
+.ord-sec { display: block; }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.9</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.2</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
     </div>
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
-    <div class="nav" onclick="showPage('escuelas',this)"><i class="ti ti-school"></i> Paquetes escolares</div>
-    <div class="nav" onclick="showPage('impresiones',this)"><i class="ti ti-printer"></i> Impresiones</div>
+    <div class="nav" onclick="showPage('ordinarias',this)"><i class="ti ti-clock"></i> Ordinarias</div>
     <div class="nav" onclick="showPage('marcos-venta',this)"><i class="ti ti-frame"></i> Marcos</div>
     <div class="nav-sep"></div>
     <div class="nav" onclick="showPage('inventario',this)"><i class="ti ti-package"></i> Inventario</div>
@@ -574,6 +575,25 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
       </div>
       <div class="esc-grid" id="marcos-venta-grid"></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
     </div>
 
     <!-- INVENTARIO -->
@@ -709,6 +729,25 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div id="rep-marcos" style="margin-bottom:14px;"></div>
       <p class="slabel">Historial de ventas</p>
       <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
     </div>
 
     <!-- INVENTARIO -->
@@ -864,6 +903,38 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCat()">Crear</button></div>
 </div></div>
 
+<div class="modal-ov" id="m-nueva-cat-ord"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Ordinarias</p>
+  <div class="frow"><label>Nombre de la categoría</label><input type="text" id="nco-nombre" placeholder="Ej: Restauraciones, Lienzos, etc."></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat-ord')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCatOrd()">Crear</button></div>
+</div></div>
+
+<!-- MODAL NUEVO PEDIDO -->
+<div class="modal-ov" id="m-pedido-nuevo"><div class="modal-box">
+  <p class="modal-t" id="mp-titulo">Nuevo pedido</p>
+  <div class="frow"><label>Nombre del cliente</label><input type="text" id="mp-cliente" placeholder="Nombre de quien dejó el pedido"></div>
+  <div class="frow"><label>Descripción</label><textarea id="mp-desc" rows="2" placeholder="Qué pidió, especificaciones..." style="resize:none;width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:8px;font-size:13px;"></textarea></div>
+  <div class="frow"><label>Notas especiales</label><input type="text" id="mp-notas" placeholder="Foto por BT, correo, restauración..."></div>
+  <div class="g2">
+    <div class="frow"><label>Total ($)</label><input type="number" id="mp-total" placeholder="0" oninput="calcResta()"></div>
+    <div class="frow"><label>Anticipo ($)</label><input type="number" id="mp-pagado" placeholder="0" oninput="calcResta()"></div>
+  </div>
+  <div style="background:#f0fbf6;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:12px;color:#666;">Resta por cobrar:</span>
+    <span style="font-size:16px;font-weight:700;color:#1D9E75;" id="mp-resta">$0</span>
+  </div>
+  <div class="frow"><label>Fecha de entrega</label><input type="date" id="mp-fecha"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <input type="checkbox" id="mp-urgente" style="width:16px;height:16px;">
+    <label for="mp-urgente" style="font-size:13px;cursor:pointer;">⚡ Marcar como urgente (1 hora)</label>
+  </div>
+  <input type="hidden" id="mp-id">
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-pedido-nuevo')">Cancelar</button>
+    <button class="btn bgreen" onclick="guardarPedido()">Guardar pedido</button>
+  </div>
+</div></div>
+
 <div class="modal-ov" id="m-visa"><div class="modal-box"><p class="modal-t">Nueva visa / pasaporte</p>
   <div class="frow"><label>País o tipo de visa</label><input type="text" id="v-n" placeholder="Ej: Visa USA, Pasaporte China"></div>
   <div class="frow"><label>Precio</label><input type="text" id="v-p" placeholder="$200"></div>
@@ -959,6 +1030,115 @@ function agregarTabDinamica(id, nombre){
   tab.textContent = nombre;
   tab.onclick = function(){ showT(id, this); };
   tabs.appendChild(tab);
+}
+
+function showOrdTab(id, el){
+  document.querySelectorAll('#ord-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.ord-sec').forEach(s=>s.style.display='none');
+  const target = document.getElementById('ord-'+id);
+  if(target) target.style.display='block';
+}
+
+// Dynamic categories for Ordinarias
+let catsDinamicasOrd = [];
+
+function guardarNuevaCatOrd(){
+  const nombre = document.getElementById('nco-nombre').value.trim();
+  if(!nombre) return;
+  const id = 'cord_'+Date.now();
+  catsDinamicasOrd.push({id, nombre, productos:[]});
+  closeM('m-nueva-cat-ord');
+  document.getElementById('nco-nombre').value='';
+  rendCatsOrd();
+  agregarTabOrd(id, nombre);
+  autoGuardar();
+}
+
+function agregarTabOrd(id, nombre){
+  const tabs = document.getElementById('ord-tabs');
+  if(!tabs || document.getElementById('tab-ord-'+id)) return;
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-ord-'+id;
+  tab.textContent = nombre;
+  tab.onclick = function(){ showOrdTab(id, this); };
+  tabs.appendChild(tab);
+}
+
+function rendCatsOrd(){
+  const cont = document.getElementById('ord-cats-dinamicas');
+  if(!cont) return;
+  cont.innerHTML = catsDinamicasOrd.map(cat=>`
+    <div id="ord-${cat.id}" class="ord-sec" style="display:none;">
+      <div class="hrow">
+        <p class="slabel" style="margin:0;">${cat.nombre}</p>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
+          <button class="btn" style="font-size:10px;padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #f5c0c0;" onclick="eliminarCatOrd('${cat.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div id="grid-ord-${cat.id}" class="g2"></div>
+    </div>
+  `).join('');
+  catsDinamicasOrd.forEach(cat => rendCatOrdProds(cat.id));
+}
+
+function rendCatOrdProds(catId){
+  const cat = catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat) return;
+  const grid = document.getElementById('grid-ord-'+catId);
+  if(!grid) return;
+  if(!cat.productos.length){
+    grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
+    return;
+  }
+  grid.innerHTML = cat.productos.map((p,i)=>{
+    return `<div class="foto-card" style="position:relative;">
+      <div onclick="add('${p.nombre}',${p.precio||0},'ordinaria')" style="cursor:pointer;">
+        <div class="fc-n">${p.nombre}</div>
+        <div class="fc-l">${p.desc||''}</div>
+        <div class="fc-p">$${p.precio}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatOrdProd('${catId}',${i})"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatOrdProd('${catId}',${i})"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function eliminarCatOrd(catId){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.nombre+'"?'))return;
+  catsDinamicasOrd=catsDinamicasOrd.filter(c=>c.id!==catId);
+  const tab=document.getElementById('tab-ord-'+catId);
+  if(tab)tab.remove();
+  rendCatsOrd();
+  autoGuardar();
+}
+
+function editarCatOrdProd(catId, i){
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('ep-nombre').value=cat.productos[i].nombre;
+  document.getElementById('ep-desc').value=cat.productos[i].desc||'';
+  document.getElementById('ep-precio').value=cat.productos[i].precio;
+  document.getElementById('ep-cat').value=catId;
+  document.getElementById('ep-idx').value=i;
+  openM('m-prod-edit');
+}
+
+function eliminarCatOrdProd(catId, i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
+  cat.productos.splice(i,1);
+  rendCatOrdProds(catId);
+  autoGuardar();
 }
 
 function rendCatsDinamicas(){
@@ -1084,6 +1264,7 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
   if(id==='reportes')setTimeout(cargarReportes,300);
+  if(id==='pedidos'){rendPedidos();cargarPedidosFB();}
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -1136,6 +1317,15 @@ function cobrar(){
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
   ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
   ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
+  // Auto-crear pedido para escuelas e impresiones
+  const itemsOrdinarios=items.filter(c=>c.tipo==='escuela'||c.tipo==='impresion');
+  if(itemsOrdinarios.length>0){
+    setTimeout(()=>{
+      const desc=itemsOrdinarios.map(c=>c.nombre).join(', ');
+      const totalOrd=itemsOrdinarios.reduce((s,c)=>s+c.precio,0);
+      abrirNuevoPedido(desc, totalOrd);
+    }, 800);
+  }
   totalDia+=total;updReportes();rendHist();
   // Guardar venta en Firebase permanentemente
   if(db){
@@ -1802,11 +1992,21 @@ function agregarProd(){
   const precio=parseInt(document.getElementById('ap-precio').value)||0;
   if(!nombre)return;
 
-  // Categoría dinámica (militares, etc.)
+  // Categoría dinámica urgentes
   const dynCat=categoriasDinamicas.find(c=>c.id===cat);
   if(dynCat){
     dynCat.productos.push({nombre,desc,precio,tipo:'otro'});
     rendCatProds(cat);
+    closeM('m-add-prod');
+    ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+    autoGuardar();
+    return;
+  }
+  // Categoría dinámica ordinarias
+  const dynCatOrd=catsDinamicasOrd.find(c=>c.id===cat);
+  if(dynCatOrd){
+    dynCatOrd.productos.push({nombre,desc,precio,tipo:'ordinaria'});
+    rendCatOrdProds(cat);
     closeM('m-add-prod');
     ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
     autoGuardar();
@@ -1847,7 +2047,2034 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,ventasDia:ventas,folioNum};
+    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,catsDinamicasOrd,ventasDia:ventas,folioNum,pedidos};
+    localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
+  } catch(e){}
+}
+function cargarLocal(){
+  try{
+    const raw = localStorage.getItem('fotoestudio_datos');
+    if(!raw) return false;
+    const datos = JSON.parse(raw);
+    if(datos.visas) visas=datos.visas;
+    if(datos.escuelas) escuelas=datos.escuelas;
+    if(datos.impresiones) impresiones=datos.impresiones;
+    if(datos.marcos) marcos=datos.marcos;
+    if(datos.vidrios) vidrios=datos.vidrios;
+    if(datos.productos) productos=datos.productos;
+    if(datos.epsonBodega) epsonBodega=datos.epsonBodega;
+    if(datos.tbaritaBodega) tbaritaBodega=datos.tbaritaBodega;
+    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();rendMarcosVenta();
+    rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
+    rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    return true;
+  } catch(e){ return false; }
+}
+
+// ============================================================
+// FIREBASE SYNC
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDrc9B_GIho2WOgsCTloTFBap--f9mWT2k",
+  authDomain: "fotoestudio-app-642d4.firebaseapp.com",
+  projectId: "fotoestudio-app-642d4",
+  storageBucket: "fotoestudio-app-642d4.firebasestorage.app",
+  messagingSenderId: "268228195404",
+  appId: "1:268228195404:web:9c86817d41a88067c430e9"
+};
+
+let db = null;
+let DOC_REF = null;
+let fbListo = false;
+let ultimoGuardado = 0;
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  DOC_REF = db.collection('datos').doc('principal');
+  fbListo = true;
+} catch(e) {
+  console.warn('Firebase init error:', e);
+}
+
+function setDriveStatus(ok, txt){
+  const el = document.getElementById('drive-status');
+  const tx = document.getElementById('drive-status-txt');
+  const ic = el.querySelector('i');
+  if(ok){
+    el.style.background='#E1F5EE';el.style.border='1px solid #a0dcc8';el.style.color='#085041';
+    ic.className='ti ti-cloud-check';ic.style.fontSize='13px';
+  } else {
+    el.style.background='#FCEBEB';el.style.border='1px solid #f5c0c0';el.style.color='#A32D2D';
+    ic.className='ti ti-cloud-off';ic.style.fontSize='13px';
+  }
+  tx.textContent = txt;
+}
+
+function iniciarSesionDrive(){ iniciarFirebase(); }
+
+function iniciarFirebase(){
+  if(!DOC_REF){ setDriveStatus(false,'Firebase no disponible'); return; }
+  setDriveStatus(true,'Conectando...');
+  
+  // Cargar datos UNA SOLA VEZ al inicio (get, no onSnapshot)
+  Promise.all([
+    db.collection('datos').doc('precios').get(),
+    db.collection('datos').doc('productos').get(),
+    db.collection('visas').get(),
+    db.collection('marcos').get(),
+    db.collection('escuelas').get()
+  ]).then(([precDoc,prodDoc,visSnap,marcSnap,escSnap])=>{
+    firebaseConectado=true; fbListo=true;
+    if(precDoc.exists){
+      const d=precDoc.data();
+      if(d.impresiones)impresiones=d.impresiones;
+      if(d.vidrios)vidrios=d.vidrios;
+      if(d.epsonBodega!==undefined)epsonBodega=d.epsonBodega;
+      if(d.tbaritaBodega!==undefined)tbaritaBodega=d.tbaritaBodega;
+    }
+    if(prodDoc.exists){
+      const d=prodDoc.data();
+      if(d.infantil)productos.infantil=d.infantil;
+      if(d.credencial)productos.credencial=d.credencial;
+      if(d.cartilla)productos.cartilla=d.cartilla;
+      if(d.digital)productos.digital=d.digital;
+      if(d.categoriasDinamicas)categoriasDinamicas=d.categoriasDinamicas;
+    }
+    if(!visSnap.empty){const arr=[];visSnap.forEach(d=>arr.push(d.data()));visas=arr;}
+    if(!marcSnap.empty){const arr=[];marcSnap.forEach(d=>arr.push(d.data()));marcos=arr;}
+    if(!escSnap.empty){
+      const arr=[];
+      escSnap.forEach(d=>arr.push({...d.data(),_id:d.id}));
+      arr.sort((a,b)=>a.n.localeCompare(b.n,'es'));
+      escuelas=arr;
+    }
+    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+    rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
+    rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    rendCatsDinamicas();
+    categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
+    rendCatsOrd();
+    catsDinamicasOrd.forEach(cat=>agregarTabOrd(cat.id,cat.nombre));
+    guardarLocal();
+    // Sync folioNum with Firebase to avoid duplicate folios across devices
+    db.collection('ventas').get().then(snap=>{
+      const maxFolio=snap.size+1;
+      if(maxFolio>folioNum){
+        folioNum=maxFolio;
+        try{localStorage.setItem('folioNum',folioNum);}catch(e){}
+      }
+    }).catch(()=>{});
+    setDriveStatus(true,'Datos cargados ✓');
+    if(!precDoc.exists) guardarFirebase();
+    cargarPedidosFB();
+  }).catch(e=>{
+    fbListo=true;
+    setDriveStatus(false,'Error cargando datos');
+    cargarLocal();
+  });
+}
+
+// ============================================================
+// CLOUDINARY — imágenes en la nube, se ven en todos los dispositivos
+// ============================================================
+async function subirImagenCloudinary(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = async function(ev){
+      try{
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'fotoestudio');
+        formData.append('folder', 'fotoestudio');
+        const res = await fetch('https://api.cloudinary.com/v1_1/dgnrfoxez/image/upload',
+          {method:'POST', body:formData});
+        const data = await res.json();
+        resolve(data.secure_url || null);
+      } catch(e){
+        console.error('Cloudinary error:', e);
+        resolve(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// FIREBASE — cada colección en documentos separados
+// ============================================================
+async function guardarFirebase(){
+  if(!db) return;
+  setDriveStatus(true,'Guardando...');
+  try{
+    await db.collection('datos').doc('precios').set({
+      impresiones, vidrios, epsonBodega, tbaritaBodega,
+      actualizado: new Date().toISOString()
+    });
+    await db.collection('datos').doc('productos').set({
+      infantil:productos.infantil, credencial:productos.credencial,
+      cartilla:productos.cartilla, digital:productos.digital,
+      categoriasDinamicas:categoriasDinamicas
+    });
+    for(let i=0;i<visas.length;i++){
+      await db.collection('visas').doc('v'+i).set(visas[i]);
+    }
+    for(let i=0;i<marcos.length;i++){
+      await db.collection('marcos').doc('m'+i).set(marcos[i]);
+    }
+    for(let i=0;i<escuelas.length;i++){
+      await db.collection('escuelas').doc(escuelas[i]._id||('e'+i)).set(escuelas[i]);
+    }
+    guardarLocal();
+    setDriveStatus(true,'Guardado ✓');
+  } catch(e){
+    setDriveStatus(false,'Error: '+e.code);
+    console.error('Firebase error:', e);
+  }
+}
+
+function autoGuardar(){
+  guardarLocal();
+  if(db) setTimeout(guardarFirebase, 500);
+}
+
+// ============================================================
+// PEDIDOS
+// ============================================================
+let pedidos = [];
+let filtroPedidos = 'todos';
+
+function calcResta(){
+  const total=parseFloat(document.getElementById('mp-total').value)||0;
+  const pagado=parseFloat(document.getElementById('mp-pagado').value)||0;
+  const resta=Math.max(0,total-pagado);
+  document.getElementById('mp-resta').textContent='$'+resta.toLocaleString();
+}
+
+function abrirNuevoPedido(desc='', total=0){
+  document.getElementById('mp-titulo').textContent='Nuevo pedido';
+  document.getElementById('mp-cliente').value='';
+  document.getElementById('mp-desc').value=desc;
+  document.getElementById('mp-notas').value='';
+  document.getElementById('mp-total').value=total||'';
+  document.getElementById('mp-pagado').value=total||'';
+  document.getElementById('mp-fecha').value='';
+  document.getElementById('mp-urgente').checked=false;
+  document.getElementById('mp-id').value='';
+  calcResta();
+  openM('m-pedido-nuevo');
+}
+
+function guardarPedido(){
+  const cliente=document.getElementById('mp-cliente').value.trim();
+  const desc=document.getElementById('mp-desc').value.trim();
+  if(!cliente||!desc){alert('Escribe el nombre del cliente y la descripción');return;}
+  const total=parseFloat(document.getElementById('mp-total').value)||0;
+  const pagado=parseFloat(document.getElementById('mp-pagado').value)||0;
+  const notas=document.getElementById('mp-notas').value.trim();
+  const fecha=document.getElementById('mp-fecha').value;
+  const urgente=document.getElementById('mp-urgente').checked;
+  const idExistente=document.getElementById('mp-id').value;
+
+  const now=new Date();
+  const pedido={
+    id: idExistente||('P-'+Date.now()),
+    cliente, desc, notas, total, pagado,
+    resta: Math.max(0,total-pagado),
+    fecha, urgente,
+    estado: 'pendiente',
+    creado: now.toISOString(),
+    creadoFecha: now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
+    creadoHora: now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+  };
+
+  if(idExistente){
+    const idx=pedidos.findIndex(p=>p.id===idExistente);
+    if(idx>=0){
+      pedido.estado=pedidos[idx].estado;
+      pedidos[idx]=pedido;
+    }
+  } else {
+    pedidos.push(pedido);
+  }
+
+  closeM('m-pedido-nuevo');
+  rendPedidos();
+  guardarPedidosFB(pedido);
+}
+
+function cambiarEstadoPedido(id, nuevoEstado){
+  const p=pedidos.find(p=>p.id===id);
+  if(!p)return;
+  p.estado=nuevoEstado;
+  rendPedidos();
+  guardarPedidosFB(p);
+}
+
+function editarPedido(id){
+  const p=pedidos.find(p=>p.id===id);
+  if(!p)return;
+  document.getElementById('mp-titulo').textContent='Editar pedido';
+  document.getElementById('mp-cliente').value=p.cliente||'';
+  document.getElementById('mp-desc').value=p.desc||'';
+  document.getElementById('mp-notas').value=p.notas||'';
+  document.getElementById('mp-total').value=p.total||0;
+  document.getElementById('mp-pagado').value=p.pagado||0;
+  document.getElementById('mp-fecha').value=p.fecha||'';
+  document.getElementById('mp-urgente').checked=p.urgente||false;
+  document.getElementById('mp-id').value=p.id;
+  calcResta();
+  openM('m-pedido-nuevo');
+}
+
+function eliminarPedido(id){
+  const clave=prompt('Clave para eliminar pedido:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const p=pedidos.find(p=>p.id===id);
+  if(!p||!confirm('¿Eliminar pedido de '+p.cliente+'?'))return;
+  pedidos=pedidos.filter(p=>p.id!==id);
+  rendPedidos();
+  guardarLocal();
+  if(db) db.collection('pedidos').doc(id).delete().catch(console.error);
+}
+
+function filtrarPedidos(filtro, el){
+  filtroPedidos=filtro;
+  document.querySelectorAll('#page-pedidos .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  rendPedidos();
+}
+
+const estadoConfig={
+  pendiente:{label:'🔴 Pendiente',bg:'#fff5f5',color:'#A32D2D',next:'proceso',nextLabel:'Iniciar'},
+  proceso:{label:'🟡 En proceso',bg:'#fffbeb',color:'#92610a',next:'listo',nextLabel:'Marcar listo'},
+  listo:{label:'🟢 Listo',bg:'#f0fbf6',color:'#085041',next:'entregado',nextLabel:'Entregar'},
+  entregado:{label:'✅ Entregado',bg:'#f5f5f5',color:'#666',next:null,nextLabel:null}
+};
+
+function rendPedidos(){
+  const el=document.getElementById('pedidos-lista');
+  if(!el)return;
+  let lista=[...pedidos].sort((a,b)=>{
+    if(a.urgente&&!b.urgente)return -1;
+    if(!a.urgente&&b.urgente)return 1;
+    const orden={pendiente:0,proceso:1,listo:2,entregado:3};
+    return (orden[a.estado]||0)-(orden[b.estado]||0);
+  });
+  if(filtroPedidos!=='todos') lista=lista.filter(p=>p.estado===filtroPedidos);
+  if(!lista.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-clipboard-check" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin pedidos</div>';
+    return;
+  }
+  const estCfg={
+    pendiente:{label:'Pendiente',bg:'#fff5f5',color:'#A32D2D',dot:'🔴',next:'proceso',nextLabel:'Iniciar'},
+    proceso:{label:'En proceso',bg:'#fffbeb',color:'#92610a',dot:'🟡',next:'listo',nextLabel:'Listo'},
+    listo:{label:'Listo para entregar',bg:'#f0fbf6',color:'#085041',dot:'🟢',next:'entregado',nextLabel:'Entregar'},
+    entregado:{label:'Entregado',bg:'#f5f5f5',color:'#666',dot:'✅',next:null,nextLabel:null}
+  };
+  // Add event delegation after render
+  setTimeout(function(){
+    const cont=document.getElementById('pedidos-lista');
+    if(!cont)return;
+    cont.querySelectorAll('.pedido-next-btn').forEach(function(btn){
+      btn.onclick=function(){cambiarEstadoPedido(btn.dataset.id,btn.dataset.next);};
+    });
+    cont.querySelectorAll('.pedido-edit-btn').forEach(function(btn){
+      btn.onclick=function(){editarPedido(btn.dataset.id);};
+    });
+    cont.querySelectorAll('.pedido-del-btn').forEach(function(btn){
+      btn.onclick=function(){eliminarPedido(btn.dataset.id);};
+    });
+  },100);
+  el.innerHTML=lista.map(function(p){
+    const est=estCfg[p.estado]||estCfg.pendiente;
+    const urgTxt=p.urgente ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;margin-left:6px;">URGENTE</span>' : '';
+    const restaTxt=p.resta>0 ? '<span style="background:#FCEBEB;color:#A32D2D;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;">Resta $'+p.resta.toLocaleString()+'</span>' : '<span style="background:#E1F5EE;color:#085041;font-size:11px;padding:2px 7px;border-radius:10px;">Pagado</span>';
+    const nextTxt=est.next ? '<button class="bsm pedido-next-btn" data-id="'+p.id+'" data-next="'+est.next+'" style="font-size:11px;">'+est.nextLabel+'</button>' : '';
+    const fechaTxt=p.fecha ? '<span style="font-size:11px;color:#888;">Entrega: '+p.fecha+'</span>' : '';
+    const notasTxt=p.notas ? '<p style="font-size:11px;color:#888;margin-bottom:6px;">'+p.notas+'</p>' : '';
+    return '<div style="background:'+est.bg+';border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #e0e0e0;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">'+
+        '<div><span style="font-size:14px;font-weight:600;">'+p.cliente+'</span>'+urgTxt+
+        '<span style="font-size:10px;color:#888;display:block;margin-top:2px;">'+p.creadoFecha+' '+p.creadoHora+' · '+p.id+'</span></div>'+
+        '<span style="font-size:11px;font-weight:600;color:'+est.color+';background:white;padding:3px 8px;border-radius:8px;">'+est.dot+' '+est.label+'</span>'+
+      '</div>'+
+      '<p style="font-size:12px;color:#444;margin-bottom:4px;">'+p.desc+'</p>'+
+      notasTxt+
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">'+
+        '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+
+          '<span style="font-size:13px;font-weight:600;">$'+p.total.toLocaleString()+'</span>'+
+          restaTxt+fechaTxt+
+        '</div>'+
+        '<div style="display:flex;gap:6px;">'+
+          nextTxt+
+          '<button class="pedido-edit-btn" data-id="'+p.id+'" style="background:transparent;border:1px solid #e0e0e0;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;color:#888;">✏️</button>'+
+          '<button class="pedido-del-btn" data-id="'+p.id+'" style="background:transparent;border:1px solid #fcc;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;color:#f5c0c0;">🗑️</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+
+async function guardarPedidosFB(pedido){
+  if(!db)return;
+  try{
+    await db.collection('pedidos').doc(pedido.id).set(pedido);
+    guardarLocal();
+  }catch(e){console.error('Error guardando pedido:',e);}
+}
+
+async function cargarPedidosFB(){
+  if(!db)return;
+  try{
+    const snap=await db.collection('pedidos').get();
+    if(!snap.empty){
+      pedidos=[];
+      snap.forEach(d=>pedidos.push(d.data()));
+    }
+    rendPedidos();
+  }catch(e){console.error(e);}
+}
+
+async function cancelarVenta(folio){
+  if(!folio)return;
+  const clave=prompt('Clave para cancelar venta '+folio+':');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Cancelar venta '+folio+'?\nEsta acción quedará registrada en el historial.'))return;
+  if(!db){alert('Sin conexión a Firebase');return;}
+  try{
+    setDriveStatus(true,'Cancelando...');
+    await db.collection('ventas').doc(folio).update({
+      cancelada: true,
+      fechaCancelacion: new Date().toISOString(),
+      canceladaPor: 'usuario'
+    });
+    setDriveStatus(true,'Venta cancelada ✓');
+    // Reload reports
+    setTimeout(cargarReportes, 500);
+  }catch(e){
+    console.error(e);
+    setDriveStatus(false,'Error al cancelar');
+  }
+}
+
+function mostrarTicket(venta){
+  if(!venta)return;
+  const lineas=venta.items.map(c=>{
+    const nom=c.nombre.substring(0,22).padEnd(22,' ');
+    const pre=('$'+c.precio).padStart(7,' ');
+    return nom+pre;
+  }).join('\n');
+  document.getElementById('ticket-content').innerHTML=`
+    <div style="text-align:center;margin-bottom:10px;">
+      <strong style="font-size:15px;">📸 Foto Bernal</strong><br>
+      <span style="font-size:11px;">Ocampo 407, Chihuahua, Chih.</span><br>
+      <span style="font-size:11px;">Tel 614 4 15 42 42</span>
+    </div>
+    <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin:6px 0;font-size:11px;">
+      Folio: <strong>${venta.f}</strong><br>
+      Fecha: ${venta.fecha} ${venta.hora}
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:11px;white-space:pre;">${lineas}</div>
+    <div style="border-top:1px dashed #ccc;margin:6px 0;padding-top:6px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;">
+        <span>TOTAL</span><span>$${venta.total}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:3px;">
+        <span>Pagó</span><span>$${venta.pago}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">
+        <span>Cambio</span><span>$${venta.cambio}</span>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:#888;margin-top:8px;">¡Gracias por su preferencia!</div>
+  `;
+  openM('m-ticket');
+}
+
+function imprimirTicket(){
+  const contenido=document.getElementById('ticket-content').innerHTML;
+  const win=window.open('','_blank','width=320,height=500');
+  win.document.write(`<html><head><style>
+    body{font-family:'Courier New',monospace;font-size:12px;margin:10px;}
+    @media print{button{display:none;}}
+  </style></head><body>${contenido}<br><button onclick="window.print()">Imprimir</button></body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(),300);
+}
+
+// ============================================================
+
+rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+rendProds('infantil','inf-grid');
+rendProds('credencial','cred-grid');
+rendProds('cartilla','cart-grid');
+rendProds('digital','dig-grid');
+
+// Cargar local inmediatamente, luego Firebase sobreescribe si hay datos
+cargarLocal();
+let firebaseConectado = false;
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    try{ iniciarFirebase(); } 
+    catch(e){ console.warn('Firebase error:', e); }
+  }, 600);
+});
+rendProds('infantil','inf-grid');
+rendProds('credencial','cred-grid');
+rendProds('cartilla','cart-grid');
+rendProds('digital','dig-grid');
+
+
+</script>
+<div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
+  <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ei-p" min="0"></div>
+  <input type="hidden" id="ei-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarImpEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-prod-edit"><div class="modal-box"><p class="modal-t">Editar producto</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ep-nombre"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ep-desc"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ep-precio" min="0"></div>
+  <input type="hidden" id="ep-cat"><input type="hidden" id="ep-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-prod-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarProdEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-add-prod"><div class="modal-box"><p class="modal-t" id="ap-titulo">Agregar producto</p>
+  <div class="frow"><label>Nombre del producto</label><input type="text" id="ap-nombre" placeholder="Ej: Infantil 12 fotos"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ap-desc" placeholder="Color o B&N"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ap-precio" min="0" placeholder="0"></div>
+  <input type="hidden" id="ap-tipo">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-add-prod')">Cancelar</button><button class="btn bgreen" onclick="agregarProd()">Agregar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-visa-edit"><div class="modal-box"><p class="modal-t">Editar visa / pasaporte</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ev-n"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ev-p" min="0"></div>
+  <div class="frow"><label>¿Es Visa USA?</label><select id="ev-usa"><option value="0">No</option><option value="1">Sí</option></select></div>
+  <input type="hidden" id="ev-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarVisaEdit()">Guardar</button></div>
+</div></div>
+
+</body>
+</html>    <!-- ORDINARIAS -->
+    <div id="page-ordinarias" class="page">
+      <p class="ptitle">Ordinarias</p>
+      <p class="psub">Entregas para después — toca para agregar al carrito</p>
+
+      <!-- Tabs -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="ord-tabs">
+          <div class="tab active" onclick="showOrdTab('esc',this)">Paquetes escolares</div>
+          <div class="tab" onclick="showOrdTab('imp',this)">Impresiones</div>
+        </div>
+        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat-ord')" title="Nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
+      </div>
+
+      <!-- Paquetes escolares -->
+      <div id="ord-esc" class="ord-sec">
+        <div class="hrow"><div><p class="ptitle" style="font-size:14px;margin-bottom:2px;">Paquetes escolares</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
+        <div style="position:relative;margin-bottom:12px;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+          <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+        </div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
+        <div class="esc-grid" id="esc-grid"></div>
+      </div>
+
+      <!-- Impresiones -->
+      <div id="ord-imp" class="ord-sec" style="display:none;">
+        <div class="hrow"><p class="slabel" style="margin:0;">Impresiones fotográficas</p><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="g2" id="imp-grid"></div>
+      </div>
+
+      <!-- Categorías ordinarias dinámicas -->
+      <div id="ord-cats-dinamicas"></div>
+    </div>
+
+    <!-- MARCOS VENTA -->
+    <div id="page-marcos-venta" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
+      </div>
+      <div class="esc-grid" id="marcos-venta-grid"></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p>
+      <p class="psub">Historial permanente de ventas</p>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
+          <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+          <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+          <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+        </div>
+        <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
+      </div>
+      <!-- Selector de fecha/mes -->
+      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;">
+        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Buscar por fecha</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label>
+            <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label>
+            <input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)"
+              style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
+          <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-periodo">—</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
+          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+        </div>
+      </div>
+      <p class="slabel">Urgentes</p>
+      <div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <p class="slabel">Paquetes escolares</p>
+      <div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <p class="slabel">Impresiones</p>
+      <div id="rep-impresiones" style="margin-bottom:14px;"></div>
+      <p class="slabel">Marcos</p>
+      <div id="rep-marcos" style="margin-bottom:14px;"></div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="page-pedidos" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div>
+        <button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
+        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
+        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
+        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
+        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      </div>
+
+      <div id="pedidos-lista"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
+        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
+        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
+        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
+      </div>
+      <p class="slabel">Infantil</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-inf6">0</div></div>
+        <div class="stat"><div class="sl">Color 9 fotos</div><div class="sv" id="r-inf9">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-inf6bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 9 fotos</div><div class="sv" id="r-inf9bn">0</div></div>
+      </div>
+      <p class="slabel">Credencial</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 4 fotos</div><div class="sv" id="r-cred4">0</div></div>
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-cred6">0</div></div>
+        <div class="stat"><div class="sl">B/N 4 fotos</div><div class="sv" id="r-cred4bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-cred6bn">0</div></div>
+      </div>
+      <div class="g4" style="margin-bottom:14px;">
+        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
+        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
+        <div class="stat"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
+        <div class="stat"><div class="sl">Total infantil</div><div class="sv" id="r-inf">0</div></div>
+      </div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
+    </div>
+
+  </div>
+
+  <!-- CARRITO LATERAL -->
+  <div class="cart-panel">
+    <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
+    <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
+    <div class="cart-ftr">
+      <div class="trow big"><span>Total</span><span id="cart-total">$0</span></div>
+      <p class="pago-lbl">¿Con cuánto paga?</p>
+      <input class="pago-inp" type="number" id="pago" placeholder="0" min="0" oninput="calcCambio()">
+      <div class="cambio-row" id="cambio-row"><span>Cambio</span><strong id="cambio-val">$0</strong></div>
+      <button class="bcobrar" id="btn-cobrar" onclick="cobrar()" disabled><i class="ti ti-check"></i> Cobrar</button>
+      <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lb" id="lb">
+  <button class="lb-x" onclick="closeLb()"><i class="ti ti-x"></i></button>
+  <div id="lb-img-wrap"></div>
+  <div class="lb-t" id="lb-t"></div>
+  <div class="lb-s" id="lb-s"></div>
+  <div class="lb-p" id="lb-p"></div>
+  <div class="lb-btns" id="lb-btns"><button class="lb-close" onclick="closeLb()">Cerrar</button><button class="lb-add" id="lb-add-btn"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button></div>
+</div>
+
+<!-- MODALES -->
+<div class="modal-ov" id="m-nueva-cat"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Urgentes</p>
+  <div class="frow"><label>Nombre de la categoría</label><input type="text" id="nc-nombre" placeholder="Ej: Militares, Pasaportes, etc."></div>
+  <p style="font-size:11px;color:#888;margin-top:4px;">Después de crear la categoría podrás agregar productos desde el botón + dentro de ella.</p>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCat()">Crear</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-nueva-cat-ord"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Ordinarias</p>
+  <div class="frow"><label>Nombre de la categoría</label><input type="text" id="nco-nombre" placeholder="Ej: Restauraciones, Lienzos, etc."></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat-ord')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCatOrd()">Crear</button></div>
+</div></div>
+
+<!-- MODAL NUEVO PEDIDO -->
+<div class="modal-ov" id="m-pedido-nuevo"><div class="modal-box">
+  <p class="modal-t" id="mp-titulo">Nuevo pedido</p>
+  <div class="frow"><label>Nombre del cliente</label><input type="text" id="mp-cliente" placeholder="Nombre de quien dejó el pedido"></div>
+  <div class="frow"><label>Descripción</label><textarea id="mp-desc" rows="2" placeholder="Qué pidió, especificaciones..." style="resize:none;width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:8px;font-size:13px;"></textarea></div>
+  <div class="frow"><label>Notas especiales</label><input type="text" id="mp-notas" placeholder="Foto por BT, correo, restauración..."></div>
+  <div class="g2">
+    <div class="frow"><label>Total ($)</label><input type="number" id="mp-total" placeholder="0" oninput="calcResta()"></div>
+    <div class="frow"><label>Anticipo ($)</label><input type="number" id="mp-pagado" placeholder="0" oninput="calcResta()"></div>
+  </div>
+  <div style="background:#f0fbf6;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:12px;color:#666;">Resta por cobrar:</span>
+    <span style="font-size:16px;font-weight:700;color:#1D9E75;" id="mp-resta">$0</span>
+  </div>
+  <div class="frow"><label>Fecha de entrega</label><input type="date" id="mp-fecha"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <input type="checkbox" id="mp-urgente" style="width:16px;height:16px;">
+    <label for="mp-urgente" style="font-size:13px;cursor:pointer;">⚡ Marcar como urgente (1 hora)</label>
+  </div>
+  <input type="hidden" id="mp-id">
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-pedido-nuevo')">Cancelar</button>
+    <button class="btn bgreen" onclick="guardarPedido()">Guardar pedido</button>
+  </div>
+</div></div>
+
+<div class="modal-ov" id="m-visa"><div class="modal-box"><p class="modal-t">Nueva visa / pasaporte</p>
+  <div class="frow"><label>País o tipo de visa</label><input type="text" id="v-n" placeholder="Ej: Visa USA, Pasaporte China"></div>
+  <div class="frow"><label>Precio</label><input type="text" id="v-p" placeholder="$200"></div>
+  <div class="frow"><label>¿Es Visa USA? (consume 2 restos 11x8)</label><select id="v-usa"><option value="0">No</option><option value="1">Sí — Visa USA</option></select></div>
+  <div class="frow"><label>Imagen de especificaciones</label><input type="file" accept="image/*" id="v-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa')">Cancelar</button><button class="btn bgreen" onclick="guardarVisa()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-esc"><div class="modal-box"><p class="modal-t">Nueva escuela</p>
+  <div class="frow"><label>Nombre de la escuela</label><input type="text" id="e-n" placeholder="Primaria Benito Juárez"></div>
+  <div class="frow"><label>Especificaciones del paquete</label><textarea id="e-s" style="height:60px;resize:none;" placeholder="Ej: 2 fotos 5x7, 4 credencial B&N, 1 grupal..."></textarea></div>
+  <div class="frow"><label>Precio del paquete</label><input type="text" id="e-p" placeholder="$350"></div>
+  <div class="frow"><label>Imagen de portada</label><input type="file" accept="image/*" id="e-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc')">Cancelar</button><button class="btn bgreen" onclick="guardarEsc()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-esc-edit"><div class="modal-box"><p class="modal-t">Editar escuela</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ee-n"></div>
+  <div class="frow"><label>Especificaciones</label><textarea id="ee-s" style="height:60px;resize:none;"></textarea></div>
+  <div class="frow"><label>Precio</label><input type="text" id="ee-p"></div>
+  <div class="frow"><label>Nueva imagen (opcional)</label><input type="file" accept="image/*" id="ee-img" style="font-size:11px;"></div>
+  <input type="hidden" id="ee-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarEscEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-imp"><div class="modal-box"><p class="modal-t">Nuevo tamaño de impresión</p>
+  <div class="frow"><label>Tamaño (ej: 20x24)</label><input type="text" id="im-s" placeholder="20x24"></div>
+  <div class="frow"><label>Precio</label><input type="text" id="im-p" placeholder="$600"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp')">Cancelar</button><button class="btn bgreen" onclick="guardarImp()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-marc"><div class="modal-box"><p class="modal-t">Agregar marco</p>
+  <div class="frow"><label>Nombre del marco</label><input type="text" id="ma-n" placeholder="Marco café claro"></div>
+  <div class="frow"><label>Tamaño</label><input type="text" id="ma-t" placeholder="4x6"></div>
+  <div class="frow"><label>Precio ($)</label><input type="number" id="ma-precio" value="0" min="0"></div>
+  <div class="frow"><label>Stock inicial</label><input type="number" id="ma-s" value="0" min="0"></div>
+  <div class="frow"><label>Foto del marco</label><input type="file" accept="image/*" id="ma-img" style="font-size:11px;"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc')">Cancelar</button><button class="btn bgreen" onclick="guardarMarco()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-marc-edit"><div class="modal-box"><p class="modal-t">Editar marco</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="me-n"></div>
+  <div class="frow"><label>Tamaño</label><input type="text" id="me-t"></div>
+  <div class="frow"><label>Nueva foto (opcional)</label><input type="file" accept="image/*" id="me-img" style="font-size:11px;"></div>
+  <input type="hidden" id="me-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarMarcoEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-vid"><div class="modal-box"><p class="modal-t">Agregar vidrio</p>
+  <div class="frow"><label>Medida (debe coincidir con el marco)</label><input type="text" id="vi-m" placeholder="4x6"></div>
+  <div class="frow"><label>Stock inicial</label><input type="number" id="vi-s" value="0" min="0"></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-vid')">Cancelar</button><button class="btn bgreen" onclick="guardarVidrio()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-ticket"><div class="modal-box" style="width:300px;">
+  <div style="overflow-y:auto;max-height:70vh;"><div class="ticket-wrap" id="ticket-content"></div></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button><button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button></div>
+</div></div>
+
+<script>
+
+let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
+// Load folioNum from localStorage to avoid reusing folios
+let folioNum=1;
+try{const fn=localStorage.getItem('folioNum');if(fn)folioNum=parseInt(fn)||1;}catch(e){}
+let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
+let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
+let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
+let epsonBodega=100,tbaritaBodega=50;
+let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
+let categoriasDinamicas = []; // {id, nombre, productos:[]}
+
+function guardarNuevaCat(){
+  const nombre = document.getElementById('nc-nombre').value.trim();
+  if(!nombre) return;
+  const id = 'cat_'+Date.now();
+  categoriasDinamicas.push({id, nombre, productos:[]});
+  closeM('m-nueva-cat');
+  document.getElementById('nc-nombre').value='';
+  rendCatsDinamicas();
+  agregarTabDinamica(id, nombre);
+  autoGuardar();
+}
+
+function agregarTabDinamica(id, nombre){
+  const tabs = document.getElementById('urgentes-tabs');
+  if(!tabs) return;
+  // Check if tab already exists
+  if(document.getElementById('tab-'+id)) return;
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-'+id;
+  tab.textContent = nombre;
+  tab.onclick = function(){ showT(id, this); };
+  tabs.appendChild(tab);
+}
+
+function showOrdTab(id, el){
+  document.querySelectorAll('#ord-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.ord-sec').forEach(s=>s.style.display='none');
+  const target = document.getElementById('ord-'+id);
+  if(target) target.style.display='block';
+}
+
+// Dynamic categories for Ordinarias
+let catsDinamicasOrd = [];
+
+function guardarNuevaCatOrd(){
+  const nombre = document.getElementById('nco-nombre').value.trim();
+  if(!nombre) return;
+  const id = 'cord_'+Date.now();
+  catsDinamicasOrd.push({id, nombre, productos:[]});
+  closeM('m-nueva-cat-ord');
+  document.getElementById('nco-nombre').value='';
+  rendCatsOrd();
+  agregarTabOrd(id, nombre);
+  autoGuardar();
+}
+
+function agregarTabOrd(id, nombre){
+  const tabs = document.getElementById('ord-tabs');
+  if(!tabs || document.getElementById('tab-ord-'+id)) return;
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-ord-'+id;
+  tab.textContent = nombre;
+  tab.onclick = function(){ showOrdTab(id, this); };
+  tabs.appendChild(tab);
+}
+
+function rendCatsOrd(){
+  const cont = document.getElementById('ord-cats-dinamicas');
+  if(!cont) return;
+  cont.innerHTML = catsDinamicasOrd.map(cat=>`
+    <div id="ord-${cat.id}" class="ord-sec" style="display:none;">
+      <div class="hrow">
+        <p class="slabel" style="margin:0;">${cat.nombre}</p>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
+          <button class="btn" style="font-size:10px;padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #f5c0c0;" onclick="eliminarCatOrd('${cat.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div id="grid-ord-${cat.id}" class="g2"></div>
+    </div>
+  `).join('');
+  catsDinamicasOrd.forEach(cat => rendCatOrdProds(cat.id));
+}
+
+function rendCatOrdProds(catId){
+  const cat = catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat) return;
+  const grid = document.getElementById('grid-ord-'+catId);
+  if(!grid) return;
+  if(!cat.productos.length){
+    grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
+    return;
+  }
+  grid.innerHTML = cat.productos.map((p,i)=>{
+    return `<div class="foto-card" style="position:relative;">
+      <div onclick="add('${p.nombre}',${p.precio||0},'ordinaria')" style="cursor:pointer;">
+        <div class="fc-n">${p.nombre}</div>
+        <div class="fc-l">${p.desc||''}</div>
+        <div class="fc-p">$${p.precio}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatOrdProd('${catId}',${i})"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatOrdProd('${catId}',${i})"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function eliminarCatOrd(catId){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.nombre+'"?'))return;
+  catsDinamicasOrd=catsDinamicasOrd.filter(c=>c.id!==catId);
+  const tab=document.getElementById('tab-ord-'+catId);
+  if(tab)tab.remove();
+  rendCatsOrd();
+  autoGuardar();
+}
+
+function editarCatOrdProd(catId, i){
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('ep-nombre').value=cat.productos[i].nombre;
+  document.getElementById('ep-desc').value=cat.productos[i].desc||'';
+  document.getElementById('ep-precio').value=cat.productos[i].precio;
+  document.getElementById('ep-cat').value=catId;
+  document.getElementById('ep-idx').value=i;
+  openM('m-prod-edit');
+}
+
+function eliminarCatOrdProd(catId, i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=catsDinamicasOrd.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
+  cat.productos.splice(i,1);
+  rendCatOrdProds(catId);
+  autoGuardar();
+}
+
+function rendCatsDinamicas(){
+  const cont = document.getElementById('cats-dinamicas');
+  if(!cont) return;
+  cont.innerHTML = categoriasDinamicas.map(cat=>`
+    <div id="t-${cat.id}" class="tsec">
+      <div class="hrow">
+        <p class="slabel" style="margin:0;">${cat.nombre}</p>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
+          <button class="btn" style="font-size:10px;padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #f5c0c0;" onclick="eliminarCat('${cat.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div id="grid-${cat.id}" class="g2"></div>
+    </div>
+  `).join('');
+  // Render products for each category
+  categoriasDinamicas.forEach(cat=>{
+    rendCatProds(cat.id);
+  });
+}
+
+function rendCatProds(catId){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat) return;
+  const grid = document.getElementById('grid-'+catId);
+  if(!grid) return;
+  if(!cat.productos.length){
+    grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
+    return;
+  }
+  grid.innerHTML = cat.productos.map((p,i)=>{
+    const precio = p.precio||0;
+    const nombre = p.nombre||'';
+    const desc = p.desc||'';
+    return `<div class="foto-card" style="position:relative;">
+      <div onclick="addCatProd('${catId}',${i})" style="cursor:pointer;">
+        <div class="fc-n">${nombre}</div>
+        <div class="fc-l">${desc}</div>
+        <div class="fc-p">$${precio}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatProd('${catId}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatProd('${catId}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addCatProd(catId, i){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!cat.productos[i])return;
+  add(cat.productos[i].nombre, cat.productos[i].precio, 'otro');
+}
+
+function eliminarCat(catId){
+  const clave=prompt('Clave para eliminar categoría:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!confirm('¿Eliminar categoría "'+cat.nombre+'" y todos sus productos?'))return;
+  categoriasDinamicas=categoriasDinamicas.filter(c=>c.id!==catId);
+  const tab=document.getElementById('tab-'+catId);
+  if(tab)tab.remove();
+  rendCatsDinamicas();
+  autoGuardar();
+}
+
+function editarCatProd(catId, i){
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('ep-nombre').value=cat.productos[i].nombre;
+  document.getElementById('ep-desc').value=cat.productos[i].desc||'';
+  document.getElementById('ep-precio').value=cat.productos[i].precio;
+  document.getElementById('ep-cat').value=catId;
+  document.getElementById('ep-idx').value=i;
+  openM('m-prod-edit');
+}
+
+function eliminarCatProd(catId, i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
+  cat.productos.splice(i,1);
+  rendCatProds(catId);
+  autoGuardar();
+}
+
+let productos={
+  infantil:[
+    {nombre:'Infantil color 6 fotos',desc:'A color',precio:80,tipo:'infantil6'},
+    {nombre:'Infantil color 9 fotos',desc:'A color',precio:100,tipo:'infantil9'},
+    {nombre:'Infantil B/N 6 fotos',desc:'Blanco y negro',precio:80,tipo:'infantil6bn'},
+    {nombre:'Infantil B/N 9 fotos',desc:'Blanco y negro',precio:100,tipo:'infantil9bn'}
+  ],
+  credencial:[
+    {nombre:'Credencial color 4 fotos',desc:'A color',precio:100,tipo:'cred4'},
+    {nombre:'Credencial color 6 fotos',desc:'A color',precio:120,tipo:'cred6'},
+    {nombre:'Credencial B/N 4 fotos',desc:'Blanco y negro',precio:100,tipo:'cred4bn'},
+    {nombre:'Credencial B/N 6 fotos',desc:'Blanco y negro',precio:120,tipo:'cred6bn'}
+  ],
+  cartilla:[{nombre:'Cartilla militar 4 fotos',desc:'TBarita',precio:100,tipo:'cartilla'},{nombre:'Cartilla militar 6 fotos',desc:'TBarita',precio:120,tipo:'cartilla'}],
+  digital:[{nombre:'Imagen digital',desc:'',precio:250,tipo:'digital'}]
+};
+let escuelas=[{n:'Primaria Juárez',s:'2 fotos 5x7, 4 credencial, 1 grupal',p:'$320',img:null},{n:'Colegio San José',s:'3 infantil color, 2 B&N, porta-retrato',p:'$280',img:null}];
+let impresiones=[{sz:'6x8',p:100},{sz:'8x10',p:150},{sz:'11x14',p:350},{sz:'16x20',p:500}];
+let marcos=[{n:'Marco negro liso',t:'4x6',stock:24,img:null,precio:0},{n:'Marco dorado',t:'5x7',stock:8,img:null,precio:0},{n:'Marco plateado',t:'4x6',stock:3,img:null,precio:0},{n:'Marco madera natural',t:'8x10',stock:0,img:null,precio:0}];
+let vidrios=[{m:'4x6',stock:20},{m:'5x7',stock:10},{m:'8x10',stock:5}];
+let bitacora=[];
+let secretSeq=[];
+
+document.addEventListener('keydown',function(e){
+  secretSeq.push(e.key);if(secretSeq.length>4)secretSeq.shift();
+  if(secretSeq.join(',')===('ArrowUp,ArrowUp,ArrowDown,ArrowDown')){
+    const n=document.getElementById('nav-rep');n.style.display=n.style.display==='none'?'flex':'none';secretSeq=[];
+  }
+});
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  if(id==='reportes')setTimeout(cargarReportes,300);
+  if(id==='pedidos'){rendPedidos();cargarPedidosFB();}
+}
+function showT(id,el){
+  const tabsEl=el.closest('.tabs');
+  if(!tabsEl)return;
+  // Deactivate all tabs in this tabs container
+  tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  // Find the page container and hide ALL tsec inside it
+  const page=tabsEl.closest('.page');
+  if(page){
+    page.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active'));
+  }
+  const target=document.getElementById('t-'+id);
+  if(target)target.classList.add('active');
+}
+
+function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
+function delItem(i){carrito.splice(i,1);renderCarrito();}
+function limpiar(){carrito=[];document.getElementById('pago').value='';renderCarrito();}
+function renderCarrito(){
+  const el=document.getElementById('cart-items');
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  document.getElementById('cart-cnt').textContent=carrito.length+' producto'+(carrito.length!==1?'s':'');
+  document.getElementById('cart-total').textContent='$'+total;
+  if(!carrito.length){el.innerHTML='<div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div>';document.getElementById('btn-cobrar').disabled=true;calcCambio();return;}
+  el.innerHTML=carrito.map((c,i)=>`<div class="ci"><div class="ci-inf"><div class="ci-n">${c.nombre}</div><div class="ci-p">$${c.precio}</div></div><span class="ci-x" onclick="delItem(${i})"><i class="ti ti-x"></i></span></div>`).join('');
+  calcCambio();
+}
+function calcCambio(){
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  const pago=parseFloat(document.getElementById('pago').value)||0;
+  const row=document.getElementById('cambio-row');
+  const btn=document.getElementById('btn-cobrar');
+  if(pago>=total&&carrito.length){row.classList.remove('cambio-ins');btn.disabled=false;document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);}
+  else{row.classList.add('cambio-ins');btn.disabled=true;document.getElementById('cambio-val').textContent=pago>0&&pago<total?'Faltan $'+(total-pago).toFixed(0):'$0';}
+}
+function cobrar(){
+  const total=carrito.reduce((s,c)=>s+c.precio,0);
+  const pago=parseFloat(document.getElementById('pago').value)||0;
+  // Use timestamp-based folio to avoid collisions across devices
+  const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
+  // Save folioNum immediately to localStorage
+  try{localStorage.setItem('folioNum',folioNum);}catch(e){}
+  const now=new Date();
+  const dia=String(now.getDate()).padStart(2,'0');
+  const mes=String(now.getMonth()+1).padStart(2,'0');
+  const fecha=dia+'/'+mes+'/'+now.getFullYear();
+  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  const items=[...carrito];
+  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
+  ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
+  ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
+  // Auto-crear pedido para escuelas e impresiones
+  const itemsOrdinarios=items.filter(c=>c.tipo==='escuela'||c.tipo==='impresion');
+  if(itemsOrdinarios.length>0){
+    setTimeout(()=>{
+      const desc=itemsOrdinarios.map(c=>c.nombre).join(', ');
+      const totalOrd=itemsOrdinarios.reduce((s,c)=>s+c.precio,0);
+      abrirNuevoPedido(desc, totalOrd);
+    }, 800);
+  }
+  totalDia+=total;updReportes();rendHist();
+  // Guardar venta en Firebase permanentemente
+  if(db){
+    const ventaData={
+      folio:f,
+      fecha:fecha,
+      hora:hora,
+      timestamp:now.toISOString(),
+      year:now.getFullYear(),
+      month:now.getMonth()+1,
+      dia:now.getDate(),
+      items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:total,
+      pago:pago,
+      cambio:pago-total,
+      // Escuelas vendidas en esta venta
+      escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))
+    };
+    db.collection('ventas').doc(f).set(ventaData)
+      .then(()=>setDriveStatus(true,'Venta guardada ✓'))
+      .catch(e=>{
+        console.error('Error guardando venta:',e);
+        setDriveStatus(false,'Error al guardar venta');
+      });
+  }
+  carrito=[];document.getElementById('pago').value='';renderCarrito();
+  guardarLocal(); // Guardar ventas del día en localStorage
+  mostrarTicket(ultimaVenta);
+}
+function regConsumo(tipo){
+  let desc='',imp='';
+  if(tipo==='infantil6'){cons.inf6++;desc='Infantil 6f vendido';imp='-¼ pieza 11x28';}
+  else if(tipo==='infantil9'){cons.inf9++;desc='Infantil 9f vendido';imp='-1 resto 11x8';}
+  else if(tipo==='cred4'){cons.cred4++;desc='Credencial 4f vendida';imp='-1 resto 11x8';}
+  else if(tipo==='cred6'){cons.cred6++;desc='Credencial 6f vendida';imp='-⅓ pieza 11x28';}
+  else if(tipo==='cartilla'){cons.cart++;desc='Cartilla militar vendida';imp='-½ hoja TBarita';}
+  else if(tipo==='visaUSA'){cons.visaUSA++;desc='Visa USA vendida';imp='-2 restos 11x8';}
+  else if(tipo==='visa'){cons.visas++;desc='Visa/Pasaporte vendido';imp='-1 resto 11x8';}
+  else{desc=tipo+' vendido';imp='—';}
+  regBit(desc,imp,'ok');
+  recalcPapel();
+}
+function recalcPapel(){
+  const pUsadas=Math.ceil(cons.inf6/4)+Math.ceil(cons.cred6/3);
+  const rUsados=cons.inf9+cons.visas+(cons.visaUSA*2)+cons.cred4;
+  const tUsada=Math.ceil(cons.cart/2);
+  const pD=Math.max(0,epsonBodega*2-pUsadas);
+  const rD=Math.max(0,epsonBodega*2-rUsados);
+  const tD=Math.max(0,tbaritaBodega-tUsada);
+  const sv=(id,val)=>{const e=document.getElementById(id);if(!e)return;e.textContent=val;e.className='sv '+(val>5?'green':val>2?'amber':'red');};
+  sv('rt-p',pD);sv('rt-r',rD);sv('rt-t',tD);sv('dp-p',pD);sv('dp-r',rD);sv('dp-t',tD);
+  const eh=document.getElementById('ep-hoy');if(eh)eh.textContent=Math.ceil(pUsadas/2);
+  const th=document.getElementById('tb-hoy');if(th)th.textContent=tUsada;
+}
+function updStock(){
+  epsonBodega=parseInt(document.getElementById('st-epson').value)||0;
+  tbaritaBodega=parseInt(document.getElementById('st-tbar').value)||0;
+  recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
+}
+function updReportes(){}
+
+function rendHist(){
+  const el=document.getElementById('r-hist');
+  if(!el)return;
+  el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Desc</th><th>Total</th></tr></thead><tbody>'+
+    ventas.map(function(v){return '<tr><td style="color:#1D9E75;font-weight:600">'+v.f+'</td><td style="font-size:11px;">'+v.desc+'</td><td>$'+v.total+'</td></tr>';}).join('')+'</tbody></table>';
+}
+
+let periodoActual='hoy',ventasFB=[];
+
+function cambiarPeriodo(p,el){
+  periodoActual=p;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  cargarReportes();
+}
+
+function abrirCalendario(){
+  const wrap=document.getElementById('rep-cal-wrap');
+  const inp=document.getElementById('rep-fecha-cal');
+  const hoy=new Date();
+  inp.max=hoy.toISOString().split('T')[0];
+  if(wrap.style.display==='none'){
+    wrap.style.display='block';
+    inp.focus();
+  } else {
+    wrap.style.display='none';
+  }
+}
+
+function cambiarPeriodoFecha(fechaISO){
+  if(!fechaISO)return;
+  // Convert YYYY-MM-DD to DD/MM/YYYY for Firebase query
+  const [anio,mes,dia]=fechaISO.split('-');
+  const fechaMX=`${dia}/${mes}/${anio}`;
+  // Deactivate all tabs
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='fecha';
+  // Show selected date on button
+  const btn=document.querySelector('button[onclick="abrirCalendario()"]');
+  if(btn) btn.innerHTML=`<i class="ti ti-calendar"></i> ${dia}/${mes}`;
+  // Load that specific date
+  cargarReportesFecha(fechaMX);
+}
+
+async function cargarReportesFecha(fecha){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('fecha','==',fecha).get();
+    ventasFB=[];
+    snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){
+    console.error(e);
+    mostrarReportesLocal();
+  }
+}
+
+function cambiarPeriodoMes(mesISO){
+  if(!mesISO)return;
+  const [anio,mes]=mesISO.split('-');
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='mes_especifico';
+  const btn=document.querySelector('button[onclick="abrirCalendario()"]');
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  if(btn) btn.innerHTML=`<i class="ti ti-calendar"></i> ${meses[parseInt(mes)-1]} ${anio}`;
+  cargarReportesMes(parseInt(anio), parseInt(mes));
+}
+
+async function cargarReportesMes(anio, mes){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('year','==',anio).where('month','==',mes).get();
+    ventasFB=[];
+    snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){
+    console.error(e);
+    mostrarReportesLocal();
+  }
+}
+
+function getFechaStr(d){
+  // Always produce DD/MM/YYYY format regardless of browser locale
+  const dia=String(d.getDate()).padStart(2,'0');
+  const mes=String(d.getMonth()+1).padStart(2,'0');
+  const anio=d.getFullYear();
+  return dia+'/'+mes+'/'+anio;
+}
+
+async function cargarReportes(){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const now=new Date();
+    let snap;
+    if(periodoActual==='hoy'){
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
+      ventasFB=[];
+      snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='semana'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];
+      const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
+    } else {
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    }
+    renderReportes();
+  }catch(e){console.error('Error reportes:',e);mostrarReportesLocal();}
+}
+
+function mostrarReportesLocal(){
+  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
+  renderReportes();
+}
+
+function barraItem(n,total,count,max){
+  const pct=Math.round(total/max*100);
+  return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">${n}</span><span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;">(${count})</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div></div></div>`;
+}
+
+function renderSeccion(id,mapa){
+  const el=document.getElementById(id);if(!el)return;
+  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
+  const max=items[0][1].total||1;
+  el.innerHTML=items.map(([n,d])=>barraItem(n,d.total,d.count,max)).join('');
+}
+
+function renderReportes(){
+  const ventasActivas=ventasFB.filter(v=>!v.cancelada);
+  const total=ventasActivas.reduce((s,v)=>s+v.total,0);
+  const num=ventasActivas.length;
+  const prom=num?Math.round(total/num):0;
+  const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rep-total','$'+total.toLocaleString());
+  set('rep-numventas',num);
+  set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  const urg={},esc={},imp={},marc={};
+  const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
+  ventasFB.filter(v=>!v.cancelada).forEach(v=>{
+    (v.items||[]).forEach(item=>{
+      const tipo=item.tipo||'otro';
+      const precio=item.precio||0;
+      // Usar el nombre exacto del producto para máximo detalle
+      const n=item.nombre||catN[tipo]||tipo;
+      const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela')add(esc,n);
+      else if(tipo==='impresion')add(imp,n);
+      else if(tipo==='marco')add(marc,n);
+      else add(urg,n);
+    });
+  });
+  renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-escuelas',esc);
+  renderSeccion('rep-impresiones',imp);
+  renderSeccion('rep-marcos',marc);
+  const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
+  const elH=document.getElementById('rep-historial');
+  if(elH)elH.innerHTML=sorted.length?
+    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
+    sorted.map(v=>{
+      const cancelada=v.cancelada===true;
+      const rowStyle=cancelada?'opacity:0.5;background:#fff5f5;':'';
+      const totalStyle=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';
+      const badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 5px;border-radius:4px;margin-left:4px;">✕</span>':'';
+      const btnCancelar=!cancelada?`<button onclick="cancelarVenta('${v.folio||''}')" style="background:transparent;border:1px solid #eee;border-radius:6px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;" title="Cancelar venta">✕</button>`:'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';
+      return `<tr style="${rowStyle}">
+        <td style="font-weight:600;font-size:11px;${cancelada?'color:#A32D2D;':'color:#1D9E75;'}">${v.folio||'—'}${badge}</td>
+        <td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td>
+        <td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td>
+        <td style="${totalStyle}">$${v.total}</td>
+        <td style="text-align:right;">${btnCancelar}</td>
+      </tr>`;
+    }).join('')+'</tbody></table>':
+    '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
+}
+
+function rendVisas(){
+  document.getElementById('visas-list').innerHTML=visas.map((v,i)=>`
+    <div class="visa-card">
+      <div class="vh" onclick="toggleVisa(${i})">
+        <span style="font-size:13px;font-weight:500;">${v.n}</span>
+        <div style="display:flex;align-items:center;gap:9px;">
+          <span style="font-size:13px;color:#1D9E75;font-weight:600;">$${v.p}</span>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:3px;" onclick="event.stopPropagation();editarVisa(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <i class="ti ti-chevron-down" style="font-size:13px;color:#888;"></i>
+        </div>
+      </div>
+      <div class="vb" id="vb-${i}">
+        ${v.img?`<img src="${v.img}" class="vsp" alt="specs">`:'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>'}
+        <div class="vbtns">
+          <label class="bsm" style="cursor:pointer;"><i class="ti ti-upload"></i> Subir specs<input type="file" accept="image/*" style="display:none;" onchange="updVisaImg(${i},this)"></label>
+          <button class="bsmg" onclick="add('${v.n}',${v.p},'${v.usa?'visaUSA':'visa'}')"><i class="ti ti-shopping-cart"></i> Vender</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function editarVisa(i){
+  document.getElementById('ev-n').value=visas[i].n;
+  document.getElementById('ev-p').value=visas[i].p;
+  document.getElementById('ev-usa').value=visas[i].usa;
+  document.getElementById('ev-idx').value=i;
+  openM('m-visa-edit');
+}
+function guardarVisaEdit(){
+  const i=parseInt(document.getElementById('ev-idx').value);
+  visas[i].n=document.getElementById('ev-n').value.trim()||visas[i].n;
+  visas[i].p=parseInt(document.getElementById('ev-p').value)||visas[i].p;
+  visas[i].usa=parseInt(document.getElementById('ev-usa').value);
+  rendVisas();closeM('m-visa-edit');autoGuardar();
+}
+function toggleVisa(i){document.getElementById('vb-'+i).classList.toggle('open');}
+function updVisaImg(i,input){
+  if(!input.files[0])return;
+  setDriveStatus(true,'Subiendo imagen...');
+  subirImagenCloudinary(input.files[0]).then(url=>{
+    visas[i].img=url;
+    rendVisas();
+    document.getElementById('vb-'+i).classList.add('open');
+    autoGuardar();
+  }).catch(()=>{setDriveStatus(false,'Error imagen');});
+}
+
+function filtrarEscuelas(){
+  const q=document.getElementById('esc-buscar').value.toLowerCase().trim();
+  const filtradas=escuelas
+    .map((e,i)=>({...e,idx:i}))
+    .filter(e=>e.n.toLowerCase().includes(q))
+    .sort((a,b)=>a.n.localeCompare(b.n,'es'));
+  const contador=document.getElementById('esc-contador');
+  if(q){
+    contador.textContent=filtradas.length+' resultado'+(filtradas.length!==1?'s':'')+' de '+escuelas.length+' escuelas';
+  } else {
+    contador.textContent=escuelas.length+' escuela'+(escuelas.length!==1?'s':'')+' — ordenadas alfabéticamente';
+  }
+  renderEscGrid(filtradas);
+}
+
+function rendEsc(){
+  const q=document.getElementById('esc-buscar')?document.getElementById('esc-buscar').value.toLowerCase().trim():'';
+  const filtradas=escuelas
+    .map((e,i)=>({...e,idx:i}))
+    .filter(e=>!q||e.n.toLowerCase().includes(q))
+    .sort((a,b)=>a.n.localeCompare(b.n,'es'));
+  const contador=document.getElementById('esc-contador');
+  if(contador){
+    if(q){
+      contador.textContent=filtradas.length+' resultado'+(filtradas.length!==1?'s':'')+' de '+escuelas.length+' escuelas';
+    } else {
+      contador.textContent=escuelas.length+' escuela'+(escuelas.length!==1?'s':'')+' — ordenadas alfabéticamente';
+    }
+  }
+  renderEscGrid(filtradas);
+}
+
+function renderEscGrid(lista){
+  if(!lista.length){
+    grid.innerHTML = '';
+    grid.insertAdjacentHTML('beforeend','<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">No se encontraron escuelas</div>');
+    const ac2=document.createElement('div');ac2.className='add-card';ac2.onclick=function(){openM('m-esc');};ac2.innerHTML='<i class="ti ti-plus"></i><span>Agregar escuela</span>';grid.appendChild(ac2);
+    return;
+  }
+  document.getElementById('esc-grid').innerHTML=lista.map((e)=>`
+    <div class="esc-card">
+      <div class="esc-img" onclick="abrirLb(${e.idx},'esc')">
+        ${e.img?`<img src="${e.img}" alt="${e.n}"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span>Sin imagen — toca para ver</span>'}
+      </div>
+      <div class="esc-body">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
+          <p class="esc-n">${e.n}</p><span style="font-size:12px;color:#1D9E75;font-weight:600;white-space:nowrap;">${e.p}</span>
+        </div>
+        <p class="esc-s">${e.s}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <button class="bsm" onclick="add('Paquete ${e.n}',${parseInt(e.p.replace('$',''))||0},'escuela')"><i class="ti ti-shopping-cart"></i> Agregar</button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
+            <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
+}
+function abrirLb(i,tipo){
+  let obj=tipo==='esc'?escuelas[i]:marcos[i];
+  document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
+  document.getElementById('lb-t').textContent=obj.n||obj.nombre||'';
+  document.getElementById('lb-s').textContent=obj.s||obj.t||('Stock: '+(obj.stock||0));
+  document.getElementById('lb-p').textContent=obj.p||('$'+( obj.precio||0));
+  if(tipo==='esc'){
+    document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
+    document.getElementById('lb-add-btn').onclick=()=>{add('Paquete '+(obj.n||obj.nombre),parseInt((obj.p||'$0').replace('$',''))||0,'escuela');closeLb();};
+  } else if(tipo==='marco'){
+    document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Vender marco';
+    document.getElementById('lb-add-btn').onclick=()=>{venderMarcoVenta(i);closeLb();};
+  } else {
+    document.getElementById('lb-add-btn').style.display='none';
+  }
+  document.getElementById('lb').classList.add('open');
+}
+
+function venderMarcoVenta(i){
+  if(!marcos[i]||marcos[i].stock<=0){alert('Sin stock disponible');return;}
+  const precio=marcos[i].precio||0;
+  add('Marco '+marcos[i].n, precio, 'marco');
+  marcos[i].stock--;
+  rendMarcosVenta();
+  rendMarcos();
+  autoGuardar();
+}
+
+function rendMarcosVenta(){
+  const grid=document.getElementById('marcos-venta-grid');
+  if(!grid)return;
+  const disponibles=marcos.filter((m,i)=>({...m,idx:i})).map((m,i)=>({...m,idx:i}));
+  if(!disponibles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-frame" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin marcos en inventario</div>';
+    return;
+  }
+  grid.innerHTML=disponibles.map((m,i)=>{
+    const agotado=m.stock<=0;
+    return `<div class="esc-card" style="${agotado?'opacity:0.5;':''}">
+      <div class="esc-img" onclick="abrirLb(${m.idx},'marco')" style="cursor:pointer;">
+        ${m.img?`<img src="${m.img}" alt="${m.n}" style="width:100%;height:110px;object-fit:cover;"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto</span>'}
+      </div>
+      <div class="esc-body">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
+          <p class="esc-n">${m.n}</p>
+          <span style="font-size:12px;color:#1D9E75;font-weight:600;">$${m.precio||0}</span>
+        </div>
+        <p class="esc-s">${m.t} · Stock: ${m.stock}</p>
+        <div style="margin-top:8px;">
+          ${agotado
+            ? '<span style="font-size:11px;color:#A32D2D;font-weight:500;">Agotado</span>'
+            : `<button class="bsm" onclick="venderMarcoVenta(${m.idx})"><i class="ti ti-shopping-cart"></i> Vender</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function closeLb(){document.getElementById('lb').classList.remove('open');}
+function editarEsc(i){
+  document.getElementById('ee-n').value=escuelas[i].n;
+  document.getElementById('ee-s').value=escuelas[i].s;
+  document.getElementById('ee-p').value=escuelas[i].p;
+  document.getElementById('ee-idx').value=i;
+  openM('m-esc-edit');
+}
+
+function eliminarEsc(i){
+  const clave=prompt('Clave para eliminar escuela:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+escuelas[i].n+'"?'))return;
+  const docId=escuelas[i]._id||('e'+i);
+  escuelas.splice(i,1);
+  rendEsc();
+  guardarLocal();
+  if(db){
+    db.collection('escuelas').doc(docId).delete()
+      .then(()=>setDriveStatus(true,'Eliminado ✓'))
+      .catch(err=>setDriveStatus(false,'Error: '+err.code));
+  }
+}
+function guardarEscEdit(){
+  const i=parseInt(document.getElementById('ee-idx').value);
+  escuelas[i].n=document.getElementById('ee-n').value.trim()||escuelas[i].n;
+  escuelas[i].s=document.getElementById('ee-s').value.trim()||escuelas[i].s;
+  escuelas[i].p=document.getElementById('ee-p').value.trim()||escuelas[i].p;
+  const img=document.getElementById('ee-img');
+  const docId=escuelas[i]._id||('e'+i);
+  const save=()=>{
+    rendEsc();closeM('m-esc-edit');guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escuelas[i])
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>setDriveStatus(false,'Error: '+err.code));
+    }
+  };
+  if(img.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(img.files[0]).then(url=>{escuelas[i].img=url;save();}).catch(()=>save());
+  } else save();
+}
+function eliminarImp(i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar impresión "'+impresiones[i].sz+'"?'))return;
+  impresiones.splice(i,1);
+  rendImp();
+  autoGuardar();
+}
+
+function rendImp(){
+  document.getElementById('imp-grid').innerHTML=impresiones.map((im,i)=>`
+    <div class="foto-card" style="position:relative;">
+      <div onclick="add('Impresión ${im.sz}',impresiones[${i}].p,'impresion')" style="cursor:pointer;">
+        <div class="fc-n">${im.sz}"</div>
+        <div class="fc-l">Impresión fotográfica</div>
+        <div class="fc-p">$${im.p}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarImp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarImp(${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function rendMarcos(){
+  document.getElementById('marcos-list').innerHTML=marcos.map((m,i)=>{
+    const b=m.stock===0?'bout':m.stock<=3?'blow':'bok';
+    const bt=m.stock===0?'Agotado':m.stock<=3?'Stock bajo':'Disponible';
+    return `<div class="marco-card">
+      <div class="marco-img" onclick="abrirLb(${i},'marco')">
+        ${m.img?`<img src="${m.img}" alt="${m.n}"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto — toca para ver</span>'}
+      </div>
+      <div class="marco-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="marco-n">${m.n}</div><div style="font-size:11px;color:#888;margin-top:3px;">${m.t} · <span class="badge ${b}">${bt}</span></div></div>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:4px;" onclick="editarMarco(${i})" title="Editar marco"><i class="ti ti-pencil"></i></button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
+          <div class="stk-ctrl">
+            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},-1)" ${m.stock===0?'disabled':''}>−</button>`:''}
+            <span class="stk-n">${m.stock}</span>
+            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},1)">+</button>`:''}
+          </div>
+          <button class="btn bgreen" style="font-size:11px;padding:5px 11px;" onclick="venderMarco(${i})" ${m.stock===0?'disabled style="opacity:.4;cursor:not-allowed;"':''}><i class="ti ti-shopping-cart"></i> Vender</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function ajMarco(i,d){marcos[i].stock=Math.max(0,marcos[i].stock+d);regBit('Stock marco editado',marcos[i].n+': '+marcos[i].stock,'ok');rendMarcos();}
+function venderMarco(i){
+  if(marcos[i].stock===0)return;
+  add('Marco '+marcos[i].n,0,'marco');
+  marcos[i].stock--;
+  regBit('Marco vendido',marcos[i].n,'−1 stock');
+  rendMarcos();
+}
+function editarMarco(i){
+  document.getElementById('me-n').value=marcos[i].n;
+  document.getElementById('me-t').value=marcos[i].t;
+  document.getElementById('me-idx').value=i;
+  openM('m-marc-edit');
+}
+function guardarMarcoEdit(){
+  const i=parseInt(document.getElementById('me-idx').value);
+  marcos[i].n=document.getElementById('me-n').value.trim()||marcos[i].n;
+  marcos[i].t=document.getElementById('me-t').value.trim()||marcos[i].t;
+  const img=document.getElementById('me-img');
+  const save=()=>{rendMarcos();closeM('m-marc-edit');autoGuardar();};
+  if(img.files[0]){const r=new FileReader();r.onload=e=>{marcos[i].img=e.target.result;save();};r.readAsDataURL(img.files[0]);}else save();
+}
+
+function rendVidrio(){
+  document.getElementById('vidrio-list').innerHTML=vidrios.map((v,i)=>{
+    const b=v.stock===0?'bout':v.stock<=3?'blow':'bok';
+    const bt=v.stock===0?'Agotado':v.stock<=3?'Bajo':'OK';
+    return `<div class="vrow">
+      <div><div style="font-size:13px;font-weight:500;">Vidrio ${v.m}"</div><span class="badge ${b}">${bt}</span></div>
+      <div class="stk-ctrl">
+        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},-1)" ${v.stock===0?'disabled':''}>−</button>`:''}
+        <span class="stk-n">${v.stock}</span>
+        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},1)">+</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function ajVidrio(i,d){vidrios[i].stock=Math.max(0,vidrios[i].stock+d);regBit('Stock vidrio editado','Vidrio '+vidrios[i].m+': '+vidrios[i].stock,'ok');rendVidrio();}
+
+function regBit(desc,det,tipo){
+  const now=new Date();
+  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  bitacora.unshift({desc,det,tipo,hora});
+  const el=document.getElementById('bit-list');
+  if(el)el.innerHTML=bitacora.map(b=>`<div class="bit-row"><div><div class="bd">${b.desc}</div><div class="bh">${b.hora}</div></div><div style="font-size:12px;font-weight:500;color:${b.tipo==='ok'?'#1D9E75':'#A32D2D'}">${b.det}</div></div>`).join('');
+}
+
+function guardarVisa(){
+  const n=document.getElementById('v-n').value.trim();const p=parseInt(document.getElementById('v-p').value.replace('$',''))||0;if(!n)return;
+  const usa=parseInt(document.getElementById('v-usa').value);
+  const v={n,p,usa,img:null};const imgI=document.getElementById('v-img');
+  const s=()=>{visas.push(v);rendVisas();closeM('m-visa');autoGuardar();document.getElementById('v-n').value='';document.getElementById('v-p').value='';};
+  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{v.img=e.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
+}
+function guardarEsc(){
+  const n=document.getElementById('e-n').value.trim();
+  const sp=document.getElementById('e-s').value.trim();
+  const p=document.getElementById('e-p').value.trim();
+  if(!n)return;
+  const docId='e_'+Date.now();
+  const e={n,s:sp||'Sin especificaciones',p:p||'$0',img:null,_id:docId};
+  const imgI=document.getElementById('e-img');
+  const guardar=(escData)=>{
+    escuelas.push(escData);
+    rendEsc();
+    closeM('m-esc');
+    ['e-n','e-s','e-p'].forEach(id2=>document.getElementById(id2).value='');
+    guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escData)
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>{setDriveStatus(false,'Error: '+err.code);console.error(err);});
+    }
+  };
+  if(imgI.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(imgI.files[0])
+      .then(url=>{e.img=url;guardar(e);})
+      .catch(()=>guardar(e));
+  } else guardar(e);
+}
+function guardarImp(){
+  const sz=document.getElementById('im-s').value.trim();const p=parseInt(document.getElementById('im-p').value.replace('$',''))||0;if(!sz)return;
+  impresiones.push({sz,p});rendImp();closeM('m-imp');autoGuardar();document.getElementById('im-s').value='';document.getElementById('im-p').value='';
+}
+function guardarMarco(){
+  const n=document.getElementById('ma-n').value.trim();const t=document.getElementById('ma-t').value.trim();const s=parseInt(document.getElementById('ma-s').value)||0;if(!n)return;
+  const m={n,t,stock:s,img:null};const imgI=document.getElementById('ma-img');
+  const save=()=>{marcos.push(m);rendMarcos();closeM('m-marc');autoGuardar();['ma-n','ma-t'].forEach(id=>document.getElementById(id).value='');document.getElementById('ma-s').value='0';};
+  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{m.img=e.target.result;save();};r.readAsDataURL(imgI.files[0]);}else save();
+}
+function guardarVidrio(){
+  const med=document.getElementById('vi-m').value.trim();const s=parseInt(document.getElementById('vi-s').value)||0;if(!med)return;
+  vidrios.push({m:med,stock:s});rendVidrio();closeM('m-vid');autoGuardar();document.getElementById('vi-m').value='';document.getElementById('vi-s').value='0';
+}
+function prevSpec(input,id){if(!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(id);img.src=e.target.result;img.style.display='block';};r.readAsDataURL(input.files[0]);}
+function openM(id){document.getElementById(id).classList.add('open');}
+function closeM(id){document.getElementById(id).classList.remove('open');}
+
+function eliminarProd(cat,i){
+  const clave=prompt('Ingresa la clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+productos[cat][i].nombre+'"?'))return;
+  productos[cat].splice(i,1);
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(cat,gridMap[cat]);
+  autoGuardar();
+}
+
+function rendProds(cat,gridId){
+  const el=document.getElementById(gridId);if(!el)return;
+  const isDigital=cat==='digital';
+  if(isDigital){
+    el.innerHTML=productos[cat].map((p,i)=>`
+      <div class="dig-card" style="position:relative;" onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+        <i class="ti ti-device-floppy"></i><div class="dn">${p.nombre}</div><div class="dp">$${p.precio}</div>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="event.stopPropagation();eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  } else {
+    el.innerHTML=productos[cat].map((p,i)=>`
+      <div class="foto-card" style="position:relative;">
+        <div onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+          <div class="fc-n">${p.nombre.replace(/.*?(\d+\s*fotos?)/i,'$1')}</div>
+          <div class="fc-l">${p.desc}</div>
+          <div class="fc-p">$${p.precio}</div>
+        </div>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function editarProd(cat,i){
+  const p=productos[cat][i];
+  document.getElementById('ep-cat').value=cat;
+  document.getElementById('ep-idx').value=i;
+  document.getElementById('ep-nombre').value=p.nombre;
+  document.getElementById('ep-desc').value=p.desc||'';
+  document.getElementById('ep-precio').value=p.precio;
+  openM('m-prod-edit');
+}
+function guardarProdEdit(){
+  const cat=document.getElementById('ep-cat').value;
+  const i=parseInt(document.getElementById('ep-idx').value);
+  productos[cat][i].nombre=document.getElementById('ep-nombre').value.trim()||productos[cat][i].nombre;
+  productos[cat][i].desc=document.getElementById('ep-desc').value.trim();
+  productos[cat][i].precio=parseInt(document.getElementById('ep-precio').value)||productos[cat][i].precio;
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(cat,gridMap[cat]);
+  closeM('m-prod-edit');autoGuardar();
+}
+function agregarProd(){
+  const cat=document.getElementById('ap-tipo').value;
+  const nombre=document.getElementById('ap-nombre').value.trim();
+  const desc=document.getElementById('ap-desc').value.trim();
+  const precio=parseInt(document.getElementById('ap-precio').value)||0;
+  if(!nombre)return;
+
+  // Categoría dinámica urgentes
+  const dynCat=categoriasDinamicas.find(c=>c.id===cat);
+  if(dynCat){
+    dynCat.productos.push({nombre,desc,precio,tipo:'otro'});
+    rendCatProds(cat);
+    closeM('m-add-prod');
+    ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+    autoGuardar();
+    return;
+  }
+  // Categoría dinámica ordinarias
+  const dynCatOrd=catsDinamicasOrd.find(c=>c.id===cat);
+  if(dynCatOrd){
+    dynCatOrd.productos.push({nombre,desc,precio,tipo:'ordinaria'});
+    rendCatOrdProds(cat);
+    closeM('m-add-prod');
+    ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+    autoGuardar();
+    return;
+  }
+
+  // Categorías fijas
+  const catMap={infantil6:'infantil',infantil9:'infantil',cred4:'credencial',cred6:'credencial',cartilla:'cartilla',digital:'digital'};
+  const finalCat=catMap[cat]||cat;
+  if(!productos[finalCat]){closeM('m-add-prod');return;}
+  productos[finalCat].push({nombre,desc,precio,tipo:cat});
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(finalCat,gridMap[finalCat]);
+  closeM('m-add-prod');
+  ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+  autoGuardar();
+}
+function editarImp(i){
+  document.getElementById('ei-sz').textContent=impresiones[i].sz+'"';
+  document.getElementById('ei-nombre').value=impresiones[i].sz;
+  document.getElementById('ei-p').value=impresiones[i].p;
+  document.getElementById('ei-idx').value=i;
+  openM('m-imp-edit');
+}
+function guardarImpEdit(){
+  const i=parseInt(document.getElementById('ei-idx').value);
+  const nombre=document.getElementById('ei-nombre').value.trim();
+  const precio=parseInt(document.getElementById('ei-p').value)||0;
+  if(nombre)impresiones[i].sz=nombre;
+  if(precio)impresiones[i].p=precio;
+  rendImp();
+  closeM('m-imp-edit');autoGuardar();
+}
+
+
+// ============================================================
+// LOCAL STORAGE — respaldo inmediato
+// ============================================================
+function guardarLocal(){
+  try{
+    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,catsDinamicasOrd,ventasDia:ventas,folioNum,pedidos};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
@@ -1965,6 +4192,7 @@ function iniciarFirebase(){
     }).catch(()=>{});
     setDriveStatus(true,'Datos cargados ✓');
     if(!precDoc.exists) guardarFirebase();
+    cargarPedidosFB();
   }).catch(e=>{
     fbListo=true;
     setDriveStatus(false,'Error cargando datos');
@@ -2033,6 +4261,205 @@ async function guardarFirebase(){
 function autoGuardar(){
   guardarLocal();
   if(db) setTimeout(guardarFirebase, 500);
+}
+
+// ============================================================
+// PEDIDOS
+// ============================================================
+let pedidos = [];
+let filtroPedidos = 'todos';
+
+function calcResta(){
+  const total=parseFloat(document.getElementById('mp-total').value)||0;
+  const pagado=parseFloat(document.getElementById('mp-pagado').value)||0;
+  const resta=Math.max(0,total-pagado);
+  document.getElementById('mp-resta').textContent='$'+resta.toLocaleString();
+}
+
+function abrirNuevoPedido(desc='', total=0){
+  document.getElementById('mp-titulo').textContent='Nuevo pedido';
+  document.getElementById('mp-cliente').value='';
+  document.getElementById('mp-desc').value=desc;
+  document.getElementById('mp-notas').value='';
+  document.getElementById('mp-total').value=total||'';
+  document.getElementById('mp-pagado').value=total||'';
+  document.getElementById('mp-fecha').value='';
+  document.getElementById('mp-urgente').checked=false;
+  document.getElementById('mp-id').value='';
+  calcResta();
+  openM('m-pedido-nuevo');
+}
+
+function guardarPedido(){
+  const cliente=document.getElementById('mp-cliente').value.trim();
+  const desc=document.getElementById('mp-desc').value.trim();
+  if(!cliente||!desc){alert('Escribe el nombre del cliente y la descripción');return;}
+  const total=parseFloat(document.getElementById('mp-total').value)||0;
+  const pagado=parseFloat(document.getElementById('mp-pagado').value)||0;
+  const notas=document.getElementById('mp-notas').value.trim();
+  const fecha=document.getElementById('mp-fecha').value;
+  const urgente=document.getElementById('mp-urgente').checked;
+  const idExistente=document.getElementById('mp-id').value;
+
+  const now=new Date();
+  const pedido={
+    id: idExistente||('P-'+Date.now()),
+    cliente, desc, notas, total, pagado,
+    resta: Math.max(0,total-pagado),
+    fecha, urgente,
+    estado: 'pendiente',
+    creado: now.toISOString(),
+    creadoFecha: now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
+    creadoHora: now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+  };
+
+  if(idExistente){
+    const idx=pedidos.findIndex(p=>p.id===idExistente);
+    if(idx>=0){
+      pedido.estado=pedidos[idx].estado;
+      pedidos[idx]=pedido;
+    }
+  } else {
+    pedidos.push(pedido);
+  }
+
+  closeM('m-pedido-nuevo');
+  rendPedidos();
+  guardarPedidosFB(pedido);
+}
+
+function cambiarEstadoPedido(id, nuevoEstado){
+  const p=pedidos.find(p=>p.id===id);
+  if(!p)return;
+  p.estado=nuevoEstado;
+  rendPedidos();
+  guardarPedidosFB(p);
+}
+
+function editarPedido(id){
+  const p=pedidos.find(p=>p.id===id);
+  if(!p)return;
+  document.getElementById('mp-titulo').textContent='Editar pedido';
+  document.getElementById('mp-cliente').value=p.cliente||'';
+  document.getElementById('mp-desc').value=p.desc||'';
+  document.getElementById('mp-notas').value=p.notas||'';
+  document.getElementById('mp-total').value=p.total||0;
+  document.getElementById('mp-pagado').value=p.pagado||0;
+  document.getElementById('mp-fecha').value=p.fecha||'';
+  document.getElementById('mp-urgente').checked=p.urgente||false;
+  document.getElementById('mp-id').value=p.id;
+  calcResta();
+  openM('m-pedido-nuevo');
+}
+
+function eliminarPedido(id){
+  const clave=prompt('Clave para eliminar pedido:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const p=pedidos.find(p=>p.id===id);
+  if(!p||!confirm('¿Eliminar pedido de '+p.cliente+'?'))return;
+  pedidos=pedidos.filter(p=>p.id!==id);
+  rendPedidos();
+  guardarLocal();
+  if(db) db.collection('pedidos').doc(id).delete().catch(console.error);
+}
+
+function filtrarPedidos(filtro, el){
+  filtroPedidos=filtro;
+  document.querySelectorAll('#page-pedidos .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  rendPedidos();
+}
+
+const estadoConfig={
+  pendiente:{label:'🔴 Pendiente',bg:'#fff5f5',color:'#A32D2D',next:'proceso',nextLabel:'Iniciar'},
+  proceso:{label:'🟡 En proceso',bg:'#fffbeb',color:'#92610a',next:'listo',nextLabel:'Marcar listo'},
+  listo:{label:'🟢 Listo',bg:'#f0fbf6',color:'#085041',next:'entregado',nextLabel:'Entregar'},
+  entregado:{label:'✅ Entregado',bg:'#f5f5f5',color:'#666',next:null,nextLabel:null}
+};
+
+function rendPedidos(){
+  const el=document.getElementById('pedidos-lista');
+  if(!el)return;
+  let lista=[...pedidos].sort((a,b)=>{
+    if(a.urgente&&!b.urgente)return -1;
+    if(!a.urgente&&b.urgente)return 1;
+    const orden={pendiente:0,proceso:1,listo:2,entregado:3};
+    return (orden[a.estado]||0)-(orden[b.estado]||0);
+  });
+  if(filtroPedidos!=='todos') lista=lista.filter(p=>p.estado===filtroPedidos);
+  if(!lista.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-clipboard-check" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin pedidos</div>';
+    return;
+  }
+  const estCfg={
+    pendiente:{label:'Pendiente',bg:'#fff5f5',color:'#A32D2D',dot:'🔴',next:'proceso',nextLabel:'Iniciar'},
+    proceso:{label:'En proceso',bg:'#fffbeb',color:'#92610a',dot:'🟡',next:'listo',nextLabel:'Listo'},
+    listo:{label:'Listo para entregar',bg:'#f0fbf6',color:'#085041',dot:'🟢',next:'entregado',nextLabel:'Entregar'},
+    entregado:{label:'Entregado',bg:'#f5f5f5',color:'#666',dot:'✅',next:null,nextLabel:null}
+  };
+  // Add event delegation after render
+  setTimeout(function(){
+    const cont=document.getElementById('pedidos-lista');
+    if(!cont)return;
+    cont.querySelectorAll('.pedido-next-btn').forEach(function(btn){
+      btn.onclick=function(){cambiarEstadoPedido(btn.dataset.id,btn.dataset.next);};
+    });
+    cont.querySelectorAll('.pedido-edit-btn').forEach(function(btn){
+      btn.onclick=function(){editarPedido(btn.dataset.id);};
+    });
+    cont.querySelectorAll('.pedido-del-btn').forEach(function(btn){
+      btn.onclick=function(){eliminarPedido(btn.dataset.id);};
+    });
+  },100);
+  el.innerHTML=lista.map(function(p){
+    const est=estCfg[p.estado]||estCfg.pendiente;
+    const urgTxt=p.urgente ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;margin-left:6px;">URGENTE</span>' : '';
+    const restaTxt=p.resta>0 ? '<span style="background:#FCEBEB;color:#A32D2D;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;">Resta $'+p.resta.toLocaleString()+'</span>' : '<span style="background:#E1F5EE;color:#085041;font-size:11px;padding:2px 7px;border-radius:10px;">Pagado</span>';
+    const nextTxt=est.next ? '<button class="bsm pedido-next-btn" data-id="'+p.id+'" data-next="'+est.next+'" style="font-size:11px;">'+est.nextLabel+'</button>' : '';
+    const fechaTxt=p.fecha ? '<span style="font-size:11px;color:#888;">Entrega: '+p.fecha+'</span>' : '';
+    const notasTxt=p.notas ? '<p style="font-size:11px;color:#888;margin-bottom:6px;">'+p.notas+'</p>' : '';
+    return '<div style="background:'+est.bg+';border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #e0e0e0;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">'+
+        '<div><span style="font-size:14px;font-weight:600;">'+p.cliente+'</span>'+urgTxt+
+        '<span style="font-size:10px;color:#888;display:block;margin-top:2px;">'+p.creadoFecha+' '+p.creadoHora+' · '+p.id+'</span></div>'+
+        '<span style="font-size:11px;font-weight:600;color:'+est.color+';background:white;padding:3px 8px;border-radius:8px;">'+est.dot+' '+est.label+'</span>'+
+      '</div>'+
+      '<p style="font-size:12px;color:#444;margin-bottom:4px;">'+p.desc+'</p>'+
+      notasTxt+
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">'+
+        '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'+
+          '<span style="font-size:13px;font-weight:600;">$'+p.total.toLocaleString()+'</span>'+
+          restaTxt+fechaTxt+
+        '</div>'+
+        '<div style="display:flex;gap:6px;">'+
+          nextTxt+
+          '<button class="pedido-edit-btn" data-id="'+p.id+'" style="background:transparent;border:1px solid #e0e0e0;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;color:#888;">✏️</button>'+
+          '<button class="pedido-del-btn" data-id="'+p.id+'" style="background:transparent;border:1px solid #fcc;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;color:#f5c0c0;">🗑️</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+
+async function guardarPedidosFB(pedido){
+  if(!db)return;
+  try{
+    await db.collection('pedidos').doc(pedido.id).set(pedido);
+    guardarLocal();
+  }catch(e){console.error('Error guardando pedido:',e);}
+}
+
+async function cargarPedidosFB(){
+  if(!db)return;
+  try{
+    const snap=await db.collection('pedidos').get();
+    if(!snap.empty){
+      pedidos=[];
+      snap.forEach(d=>pedidos.push(d.data()));
+    }
+    rendPedidos();
+  }catch(e){console.error(e);}
 }
 
 async function cancelarVenta(folio){
