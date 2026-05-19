@@ -192,15 +192,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 .tkt-bold{font-weight:700;font-size:13px;}
 .tkt-total{font-size:14px;font-weight:700;border-top:2px solid #111;padding-top:6px;margin-top:4px;}
 .tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}
-
 .ord-sec{display:block;}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v4.6</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v4.8</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -208,13 +206,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
     <div class="nav" onclick="showPage('ordinarias',this)"><i class="ti ti-clock"></i> Ordinarias</div>
     <div class="nav" onclick="showPage('marcos-venta',this)"><i class="ti ti-frame"></i> Marcos</div>
-    <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
     <div class="nav-sep"></div>
     <div class="nav" onclick="showPage('pedidos',this)"><i class="ti ti-clipboard-list"></i> Pedidos</div>
     <div class="nav" onclick="showPage('inventario',this)"><i class="ti ti-package"></i> Inventario</div>
+    <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
-
-  <!-- MAIN -->
   <div class="main">
 
     <!-- URGENTES -->
@@ -230,18 +226,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')"><i class="ti ti-plus"></i> Nueva</button>
       </div>
       <div id="t-inf" class="tsec active">
-        <div class="hrow"><p class="slabel" style="margin:0;">Infantil — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar producto infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Infantil</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="inf-grid" class="g2" style="margin-bottom:12px;"></div>
       </div>
       <div id="t-cred" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Credencial — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar producto credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Credencial</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="cred-grid" class="g2" style="margin-bottom:12px;"></div>
         <p class="slabel">Cartilla militar</p>
-        <div class="hrow" style="margin-bottom:8px;"><p class="slabel" style="margin:0;font-size:9px;color:#888;">Papel TBarita</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar cartilla';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow" style="margin-bottom:8px;"><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar cartilla';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="cart-grid" class="g2" style="margin-bottom:12px;"></div>
       </div>
       <div id="t-dig" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar imagen digital';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar digital';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="dig-grid" class="g2" style="margin-bottom:12px;"></div>
       </div>
       <div id="t-visa" class="tsec">
@@ -253,8 +249,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
     <!-- ORDINARIAS -->
     <div id="page-ordinarias" class="page">
-      <p class="ptitle">Ordinarias</p>
-      <p class="psub">Toca un producto para agregar al carrito</p>
+      <p class="ptitle">Ordinarias</p><p class="psub">Toca un producto para agregar al carrito</p>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;">
         <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="ord-tabs">
           <div class="tab active" onclick="showOrdTab('esc',this)">Paquetes escolares</div>
@@ -264,10 +259,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       </div>
       <div id="ord-esc" class="ord-sec">
         <div class="hrow"><p class="slabel" style="margin:0;">Paquetes escolares</p><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
-        <div style="position:relative;margin-bottom:12px;">
-          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
-          <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
-        </div>
+        <div style="position:relative;margin-bottom:12px;"><i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i><input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;"></div>
         <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
         <div class="esc-grid" id="esc-grid"></div>
       </div>
@@ -280,7 +272,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
     <!-- MARCOS VENTA -->
     <div id="page-marcos-venta" class="page">
-      <div class="hrow"><div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div></div>
+      <div class="hrow"><div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca para ver en grande · Al vender descuenta del inventario</p></div></div>
       <div class="esc-grid" id="marcos-venta-grid"></div>
     </div>
 
@@ -386,64 +378,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
-      <p class="ptitle">Reportes</p>
-      <p class="psub">Historial permanente de ventas</p>
-
+      <p class="ptitle">Reportes</p><p class="psub">Historial permanente de ventas</p>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
         <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
           <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
           <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
           <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
         </div>
-        <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;" id="btn-calendario"><i class="ti ti-calendar"></i></button>
+        <button onclick="abrirCalendario()" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
       </div>
-
-      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;">
-        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Buscar por fecha</p>
+      <div id="rep-cal-wrap" style="display:none;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;margin-bottom:12px;">
+        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;">Buscar por fecha</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div>
-            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label>
-            <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
-          </div>
-          <div>
-            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label>
-            <input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
-          </div>
+          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label><input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;"></div>
+          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label><input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;"></div>
         </div>
       </div>
-
       <div class="g2" style="margin-bottom:14px;">
-        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
-          <div class="sl">Total vendido</div>
-          <div class="sv green" id="rep-total">$0</div>
-          <div class="ss" id="rep-periodo">—</div>
-        </div>
-        <div class="stat">
-          <div class="sl">Ventas</div>
-          <div class="sv" id="rep-numventas">0</div>
-          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
-        </div>
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;"><div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div><div class="ss" id="rep-periodo">—</div></div>
+        <div class="stat"><div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div><div class="ss" id="rep-ticketprom">Ticket prom: $0</div></div>
       </div>
-
-      <p class="slabel">Urgentes</p>
-      <div id="rep-urgentes" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
-
-      <p class="slabel">Paquetes escolares</p>
-      <div id="rep-escuelas" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
-
-      <p class="slabel">Impresiones</p>
-      <div id="rep-impresiones" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
-
-      <p class="slabel">Marcos</p>
-      <div id="rep-marcos" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
-
+      <p class="slabel">Urgentes</p><div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <p class="slabel">Paquetes escolares</p><div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <p class="slabel">Impresiones</p><div id="rep-impresiones" style="margin-bottom:14px;"></div>
+      <p class="slabel">Marcos</p><div id="rep-marcos" style="margin-bottom:14px;"></div>
       <p class="slabel">Historial de ventas</p>
-      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período</p></div>
     </div>
 
   </div>
 
-  <!-- CARRITO LATERAL -->
+  <!-- CARRITO -->
   <div class="cart-panel">
     <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
     <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
@@ -457,6 +422,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     </div>
   </div>
 </div>
+
+
 
 <!-- LIGHTBOX -->
 <div class="lb" id="lb">
@@ -527,10 +494,54 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button><button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button></div>
 </div></div>
 
+<!-- TICKET MODAL -->
+<div class="modal-ov" id="m-ticket" style="z-index:1000;">
+  <div class="modal-box" style="width:320px;max-height:85vh;overflow-y:auto;">
+    <div id="ticket-content"></div>
+    <div class="modal-btns">
+      <button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button>
+      <button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA CAT ORD -->
+<div class="modal-ov" id="m-nueva-cat-ord"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Ordinarias</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="nco-nombre" placeholder="Ej: Restauraciones, Lienzos..."></div>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat-ord')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCatOrd()">Crear</button></div>
+</div></div>
+
+<!-- MODAL PEDIDO -->
+<div class="modal-ov" id="m-pedido-nuevo"><div class="modal-box">
+  <p class="modal-t" id="mp-titulo">Nuevo pedido</p>
+  <div class="frow"><label>Cliente</label><input type="text" id="mp-cliente" placeholder="Nombre de quien dejó el pedido"></div>
+  <div class="frow"><label>Descripción</label><textarea id="mp-desc" rows="2" placeholder="Qué pidió..." style="resize:none;width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:8px;font-size:13px;"></textarea></div>
+  <div class="frow"><label>Notas</label><input type="text" id="mp-notas" placeholder="Foto por BT, restauración..."></div>
+  <div class="g2">
+    <div class="frow"><label>Total ($)</label><input type="number" id="mp-total" placeholder="0" oninput="calcResta()"></div>
+    <div class="frow"><label>Anticipo ($)</label><input type="number" id="mp-pagado" placeholder="0" oninput="calcResta()"></div>
+  </div>
+  <div style="background:#f0fbf6;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;">
+    <span style="font-size:12px;color:#666;">Resta:</span>
+    <span style="font-size:16px;font-weight:700;color:#1D9E75;" id="mp-resta">$0</span>
+  </div>
+  <div class="frow"><label>Fecha de entrega</label><input type="date" id="mp-fecha"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <input type="checkbox" id="mp-urgente" style="width:16px;height:16px;">
+    <label for="mp-urgente" style="font-size:13px;cursor:pointer;">Urgente (1 hora)</label>
+  </div>
+  <input type="hidden" id="mp-id">
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-pedido-nuevo')">Cancelar</button>
+    <button class="btn bgreen" onclick="guardarPedido()">Guardar</button>
+  </div>
+</div></div>
+
 <script>
+
 const CLAVE='8888';
-let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
-let folioNum=1; // Will be synced from Firebase on load
+let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
 let cnt={infantil6:0,infantil9:0,cred4:0,cred6:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
 let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
 let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
@@ -562,6 +573,9 @@ function showPage(id,el){
   const page=document.getElementById('page-'+id);
   if(page) page.classList.add('active');
   if(el)el.classList.add('active');
+  if(id==='reportes')setTimeout(cargarReportes,300);
+  if(id==='ordinarias'){rendEsc();rendImp();}
+  if(id==='marcos-venta'&&typeof rendMarcosVenta==='function')rendMarcosVenta();
   if(id==='ordinarias'){rendEsc();rendImp();}
   if(id==='marcos-venta'){rendMarcosVenta();}
 }
@@ -607,72 +621,37 @@ function calcCambio(){
 function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
-  if(total<=0)return;
   const now=new Date();
   const dia=String(now.getDate()).padStart(2,'0');
-  const mes=String(now.getMonth()+1).padStart(2,'0');
-  const fecha=dia+'/'+mes+'/'+now.getFullYear();
+  const mes2=String(now.getMonth()+1).padStart(2,'0');
+  const fecha=dia+'/'+mes2+'/'+now.getFullYear();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
-  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
-
-  // Separar urgentes y ordinarios
-  const tiposOrdinarios=['escuela','impresion','ordinaria'];
-  const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
-  const itemsO=items.filter(c=>tiposOrdinarios.includes(c.tipo));
-
+  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
+  const tiposOrd=['escuela','impresion','ordinaria'];
+  const itemsU=items.filter(c=>!tiposOrd.includes(c.tipo));
+  const itemsO=items.filter(c=>tiposOrd.includes(c.tipo));
   const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
   const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
-
-  // Calcular cambio proporcional
-  const cambioU=itemsU.length&&itemsO.length ? 0 : (itemsU.length ? pago-totalU : 0);
-  const cambioO=itemsO.length ? pago-totalO : 0;
-
   const tickets=[];
-
   if(itemsU.length>0){
     const fU='FU-'+String(folioNum).padStart(4,'0');folioNum++;
-    const ventaU={folio:fU,tipo:'urgente',fecha,hora,
-      timestamp:now.toISOString(),year:now.getFullYear(),
-      month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
-      total:totalU,pago:itemsO.length?totalU:pago,cambio:cambioU,
-      escuelas:[]};
     ventas.push({f:fU,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
-    if(db) db.collection('ventas').doc(fU).set(ventaU)
-      .then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
-    tickets.push({f:fU,fecha,hora,items:itemsU,total:totalU,
-      pago:itemsO.length?totalU:pago,cambio:cambioU});
+    const vU={folio:fU,fecha,hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:totalU,pago:itemsO.length?totalU:pago,cambio:itemsO.length?0:pago-totalU,escuelas:[]};
+    if(db)db.collection('ventas').doc(fU).set(vU).then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
+    tickets.push({f:fU,fecha,hora,items:itemsU,total:totalU,pago:vU.pago,cambio:vU.cambio});
   }
-
   if(itemsO.length>0){
     const fO='FO-'+String(folioNum).padStart(4,'0');folioNum++;
-    const ventaO={folio:fO,tipo:'ordinario',fecha,hora,
-      timestamp:now.toISOString(),year:now.getFullYear(),
-      month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
-      total:totalO,pago:itemsU.length?totalO:pago,cambio:cambioO,
-      escuelas:itemsO.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))};
     ventas.push({f:fO,desc:itemsO.map(c=>c.nombre).join(', '),total:totalO});
-    if(db) db.collection('ventas').doc(fO).set(ventaO)
-      .then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
-    tickets.push({f:fO,fecha,hora,items:itemsO,total:totalO,
-      pago:itemsU.length?totalO:pago,cambio:cambioO});
-    // Auto-crear pedido para ordinarios
-    setTimeout(()=>{
-      const desc=itemsO.map(c=>c.nombre).join(', ');
-      abrirNuevoPedido(desc,totalO);
-    },800);
+    const vO={folio:fO,fecha,hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:totalO,pago:itemsU.length?totalO:pago,cambio:itemsU.length?0:pago-totalO,escuelas:itemsO.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))};
+    if(db)db.collection('ventas').doc(fO).set(vO).then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
+    tickets.push({f:fO,fecha,hora,items:itemsO,total:totalO,pago:vO.pago,cambio:vO.cambio});
   }
-
   totalDia+=total;updReportes();rendHist();
   carrito=[];document.getElementById('pago').value='';renderCarrito();
-
-  // Mostrar tickets
-  ultimaVenta=tickets[0];
-  mostrarTicket(tickets[0],tickets[1]);
+  if(tickets.length>0)mostrarTicket(tickets[0],tickets[1]||null);
 }
-
 
 function regConsumo(tipo){
   let desc='',imp='';
@@ -705,8 +684,7 @@ function updStock(){
   recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
 }
 function updReportes(){
-  const el=document.getElementById('r-v');
-  if(el) el.textContent=ventas.length;
+  document.getElementById('r-v').textContent=ventas.length;
   document.getElementById('r-t').textContent='$'+totalDia;
   document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9;
   document.getElementById('r-cred').textContent=cnt.cred4+cnt.cred6;
@@ -716,57 +694,92 @@ function updReportes(){
   document.getElementById('r-imp').textContent=cnt.impresion;
   document.getElementById('r-esc').textContent=cnt.escuela;
 }
+let periodoActual='hoy',ventasFB=[];
+function cambiarPeriodo(p,el){periodoActual=p;document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');cargarReportes();}
+function getFechaStr(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function abrirCalendario(){const w=document.getElementById('rep-cal-wrap');if(w)w.style.display=w.style.display==='none'?'block':'none';}
+function cambiarPeriodoFecha(v){if(!v)return;const[y,m,d]=v.split('-');document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));periodoActual='fecha';cargarReportesFecha(d+'/'+m+'/'+y);}
+function cambiarPeriodoMes(v){if(!v)return;const[y,m]=v.split('-');document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));periodoActual='mes_esp';cargarReportesMes(parseInt(y),parseInt(m));}
+async function cargarReportes(){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Cargando...</p>';
+  try{
+    const now=new Date();let snap;
+    if(periodoActual==='hoy'){snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();}
+    else if(periodoActual==='semana'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(function(d){const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
+      renderReportes();return;
+    } else {snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();}
+    ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+async function cargarReportesFecha(f){
+  if(!db)return;try{const snap=await db.collection('ventas').where('fecha','==',f).get();ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();}catch(e){console.error(e);}
+}
+async function cargarReportesMes(y,m){
+  if(!db)return;try{const snap=await db.collection('ventas').where('year','==',y).where('month','==',m).get();ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();}catch(e){console.error(e);}
+}
+function mostrarReportesLocal(){ventasFB=ventas.map(function(v){return{folio:v.f,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}]};});renderReportes();}
+function barraItem(n,total,count,max){var pct=Math.round(total/max*100);return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">'+n+'</span><span style="color:#1D9E75;font-weight:600;">$'+total.toLocaleString()+' ('+count+')</span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';}
+function renderSeccion(id,mapa){var el=document.getElementById(id);if(!el)return;var items=Object.entries(mapa).sort(function(a,b){return b[1].total-a[1].total;});if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}var max=items[0][1].total||1;el.innerHTML=items.map(function(x){return barraItem(x[0],x[1].total,x[1].count,max);}).join('');}
+function renderReportes(){
+  var activas=ventasFB.filter(function(v){return !v.cancelada;});
+  var total=activas.reduce(function(s,v){return s+v.total;},0);
+  var num=activas.length;
+  var prom=num?Math.round(total/num):0;
+  var labels={hoy:'Hoy',semana:'Últimos 7 días',anio:'Este año',fecha:'Fecha específica',mes_esp:'Mes específico'};
+  function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  set('rep-total','$'+total.toLocaleString());set('rep-numventas',num);set('rep-periodo',labels[periodoActual]||'—');set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  var urg={},esc={},imp={},marc={};
+  var catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',cred4:'Credencial 4f',cred6:'Credencial 6f',cartilla:'Cartilla',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro',ordinaria:'Ordinario'};
+  activas.forEach(function(v){(v.items||[]).forEach(function(item){var tipo=item.tipo||'otro';var precio=item.precio||0;var n=item.nombre||catN[tipo]||tipo;function add(m,k){if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;}if(tipo==='escuela')add(esc,n);else if(tipo==='impresion')add(imp,n);else if(tipo==='marco')add(marc,n);else add(urg,n);});});
+  renderSeccion('rep-urgentes',urg);renderSeccion('rep-escuelas',esc);renderSeccion('rep-impresiones',imp);renderSeccion('rep-marcos',marc);
+  var sorted=[...ventasFB].sort(function(a,b){return(b.timestamp||'').localeCompare(a.timestamp||'');});
+  var elH=document.getElementById('rep-historial');if(!elH)return;
+  if(!sorted.length){elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas</p>';return;}
+  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th></th></tr></thead><tbody>'+sorted.map(function(v){var cancelada=v.cancelada===true;var rs=cancelada?'opacity:0.5;background:#fff5f5;':'';var ts=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';var badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 4px;border-radius:4px;margin-left:3px;">✕</span>':'';var isU=(v.folio||'').startsWith('FU');var fc=isU?'color:#1D9E75;':'color:#E65100;';var btn=!cancelada?'<button class="btn-cx" data-folio="'+(v.folio||'')+'" style="background:none;border:1px solid #eee;border-radius:5px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;">✕</button>':'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';return '<tr style="'+rs+'"><td style="font-weight:600;font-size:11px;'+fc+'">'+(v.folio||'—')+badge+'</td><td style="font-size:10px;color:#888;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td><td style="font-size:11px;">'+(v.items||[]).map(function(i){return i.nombre;}).join(', ')+'</td><td style="'+ts+'">$'+v.total+'</td><td>'+btn+'</td></tr>';}).join('')+'</tbody></table>';
+  setTimeout(function(){elH.querySelectorAll('.btn-cx').forEach(function(btn){btn.onclick=function(){cancelarVenta(btn.dataset.folio);};});},100);
+}
+async function cancelarVenta(folio){
+  if(!folio)return;
+  var clave=prompt('Clave para cancelar '+folio+':');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('Cancelar '+folio+'?'))return;
+  if(!db){alert('Sin conexión');return;}
+  try{setDriveStatus(true,'Cancelando...');await db.collection('ventas').doc(folio).update({cancelada:true,fechaCancelacion:new Date().toISOString()});setDriveStatus(true,'Cancelada');setTimeout(cargarReportes,500);}catch(e){setDriveStatus(false,'Error');console.error(e);}
+}
+
 function rendHist(){
   document.getElementById('r-hist').innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
     ventas.map(v=>`<tr><td style="color:#1D9E75;font-weight:600">${v.f}</td><td style="font-size:11px;">${v.desc}</td><td style="color:#1D9E75;font-weight:600">$${v.total}</td></tr>`).join('')+'</tbody></table>';
-  // Add click handlers via delegation
-  setTimeout(function(){
-    document.querySelectorAll('.btn-cancelar-venta').forEach(function(btn){
-      btn.onclick=function(){cancelarVenta(btn.dataset.folio);};
-    });
-  },100);
 }
 function mostrarTicket(v1, v2){
   if(!v1)return;
-  function ticketHtml(v){
-    const badge=(v.f||'').startsWith('FU')?
-      '<span style="background:#E1F5EE;color:#085041;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">URGENTE</span>':
-      '<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;">ORDINARIO</span>';
-    const lineas=v.items.map(c=>{
-      const nom=(c.nombre||'').substring(0,22).padEnd(22,' ');
-      const pre=('$'+c.precio).padStart(7,' ');
-      return nom+pre;
-    }).join('\n');
-    return `<div style="font-family:'Courier New',monospace;background:white;border:1px dashed #ccc;border-radius:8px;padding:16px;margin-bottom:${v2?'12px':'0'};">
-      <div style="text-align:center;margin-bottom:10px;">
-        <strong style="font-size:15px;">📸 Foto Bernal</strong><br>
-        <span style="font-size:11px;">Ocampo 407, Chihuahua, Chih.</span><br>
-        <span style="font-size:11px;">Tel 614 4 15 42 42</span>
-      </div>
-      <div style="text-align:center;margin-bottom:8px;">${badge}</div>
-      <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:6px 0;margin:6px 0;font-size:11px;">
-        Folio: <strong>${v.f}</strong><br>
-        Fecha: ${v.fecha} ${v.hora}
-      </div>
-      <div style="font-size:11px;white-space:pre;">${lineas}</div>
-      <div style="border-top:1px dashed #ccc;margin:6px 0;padding-top:6px;">
-        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;">
-          <span>TOTAL</span><span>$${v.total}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:3px;">
-          <span>Pagó</span><span>$${v.pago}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">
-          <span>Cambio</span><span>$${v.cambio}</span>
-        </div>
-      </div>
-      <div style="text-align:center;font-size:11px;color:#888;margin-top:8px;">¡Gracias por su preferencia!</div>
-    </div>`;
+  function mkTicket(v){
+    const isU=(v.f||'').startsWith('FU');
+    const badge=isU?
+      '<div style="text-align:center;margin-bottom:6px;"><span style="background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;">URGENTE</span></div>':
+      '<div style="text-align:center;margin-bottom:6px;"><span style="background:#FFF3E0;color:#E65100;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;">ORDINARIO</span></div>';
+    const rows=v.items.map(function(c){return '<tr><td style="font-size:11px;padding:3px 0;">'+c.nombre+'</td><td style="font-size:11px;text-align:right;padding:3px 0;">$'+c.precio+'</td></tr>';}).join('');
+    return '<div style="border:1px dashed #ccc;border-radius:8px;padding:16px;margin-bottom:12px;">'+
+      '<div style="text-align:center;margin-bottom:10px;"><strong>Foto Bernal</strong><br><small>Ocampo 407, Chihuahua, Chih.</small><br><small>Tel 614 4 15 42 42</small></div>'+
+      badge+
+      '<div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:5px 0;margin:5px 0;font-size:11px;">Folio: <strong>'+v.f+'</strong> - '+v.fecha+' '+v.hora+'</div>'+
+      '<table style="width:100%;margin:6px 0;">'+rows+'</table>'+
+      '<div style="border-top:1px dashed #ccc;padding-top:6px;">'+
+        '<div style="display:flex;justify-content:space-between;font-weight:700;">TOTAL <span>$'+v.total+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">Pago: <span>$'+v.pago+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">Cambio: <span>$'+v.cambio+'</span></div>'+
+      '</div>'+
+      '<div style="text-align:center;font-size:10px;color:#888;margin-top:8px;">Gracias por su preferencia</div>'+
+    '</div>';
   }
-  document.getElementById('ticket-content').innerHTML=ticketHtml(v1)+(v2?ticketHtml(v2):'');
+  document.getElementById('ticket-content').innerHTML=mkTicket(v1)+(v2?mkTicket(v2):'');
   openM('m-ticket');
 }
-
 
 function imprimirTicket(){
   const c=document.getElementById('ticket-content').innerHTML;
@@ -780,7 +793,7 @@ function abrirTurno(){
   turnoAbierto=true;
   const now=new Date();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
+  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
   document.getElementById('turno-lock').style.display='none';
   document.getElementById('turno-abierto').style.display='block';
@@ -1222,21 +1235,8 @@ function iniciarFirebase(){
       rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
       rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
       guardarLocal();
-      // Sync folioNum from Firebase
-    if(db){
-      db.collection('ventas').get().then(snap=>{
-        let maxNum=0;
-        snap.forEach(doc=>{
-          // Handle FU-0001, FO-0001, FS-0001 formats
-          const num=parseInt(doc.id.replace(/^[A-Z]+-/,''))||0;
-          if(num>maxNum) maxNum=num;
-        });
-        folioNum=maxNum+1;
-        setDriveStatus(true,'Datos cargados ✓');
-      }).catch(()=>{setDriveStatus(true,'Datos cargados ✓');});
-    } else {
-      setDriveStatus(true,'Datos cargados ✓');
-    }
+      if(db){db.collection('ventas').get().then(function(snap){var mx=0;snap.forEach(function(doc){var n=parseInt(doc.id.replace(/^[A-Z]+-/,''))||0;if(n>mx)mx=n;});if(mx>=folioNum)folioNum=mx+1;}).catch(function(){});}
+    setDriveStatus(true,'Datos cargados ✓');
     } else {
       // Primera vez — subir datos locales
       guardarFirebase();
@@ -1367,187 +1367,6 @@ function autoGuardar(){
 
 // ============================================================
 
-// ============================================================
-// REPORTES AVANZADOS
-// ============================================================
-let periodoActual='hoy', ventasFB=[];
-
-function cambiarPeriodo(p,el){
-  periodoActual=p;
-  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
-  if(el)el.classList.add('active');
-  const btn=document.getElementById('btn-calendario');
-  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i>';
-  cargarReportes();
-}
-
-function getFechaStr(d){
-  const dia=String(d.getDate()).padStart(2,'0');
-  const mes=String(d.getMonth()+1).padStart(2,'0');
-  return dia+'/'+mes+'/'+d.getFullYear();
-}
-
-function abrirCalendario(){
-  const wrap=document.getElementById('rep-cal-wrap');
-  const inp=document.getElementById('rep-fecha-cal');
-  const hoy=new Date();
-  inp.max=hoy.toISOString().split('T')[0];
-  wrap.style.display=wrap.style.display==='none'?'block':'none';
-}
-
-function cambiarPeriodoFecha(fechaISO){
-  if(!fechaISO)return;
-  const [anio,mes,dia]=fechaISO.split('-');
-  const fechaMX=dia+'/'+mes+'/'+anio;
-  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
-  periodoActual='fecha';
-  const btn=document.getElementById('btn-calendario');
-  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+dia+'/'+mes;
-  document.getElementById('rep-cal-wrap').style.display='none';
-  cargarReportesFecha(fechaMX);
-}
-
-function cambiarPeriodoMes(mesISO){
-  if(!mesISO)return;
-  const [anio,mes]=mesISO.split('-');
-  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
-  periodoActual='mes_especifico';
-  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  const btn=document.getElementById('btn-calendario');
-  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+meses[parseInt(mes)-1]+' '+anio;
-  document.getElementById('rep-cal-wrap').style.display='none';
-  cargarReportesMes(parseInt(anio),parseInt(mes));
-}
-
-async function cargarReportes(){
-  if(!db){mostrarReportesLocal();return;}
-  const el=document.getElementById('rep-historial');
-  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
-  try{
-    const now=new Date();
-    let snap;
-    if(periodoActual==='hoy'){
-      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
-    } else if(periodoActual==='semana'){
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
-      ventasFB=[];
-      const h7=new Date(now);h7.setDate(h7.getDate()-7);
-      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
-      renderReportes();return;
-    } else {
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
-    }
-    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    renderReportes();
-  }catch(e){console.error(e);mostrarReportesLocal();}
-}
-
-async function cargarReportesFecha(fecha){
-  if(!db){mostrarReportesLocal();return;}
-  const el=document.getElementById('rep-historial');
-  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
-  try{
-    const snap=await db.collection('ventas').where('fecha','==',fecha).get();
-    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    renderReportes();
-  }catch(e){console.error(e);mostrarReportesLocal();}
-}
-
-async function cargarReportesMes(anio,mes){
-  if(!db){mostrarReportesLocal();return;}
-  const el=document.getElementById('rep-historial');
-  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
-  try{
-    const snap=await db.collection('ventas').where('year','==',anio).where('month','==',mes).get();
-    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    renderReportes();
-  }catch(e){console.error(e);mostrarReportesLocal();}
-}
-
-function mostrarReportesLocal(){
-  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:getFechaStr(new Date()),items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
-  renderReportes();
-}
-
-function barraItem(n,total,count,max){
-  const pct=Math.round(total/max*100);
-  return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">'+n+'</span><span style="color:#1D9E75;font-weight:600;">$'+total.toLocaleString()+' <span style="color:#888;">('+count+')</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
-}
-
-function renderSeccion(id,mapa){
-  const el=document.getElementById(id);if(!el)return;
-  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
-  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
-  const max=items[0][1].total||1;
-  el.innerHTML=items.map(function(entry){return barraItem(entry[0],entry[1].total,entry[1].count,max);}).join('');
-}
-
-function renderReportes(){
-  const activas=ventasFB.filter(v=>!v.cancelada);
-  const total=activas.reduce((s,v)=>s+v.total,0);
-  const num=activas.length;
-  const prom=num?Math.round(total/num):0;
-  const labels={hoy:'Hoy',semana:'Últimos 7 días',anio:'Este año',fecha:'Día seleccionado',mes_especifico:'Mes seleccionado'};
-  const set=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('rep-total','$'+total.toLocaleString());
-  set('rep-numventas',num);
-  set('rep-periodo',labels[periodoActual]||'—');
-  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
-  const urg={},esc={},imp={},marc={};
-  activas.forEach(function(v){
-    (v.items||[]).forEach(function(item){
-      const tipo=item.tipo||'otro';
-      const precio=item.precio||0;
-      const n=item.nombre||tipo;
-      const add=function(m,k){if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
-      if(tipo==='escuela')add(esc,n);
-      else if(tipo==='impresion')add(imp,n);
-      else if(tipo==='marco')add(marc,n);
-      else add(urg,n);
-    });
-  });
-  renderSeccion('rep-urgentes',urg);
-  renderSeccion('rep-escuelas',esc);
-  renderSeccion('rep-impresiones',imp);
-  renderSeccion('rep-marcos',marc);
-  const sorted=[...ventasFB].sort(function(a,b){return (b.timestamp||'').localeCompare(a.timestamp||'');});
-  const elH=document.getElementById('rep-historial');
-  if(!elH)return;
-  if(!sorted.length){elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';return;}
-  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th></th></tr></thead><tbody>'+
-    sorted.map(function(v){
-      const cancelada=v.cancelada===true;
-      const rowStyle=cancelada?'opacity:0.5;background:#fff5f5;':'';
-      const totalStyle=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';
-      const badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 5px;border-radius:4px;margin-left:4px;">✕</span>':'';
-      const btnCancelar=!cancelada?'<button class="btn-cancelar-venta" data-folio="'+(v.folio||'')+'" style="background:transparent;border:1px solid #eee;border-radius:6px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;">✕</button>':'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';
-      return '<tr style="'+rowStyle+'"><td style="font-weight:600;font-size:11px;'+(cancelada?'color:#A32D2D;':'color:#1D9E75;')+'">'+( v.folio||'—')+badge+'</td><td style="font-size:10px;color:#888;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td><td style="font-size:11px;">'+(v.items||[]).map(function(i){return i.nombre;}).join(', ')+'</td><td style="'+totalStyle+'">$'+v.total+'</td><td>'+btnCancelar+'</td></tr>';
-    }).join('')+'</tbody></table>';
-  // Add cancel button handlers
-  setTimeout(function(){
-    const tbl=document.getElementById('rep-historial');
-    if(!tbl)return;
-    tbl.querySelectorAll('.btn-cancelar-venta').forEach(function(btn){
-      btn.onclick=function(){cancelarVenta(btn.dataset.folio);};
-    });
-  },100);
-}
-
-async function cancelarVenta(folio){
-  if(!folio)return;
-  const clave=prompt('Clave para cancelar venta '+folio+':');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
-  if(!confirm('¿Cancelar venta '+folio+'?\nEsta acción quedará registrada.'))return;
-  if(!db){alert('Sin conexión a Firebase');return;}
-  try{
-    setDriveStatus(true,'Cancelando...');
-    await db.collection('ventas').doc(folio).update({cancelada:true,fechaCancelacion:new Date().toISOString()});
-    setDriveStatus(true,'Cancelada ✓');
-    setTimeout(cargarReportes,500);
-  }catch(e){setDriveStatus(false,'Error al cancelar');console.error(e);}
-}
-
-
 rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
 rendProds('infantil','inf-grid');
 rendProds('credencial','cred-grid');
@@ -1569,114 +1388,7 @@ rendProds('cartilla','cart-grid');
 rendProds('digital','dig-grid');
 
 
+
 </script>
-<div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
-  <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
-  <div class="frow"><label>Precio</label><input type="number" id="ei-p" min="0"></div>
-  <input type="hidden" id="ei-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarImpEdit()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-prod-edit"><div class="modal-box"><p class="modal-t">Editar producto</p>
-  <div class="frow"><label>Nombre</label><input type="text" id="ep-nombre"></div>
-  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ep-desc"></div>
-  <div class="frow"><label>Precio</label><input type="number" id="ep-precio" min="0"></div>
-  <input type="hidden" id="ep-cat"><input type="hidden" id="ep-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-prod-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarProdEdit()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-add-prod"><div class="modal-box"><p class="modal-t" id="ap-titulo">Agregar producto</p>
-  <div class="frow"><label>Nombre del producto</label><input type="text" id="ap-nombre" placeholder="Ej: Infantil 12 fotos"></div>
-  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ap-desc" placeholder="Color o B&N"></div>
-  <div class="frow"><label>Precio</label><input type="number" id="ap-precio" min="0" placeholder="0"></div>
-  <input type="hidden" id="ap-tipo">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-add-prod')">Cancelar</button><button class="btn bgreen" onclick="agregarProd()">Agregar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-visa-edit"><div class="modal-box"><p class="modal-t">Editar visa / pasaporte</p>
-  <div class="frow"><label>Nombre</label><input type="text" id="ev-n"></div>
-  <div class="frow"><label>Precio</label><input type="number" id="ev-p" min="0"></div>
-  <div class="frow"><label>¿Es Visa USA?</label><select id="ev-usa"><option value="0">No</option><option value="1">Sí</option></select></div>
-  <input type="hidden" id="ev-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarVisaEdit()">Guardar</button></div>
-</div></div>
-
-</body>
-</html>
-
-  </div>
-
-  
-
-<!-- LIGHTBOX -->
-<div class="lb" id="lb">
-  <button class="lb-x" onclick="closeLb()"><i class="ti ti-x"></i></button>
-  <div id="lb-img-wrap"></div>
-  <div class="lb-t" id="lb-t"></div>
-  <div class="lb-s" id="lb-s"></div>
-  <div class="lb-p" id="lb-p"></div>
-  <div class="lb-btns" id="lb-btns"><button class="lb-close" onclick="closeLb()">Cerrar</button><button class="lb-add" id="lb-add-btn"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button></div>
-</div>
-
-<!-- MODALES -->
-<div class="modal-ov" id="m-visa"><div class="modal-box"><p class="modal-t">Nueva visa / pasaporte</p>
-  <div class="frow"><label>País o tipo de visa</label><input type="text" id="v-n" placeholder="Ej: Visa USA, Pasaporte China"></div>
-  <div class="frow"><label>Precio</label><input type="text" id="v-p" placeholder="$200"></div>
-  <div class="frow"><label>¿Es Visa USA? (consume 2 restos 11x8)</label><select id="v-usa"><option value="0">No</option><option value="1">Sí — Visa USA</option></select></div>
-  <div class="frow"><label>Imagen de especificaciones</label><input type="file" accept="image/*" id="v-img" style="font-size:11px;"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa')">Cancelar</button><button class="btn bgreen" onclick="guardarVisa()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-esc"><div class="modal-box"><p class="modal-t">Nueva escuela</p>
-  <div class="frow"><label>Nombre de la escuela</label><input type="text" id="e-n" placeholder="Primaria Benito Juárez"></div>
-  <div class="frow"><label>Especificaciones del paquete</label><textarea id="e-s" style="height:60px;resize:none;" placeholder="Ej: 2 fotos 5x7, 4 credencial B&N, 1 grupal..."></textarea></div>
-  <div class="frow"><label>Precio del paquete</label><input type="text" id="e-p" placeholder="$350"></div>
-  <div class="frow"><label>Imagen de portada</label><input type="file" accept="image/*" id="e-img" style="font-size:11px;"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc')">Cancelar</button><button class="btn bgreen" onclick="guardarEsc()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-esc-edit"><div class="modal-box"><p class="modal-t">Editar escuela</p>
-  <div class="frow"><label>Nombre</label><input type="text" id="ee-n"></div>
-  <div class="frow"><label>Especificaciones</label><textarea id="ee-s" style="height:60px;resize:none;"></textarea></div>
-  <div class="frow"><label>Precio</label><input type="text" id="ee-p"></div>
-  <div class="frow"><label>Nueva imagen (opcional)</label><input type="file" accept="image/*" id="ee-img" style="font-size:11px;"></div>
-  <input type="hidden" id="ee-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarEscEdit()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-imp"><div class="modal-box"><p class="modal-t">Nuevo tamaño de impresión</p>
-  <div class="frow"><label>Tamaño (ej: 20x24)</label><input type="text" id="im-s" placeholder="20x24"></div>
-  <div class="frow"><label>Precio</label><input type="text" id="im-p" placeholder="$600"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp')">Cancelar</button><button class="btn bgreen" onclick="guardarImp()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-marc"><div class="modal-box"><p class="modal-t">Agregar marco</p>
-  <div class="frow"><label>Nombre del marco</label><input type="text" id="ma-n" placeholder="Marco café claro"></div>
-  <div class="frow"><label>Tamaño</label><input type="text" id="ma-t" placeholder="4x6"></div>
-  <div class="frow"><label>Stock inicial</label><input type="number" id="ma-s" value="0" min="0"></div>
-  <div class="frow"><label>Foto del marco</label><input type="file" accept="image/*" id="ma-img" style="font-size:11px;"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc')">Cancelar</button><button class="btn bgreen" onclick="guardarMarco()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-marc-edit"><div class="modal-box"><p class="modal-t">Editar marco</p>
-  <div class="frow"><label>Nombre</label><input type="text" id="me-n"></div>
-  <div class="frow"><label>Tamaño</label><input type="text" id="me-t"></div>
-  <div class="frow"><label>Nueva foto (opcional)</label><input type="file" accept="image/*" id="me-img" style="font-size:11px;"></div>
-  <input type="hidden" id="me-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarMarcoEdit()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-vid"><div class="modal-box"><p class="modal-t">Agregar vidrio</p>
-  <div class="frow"><label>Medida (debe coincidir con el marco)</label><input type="text" id="vi-m" placeholder="4x6"></div>
-  <div class="frow"><label>Stock inicial</label><input type="number" id="vi-s" value="0" min="0"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-vid')">Cancelar</button><button class="btn bgreen" onclick="guardarVidrio()">Guardar</button></div>
-</div></div>
-
-
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button><button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button></div>
-</div></div>
-
-
-
 </body>
 </html>
