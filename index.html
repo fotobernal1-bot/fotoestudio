@@ -200,7 +200,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <div class="app">
   <!-- SIDEBAR -->
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v3.9</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v4.0</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
@@ -386,22 +386,59 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
-      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
-      <div class="g4" style="margin-bottom:14px;">
-        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
-        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
-        <div class="stat"><div class="sl">Infantil</div><div class="sv" id="r-inf">0</div></div>
-        <div class="stat"><div class="sl">Credencial</div><div class="sv" id="r-cred">0</div></div>
+      <p class="ptitle">Reportes</p>
+      <p class="psub">Historial permanente de ventas</p>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
+          <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+          <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+          <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+        </div>
+        <button onclick="abrirCalendario()" title="Buscar por fecha" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;" id="btn-calendario"><i class="ti ti-calendar"></i></button>
       </div>
-      <div class="g4" style="margin-bottom:16px;">
-        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
-        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
-        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
-        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
+
+      <div id="rep-cal-wrap" style="display:none;margin-bottom:12px;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;">
+        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Buscar por fecha</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label>
+            <input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label>
+            <input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;color:#111;background:white;">
+          </div>
+        </div>
       </div>
-      <div class="stat" style="margin-bottom:16px;"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
+
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
+          <div class="sl">Total vendido</div>
+          <div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-periodo">—</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Ventas</div>
+          <div class="sv" id="rep-numventas">0</div>
+          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+        </div>
+      </div>
+
+      <p class="slabel">Urgentes</p>
+      <div id="rep-urgentes" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
+
+      <p class="slabel">Paquetes escolares</p>
+      <div id="rep-escuelas" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
+
+      <p class="slabel">Impresiones</p>
+      <div id="rep-impresiones" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
+
+      <p class="slabel">Marcos</p>
+      <div id="rep-marcos" style="margin-bottom:14px;"><p style="font-size:12px;color:#888;">Selecciona un período</p></div>
+
       <p class="slabel">Historial de ventas</p>
-      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
     </div>
 
   </div>
@@ -571,12 +608,17 @@ function cobrar(){
   const pago=parseFloat(document.getElementById('pago').value)||0;
   const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
   const now=new Date();
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
   ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
   ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
+  // Save to Firebase
+  if(db){
+    const ventaData={folio:f,fecha:fecha,hora:hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:total,pago:pago,cambio:pago-total,escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))};
+    db.collection('ventas').doc(f).set(ventaData).then(()=>setDriveStatus(true,'Venta guardada ✓')).catch(e=>console.error(e));
+  }
   totalDia+=total;updReportes();rendHist();
   carrito=[];document.getElementById('pago').value='';renderCarrito();
   mostrarTicket(ultimaVenta);
@@ -612,7 +654,8 @@ function updStock(){
   recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
 }
 function updReportes(){
-  document.getElementById('r-v').textContent=ventas.length;
+  const el=document.getElementById('r-v');
+  if(el) el.textContent=ventas.length;
   document.getElementById('r-t').textContent='$'+totalDia;
   document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9;
   document.getElementById('r-cred').textContent=cnt.cred4+cnt.cred6;
@@ -625,6 +668,12 @@ function updReportes(){
 function rendHist(){
   document.getElementById('r-hist').innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
     ventas.map(v=>`<tr><td style="color:#1D9E75;font-weight:600">${v.f}</td><td style="font-size:11px;">${v.desc}</td><td style="color:#1D9E75;font-weight:600">$${v.total}</td></tr>`).join('')+'</tbody></table>';
+  // Add click handlers via delegation
+  setTimeout(function(){
+    document.querySelectorAll('.btn-cancelar-venta').forEach(function(btn){
+      btn.onclick=function(){cancelarVenta(btn.dataset.folio);};
+    });
+  },100);
 }
 function mostrarTicket(v){
   document.getElementById('ticket-content').innerHTML=`
@@ -654,7 +703,7 @@ function abrirTurno(){
   turnoAbierto=true;
   const now=new Date();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
   document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
   document.getElementById('turno-lock').style.display='none';
   document.getElementById('turno-abierto').style.display='block';
@@ -1226,6 +1275,179 @@ function autoGuardar(){
 }
 
 // ============================================================
+
+// ============================================================
+// REPORTES AVANZADOS
+// ============================================================
+let periodoActual='hoy', ventasFB=[];
+
+function cambiarPeriodo(p,el){
+  periodoActual=p;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i>';
+  cargarReportes();
+}
+
+function getFechaStr(d){
+  const dia=String(d.getDate()).padStart(2,'0');
+  const mes=String(d.getMonth()+1).padStart(2,'0');
+  return dia+'/'+mes+'/'+d.getFullYear();
+}
+
+function abrirCalendario(){
+  const wrap=document.getElementById('rep-cal-wrap');
+  const inp=document.getElementById('rep-fecha-cal');
+  const hoy=new Date();
+  inp.max=hoy.toISOString().split('T')[0];
+  wrap.style.display=wrap.style.display==='none'?'block':'none';
+}
+
+function cambiarPeriodoFecha(fechaISO){
+  if(!fechaISO)return;
+  const [anio,mes,dia]=fechaISO.split('-');
+  const fechaMX=dia+'/'+mes+'/'+anio;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='fecha';
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+dia+'/'+mes;
+  document.getElementById('rep-cal-wrap').style.display='none';
+  cargarReportesFecha(fechaMX);
+}
+
+function cambiarPeriodoMes(mesISO){
+  if(!mesISO)return;
+  const [anio,mes]=mesISO.split('-');
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='mes_especifico';
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+meses[parseInt(mes)-1]+' '+anio;
+  document.getElementById('rep-cal-wrap').style.display='none';
+  cargarReportesMes(parseInt(anio),parseInt(mes));
+}
+
+async function cargarReportes(){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const now=new Date();
+    let snap;
+    if(periodoActual==='hoy'){
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
+    } else if(periodoActual==='semana'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];
+      const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
+      renderReportes();return;
+    } else {
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+    }
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+async function cargarReportesFecha(fecha){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('fecha','==',fecha).get();
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+async function cargarReportesMes(anio,mes){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('year','==',anio).where('month','==',mes).get();
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+function mostrarReportesLocal(){
+  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:getFechaStr(new Date()),items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
+  renderReportes();
+}
+
+function barraItem(n,total,count,max){
+  const pct=Math.round(total/max*100);
+  return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">'+n+'</span><span style="color:#1D9E75;font-weight:600;">$'+total.toLocaleString()+' <span style="color:#888;">('+count+')</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
+}
+
+function renderSeccion(id,mapa){
+  const el=document.getElementById(id);if(!el)return;
+  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
+  const max=items[0][1].total||1;
+  el.innerHTML=items.map(function(entry){return barraItem(entry[0],entry[1].total,entry[1].count,max);}).join('');
+}
+
+function renderReportes(){
+  const activas=ventasFB.filter(v=>!v.cancelada);
+  const total=activas.reduce((s,v)=>s+v.total,0);
+  const num=activas.length;
+  const prom=num?Math.round(total/num):0;
+  const labels={hoy:'Hoy',semana:'Últimos 7 días',anio:'Este año',fecha:'Día seleccionado',mes_especifico:'Mes seleccionado'};
+  const set=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rep-total','$'+total.toLocaleString());
+  set('rep-numventas',num);
+  set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  const urg={},esc={},imp={},marc={};
+  activas.forEach(function(v){
+    (v.items||[]).forEach(function(item){
+      const tipo=item.tipo||'otro';
+      const precio=item.precio||0;
+      const n=item.nombre||tipo;
+      const add=function(m,k){if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela')add(esc,n);
+      else if(tipo==='impresion')add(imp,n);
+      else if(tipo==='marco')add(marc,n);
+      else add(urg,n);
+    });
+  });
+  renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-escuelas',esc);
+  renderSeccion('rep-impresiones',imp);
+  renderSeccion('rep-marcos',marc);
+  const sorted=[...ventasFB].sort(function(a,b){return (b.timestamp||'').localeCompare(a.timestamp||'');});
+  const elH=document.getElementById('rep-historial');
+  if(!elH)return;
+  if(!sorted.length){elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';return;}
+  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th></th></tr></thead><tbody>'+
+    sorted.map(function(v){
+      const cancelada=v.cancelada===true;
+      const rowStyle=cancelada?'opacity:0.5;background:#fff5f5;':'';
+      const totalStyle=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';
+      const badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 5px;border-radius:4px;margin-left:4px;">✕</span>':'';
+      const btnCancelar=!cancelada?'<button class="btn-cancelar-venta" data-folio="'+(v.folio||'')+'" style="background:transparent;border:1px solid #eee;border-radius:6px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;">✕</button>':'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';
+      return '<tr style="'+rowStyle+'"><td style="font-weight:600;font-size:11px;'+(cancelada?'color:#A32D2D;':'color:#1D9E75;')+'">'+( v.folio||'—')+badge+'</td><td style="font-size:10px;color:#888;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td><td style="font-size:11px;">'+(v.items||[]).map(function(i){return i.nombre;}).join(', ')+'</td><td style="'+totalStyle+'">$'+v.total+'</td><td>'+btnCancelar+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+async function cancelarVenta(folio){
+  if(!folio)return;
+  const clave=prompt('Clave para cancelar venta '+folio+':');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Cancelar venta '+folio+'?\nEsta acción quedará registrada.'))return;
+  if(!db){alert('Sin conexión a Firebase');return;}
+  try{
+    setDriveStatus(true,'Cancelando...');
+    await db.collection('ventas').doc(folio).update({cancelada:true,fechaCancelacion:new Date().toISOString()});
+    setDriveStatus(true,'Cancelada ✓');
+    setTimeout(cargarReportes,500);
+  }catch(e){setDriveStatus(false,'Error al cancelar');console.error(e);}
+}
+
 
 rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
 rendProds('infantil','inf-grid');
@@ -1439,7 +1661,7 @@ function cobrar(){
   const pago=parseFloat(document.getElementById('pago').value)||0;
   const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
   const now=new Date();
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
@@ -1480,7 +1702,8 @@ function updStock(){
   recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
 }
 function updReportes(){
-  document.getElementById('r-v').textContent=ventas.length;
+  const el=document.getElementById('r-v');
+  if(el) el.textContent=ventas.length;
   document.getElementById('r-t').textContent='$'+totalDia;
   document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9;
   document.getElementById('r-cred').textContent=cnt.cred4+cnt.cred6;
@@ -1522,7 +1745,7 @@ function abrirTurno(){
   turnoAbierto=true;
   const now=new Date();
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dia=String(now.getDate()).padStart(2,'0');const mes=String(now.getMonth()+1).padStart(2,'0');const fecha=dia+'/'+mes+'/'+now.getFullYear();
   document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
   document.getElementById('turno-lock').style.display='none';
   document.getElementById('turno-abierto').style.display='block';
@@ -2094,6 +2317,179 @@ function autoGuardar(){
 }
 
 // ============================================================
+
+// ============================================================
+// REPORTES AVANZADOS
+// ============================================================
+let periodoActual='hoy', ventasFB=[];
+
+function cambiarPeriodo(p,el){
+  periodoActual=p;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i>';
+  cargarReportes();
+}
+
+function getFechaStr(d){
+  const dia=String(d.getDate()).padStart(2,'0');
+  const mes=String(d.getMonth()+1).padStart(2,'0');
+  return dia+'/'+mes+'/'+d.getFullYear();
+}
+
+function abrirCalendario(){
+  const wrap=document.getElementById('rep-cal-wrap');
+  const inp=document.getElementById('rep-fecha-cal');
+  const hoy=new Date();
+  inp.max=hoy.toISOString().split('T')[0];
+  wrap.style.display=wrap.style.display==='none'?'block':'none';
+}
+
+function cambiarPeriodoFecha(fechaISO){
+  if(!fechaISO)return;
+  const [anio,mes,dia]=fechaISO.split('-');
+  const fechaMX=dia+'/'+mes+'/'+anio;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='fecha';
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+dia+'/'+mes;
+  document.getElementById('rep-cal-wrap').style.display='none';
+  cargarReportesFecha(fechaMX);
+}
+
+function cambiarPeriodoMes(mesISO){
+  if(!mesISO)return;
+  const [anio,mes]=mesISO.split('-');
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  periodoActual='mes_especifico';
+  const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const btn=document.getElementById('btn-calendario');
+  if(btn)btn.innerHTML='<i class="ti ti-calendar"></i> '+meses[parseInt(mes)-1]+' '+anio;
+  document.getElementById('rep-cal-wrap').style.display='none';
+  cargarReportesMes(parseInt(anio),parseInt(mes));
+}
+
+async function cargarReportes(){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const now=new Date();
+    let snap;
+    if(periodoActual==='hoy'){
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
+    } else if(periodoActual==='semana'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];
+      const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
+      renderReportes();return;
+    } else {
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+    }
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+async function cargarReportesFecha(fecha){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('fecha','==',fecha).get();
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+async function cargarReportesMes(anio,mes){
+  if(!db){mostrarReportesLocal();return;}
+  const el=document.getElementById('rep-historial');
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  try{
+    const snap=await db.collection('ventas').where('year','==',anio).where('month','==',mes).get();
+    ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    renderReportes();
+  }catch(e){console.error(e);mostrarReportesLocal();}
+}
+
+function mostrarReportesLocal(){
+  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:getFechaStr(new Date()),items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
+  renderReportes();
+}
+
+function barraItem(n,total,count,max){
+  const pct=Math.round(total/max*100);
+  return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">'+n+'</span><span style="color:#1D9E75;font-weight:600;">$'+total.toLocaleString()+' <span style="color:#888;">('+count+')</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
+}
+
+function renderSeccion(id,mapa){
+  const el=document.getElementById(id);if(!el)return;
+  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
+  const max=items[0][1].total||1;
+  el.innerHTML=items.map(function(entry){return barraItem(entry[0],entry[1].total,entry[1].count,max);}).join('');
+}
+
+function renderReportes(){
+  const activas=ventasFB.filter(v=>!v.cancelada);
+  const total=activas.reduce((s,v)=>s+v.total,0);
+  const num=activas.length;
+  const prom=num?Math.round(total/num):0;
+  const labels={hoy:'Hoy',semana:'Últimos 7 días',anio:'Este año',fecha:'Día seleccionado',mes_especifico:'Mes seleccionado'};
+  const set=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rep-total','$'+total.toLocaleString());
+  set('rep-numventas',num);
+  set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  const urg={},esc={},imp={},marc={};
+  activas.forEach(function(v){
+    (v.items||[]).forEach(function(item){
+      const tipo=item.tipo||'otro';
+      const precio=item.precio||0;
+      const n=item.nombre||tipo;
+      const add=function(m,k){if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela')add(esc,n);
+      else if(tipo==='impresion')add(imp,n);
+      else if(tipo==='marco')add(marc,n);
+      else add(urg,n);
+    });
+  });
+  renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-escuelas',esc);
+  renderSeccion('rep-impresiones',imp);
+  renderSeccion('rep-marcos',marc);
+  const sorted=[...ventasFB].sort(function(a,b){return (b.timestamp||'').localeCompare(a.timestamp||'');});
+  const elH=document.getElementById('rep-historial');
+  if(!elH)return;
+  if(!sorted.length){elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';return;}
+  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th></th></tr></thead><tbody>'+
+    sorted.map(function(v){
+      const cancelada=v.cancelada===true;
+      const rowStyle=cancelada?'opacity:0.5;background:#fff5f5;':'';
+      const totalStyle=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';
+      const badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 5px;border-radius:4px;margin-left:4px;">✕</span>':'';
+      const btnCancelar=!cancelada?'<button class="btn-cancelar-venta" data-folio="'+(v.folio||'')+'" style="background:transparent;border:1px solid #eee;border-radius:6px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;">✕</button>':'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';
+      return '<tr style="'+rowStyle+'"><td style="font-weight:600;font-size:11px;'+(cancelada?'color:#A32D2D;':'color:#1D9E75;')+'">'+( v.folio||'—')+badge+'</td><td style="font-size:10px;color:#888;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td><td style="font-size:11px;">'+(v.items||[]).map(function(i){return i.nombre;}).join(', ')+'</td><td style="'+totalStyle+'">$'+v.total+'</td><td>'+btnCancelar+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+async function cancelarVenta(folio){
+  if(!folio)return;
+  const clave=prompt('Clave para cancelar venta '+folio+':');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Cancelar venta '+folio+'?\nEsta acción quedará registrada.'))return;
+  if(!db){alert('Sin conexión a Firebase');return;}
+  try{
+    setDriveStatus(true,'Cancelando...');
+    await db.collection('ventas').doc(folio).update({cancelada:true,fechaCancelacion:new Date().toISOString()});
+    setDriveStatus(true,'Cancelada ✓');
+    setTimeout(cargarReportes,500);
+  }catch(e){setDriveStatus(false,'Error al cancelar');console.error(e);}
+}
+
 
 rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
 rendProds('infantil','inf-grid');
