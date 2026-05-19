@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FotoEstudio — Sistema de ventas</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
@@ -192,25 +193,322 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 .tkt-bold{font-weight:700;font-size:13px;}
 .tkt-total{font-size:14px;font-weight:700;border-top:2px solid #111;padding-top:6px;margin-top:4px;}
 .tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}
-.ord-sec{display:block;}
+
+/* ============================================================
+   RESPONSIVE MÓVIL — iPhone y iPad
+   ============================================================ */
+@media (max-width: 900px) {
+  body { overflow: hidden; }
+  
+  .app { 
+    flex-direction: column; 
+    height: 100vh; 
+    height: 100dvh;
+  }
+  
+  /* Sidebar = bottom nav bar */
+  .sidebar { 
+    width: 100%; 
+    height: auto;
+    min-height: 56px;
+    flex-direction: row; 
+    padding: 0;
+    overflow-x: auto; 
+    overflow-y: hidden;
+    border-right: none; 
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: nowrap; 
+    align-items: stretch;
+    order: 3;
+    flex-shrink: 0;
+  }
+  .logo { display: none; }
+  .nav-sep { display: none; }
+  .nav { 
+    flex-direction: column; 
+    padding: 6px 10px; 
+    font-size: 9px; 
+    border-left: none; 
+    border-top: 2px solid transparent;
+    white-space: nowrap; 
+    flex-shrink: 0; 
+    gap: 2px;
+    justify-content: center;
+    align-items: center;
+    min-width: 64px;
+  }
+  .nav.active { 
+    border-left: none; 
+    border-top-color: #1D9E75; 
+    background: #f0fbf6; 
+  }
+  .nav i { font-size: 20px; }
+  
+  /* Main content scrollable */
+  .main { 
+    flex: 1; 
+    overflow-y: auto; 
+    overflow-x: hidden;
+    order: 1;
+    width: 100%;
+  }
+  .page { padding: 12px; }
+  
+  /* Carrito colapsado en móvil */
+  .cart-panel { 
+    width: 100%; 
+    border-left: none; 
+    border-bottom: 1px solid #e0e0e0;
+    order: 2;
+    flex-shrink: 0;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .cart-hdr { padding: 8px 12px 6px; }
+  .cart-items { max-height: 60px; }
+  .cart-ftr { padding: 8px 12px; }
+  .trow.big { font-size: 13px; margin-bottom: 6px; }
+  .pago-lbl { font-size: 10px; }
+  .pago-inp { font-size: 14px; padding: 5px 7px; margin-bottom: 6px; }
+  .cambio-row { padding: 6px 9px; margin-bottom: 7px; }
+  .cambio-row strong { font-size: 14px; }
+  .bcobrar { padding: 9px; font-size: 13px; margin-bottom: 5px; }
+  
+  /* Grids */
+  .g2 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g3 { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .g4 { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .esc-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .imp-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  
+  /* Cards touch-friendly */
+  .foto-card { padding: 12px; }
+  .fc-n { font-size: 17px; }
+  .fc-p { font-size: 14px; }
+  
+  /* Tabs */
+  .tabs, .urgentes-tabs, .inv-tabs { 
+    flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab, .utab, .itab { flex-shrink: 0; }
+  
+  /* Modales */
+  .modal-box { width: 95vw; max-height: 88vh; overflow-y: auto; }
+  
+  /* Lightbox */
+  .lb img { max-width: 95%; max-height: 50vh; }
+  .lb-btns { flex-direction: column; width: 85%; gap: 8px; }
+  .lb-add, .lb-close { width: 100%; text-align: center; padding: 12px; font-size: 14px; }
+  
+  /* Títulos */
+  .ptitle { font-size: 14px; }
+  .psub { font-size: 11px; }
+  
+  /* Header rows */
+  .hrow { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 430px) {
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .esc-grid { grid-template-columns: 1fr 1fr; }
+  .nav { min-width: 56px; padding: 6px 8px; font-size: 8px; }
+  .nav i { font-size: 18px; }
+}
+
+/* ============================================================
+   RESPONSIVE — iPhone, iPad, Desktop
+   ============================================================ */
+
+/* iPad (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar { width: 150px; }
+  .cart-panel { width: 190px; }
+  .nav { font-size: 11px; padding: 8px 12px; }
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .g4 { grid-template-columns: 1fr 1fr; }
+}
+
+/* iPhone y móviles (max 768px) */
+@media (max-width: 768px) {
+  body { overflow-x: hidden; }
+  
+  /* Layout vertical */
+  .app { 
+    flex-direction: column; 
+    height: auto; 
+    min-height: 100vh;
+    width: 100%;
+  }
+  
+  /* Sidebar → barra inferior fija (como tab bar de iPhone) */
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    height: auto;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: none;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: #f7f7f5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .logo { display: none; }
+  .nav { 
+    flex: 1;
+    flex-direction: column;
+    padding: 8px 4px 6px;
+    font-size: 9px;
+    border-left: none;
+    border-top: 2px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+    gap: 2px;
+    min-width: 50px;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav i { font-size: 20px; }
+  .nav.active { 
+    border-left: none;
+    border-top-color: #1D9E75;
+    color: #1D9E75;
+    background: #f0fbf6;
+  }
+  .nav-sep { display: none; }
+  /* Space for bottom tab bar */
+  .main { padding-bottom: 70px; }
+  .cart-panel { margin-bottom: 65px; }
+  
+  /* Main */
+  .main { 
+    width: 100%; 
+    overflow-y: auto;
+    flex: 1;
+  }
+  .page { padding: 14px; }
+  .ptitle { font-size: 16px; }
+  
+  /* Carrito → parte inferior fija */
+  .cart-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 2px solid #e0e0e0;
+    max-height: 300px;
+    flex-shrink: 0;
+  }
+  .cart-hdr { padding: 10px 14px 8px; }
+  .cart-items { max-height: 80px; }
+  .cart-ftr { padding: 10px 14px; }
+  .trow.big { font-size: 14px; margin-bottom: 8px; }
+  .pago-inp { font-size: 14px; padding: 6px 8px; margin-bottom: 7px; }
+  .cambio-row { padding: 7px 10px; margin-bottom: 8px; }
+  .cambio-row strong { font-size: 16px; }
+  .bcobrar { padding: 10px; font-size: 13px; margin-bottom: 5px; }
+  
+  /* Grids */
+  .g2 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g3 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .g4 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .esc-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .imp-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  
+  /* Tabs scroll horizontal */
+  .tabs, .inv-tabs { 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .tabs::-webkit-scrollbar, .inv-tabs::-webkit-scrollbar { display: none; }
+  .tab, .itab { flex-shrink: 0; }
+  .urgentes-tabs { 
+    flex-wrap: nowrap; 
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .utab { flex-shrink: 0; }
+  
+  /* Foto cards más fáciles de tocar */
+  .foto-card { padding: 12px; }
+  .fc-n { font-size: 18px; }
+  .fc-l { font-size: 11px; }
+  .fc-p { font-size: 14px; margin-top: 6px; }
+  .dig-card { padding: 16px; }
+  .dig-card i { font-size: 28px; }
+  .dig-card .dn { font-size: 14px; }
+  .dig-card .dp { font-size: 20px; }
+  
+  /* Imagen digital y escuelas */
+  .esc-img { height: 90px; }
+  .esc-img img { height: 90px; }
+  .esc-n { font-size: 12px; }
+  .esc-s { font-size: 10px; }
+  
+  /* Modales */
+  .modal-ov { align-items: flex-end; }
+  .modal-box { 
+    width: 100%; 
+    max-height: 85vh; 
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+  }
+  
+  /* Lightbox */
+  .lb { padding: 14px; }
+  .lb img { max-width: 100%; max-height: 50vh; }
+  .lb-btns { flex-direction: column; width: 100%; gap: 8px; }
+  .lb-add, .lb-close { width: 100%; text-align: center; padding: 12px; border-radius: 10px; }
+  
+  /* Inventario */
+  .marco-card { margin-bottom: 8px; }
+  .vrow { padding: 10px 12px; }
+  .stk-n { font-size: 16px; }
+  
+  /* Hrow */
+  .hrow { flex-wrap: wrap; gap: 8px; }
+  
+  /* Tablas */
+  .itbl { font-size: 11px; }
+  .itbl th, .itbl td { padding: 7px 8px; }
+}
+
+/* iPhone pequeño (max 390px) */
+@media (max-width: 390px) {
+  .g2 { grid-template-columns: 1fr; }
+  .nav { padding: 8px 10px; font-size: 9px; min-width: 52px; }
+  .nav i { font-size: 18px; }
+}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="sidebar">
-    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v5.0</span></div>
+    <div class="logo"><p>📸 FotoEstudio</p><span>Sistema de ventas · v2.0</span></div>
     <div id="drive-status" style="margin:0 12px 8px;padding:7px 10px;border-radius:8px;background:#FCEBEB;border:1px solid #f5c0c0;font-size:10px;color:#A32D2D;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="iniciarFirebase()">
       <i class="ti ti-cloud-off" style="font-size:13px;"></i>
       <span id="drive-status-txt">Toca para sincronizar</span>
     </div>
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
-    <div class="nav" onclick="showPage('ordinarias',this)"><i class="ti ti-clock"></i> Ordinarias</div>
+    <div class="nav" onclick="showPage('escuelas',this)"><i class="ti ti-school"></i> Paquetes escolares</div>
+    <div class="nav" onclick="showPage('impresiones',this)"><i class="ti ti-printer"></i> Impresiones</div>
     <div class="nav" onclick="showPage('marcos-venta',this)"><i class="ti ti-frame"></i> Marcos</div>
     <div class="nav-sep"></div>
-    <div class="nav" onclick="showPage('pedidos',this)"><i class="ti ti-clipboard-list"></i> Pedidos</div>
     <div class="nav" onclick="showPage('inventario',this)"><i class="ti ti-package"></i> Inventario</div>
     <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
+
   <div class="main">
 
     <!-- URGENTES -->
@@ -223,70 +521,59 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <div class="tab" onclick="showT('dig',this)">Imagen digital</div>
           <div class="tab" onclick="showT('visa',this)">Visa</div>
         </div>
-        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')"><i class="ti ti-plus"></i> Nueva</button>
+        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')" title="Agregar nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
       </div>
       <div id="t-inf" class="tsec active">
-        <div class="hrow"><p class="slabel" style="margin:0;">Infantil</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Infantil — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar producto infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="inf-grid" class="g2" style="margin-bottom:12px;"></div>
       </div>
       <div id="t-cred" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Credencial</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Credencial — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar producto credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="cred-grid" class="g2" style="margin-bottom:12px;"></div>
-        <p class="slabel">Cartilla militar</p>
-        <div class="hrow" style="margin-bottom:8px;"><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar cartilla';"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="cart-grid" class="g2" style="margin-bottom:12px;"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <div class="sub-div" style="border:none;padding:0;"><i class="ti ti-shield"></i> Cartilla militar</div>
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar producto cartilla';"><i class="ti ti-plus"></i> Agregar</button>
+        </div>
+        <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
+        <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="prevSpec(this,'pca')"></div>
+        <img id="pca" class="simg" alt="specs cartilla">
       </div>
       <div id="t-dig" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar digital';"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="dig-grid" class="g2" style="margin-bottom:12px;"></div>
+        <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar producto digital';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="dig-grid"></div>
       </div>
       <div id="t-visa" class="tsec">
         <div class="hrow"><p class="slabel" style="margin:0;">Visas / Pasaportes</p><button class="btn bgreen" onclick="openM('m-visa')"><i class="ti ti-plus"></i> Agregar</button></div>
         <div id="visas-list"></div>
       </div>
+      <!-- CATEGORÍAS DINÁMICAS -->
       <div id="cats-dinamicas"></div>
     </div>
 
-    <!-- ORDINARIAS -->
-    <div id="page-ordinarias" class="page">
-      <p class="ptitle">Ordinarias</p><p class="psub">Toca un producto para agregar al carrito</p>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;">
-        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="ord-tabs">
-          <div class="tab active" onclick="showOrdTab('esc',this)">Paquetes escolares</div>
-          <div class="tab" onclick="showOrdTab('imp',this)">Impresiones</div>
-        </div>
-        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat-ord')"><i class="ti ti-plus"></i> Nueva</button>
+    <!-- ESCUELAS -->
+    <div id="page-escuelas" class="page">
+      <div class="hrow"><div><p class="ptitle">Paquetes escolares</p><p class="psub" style="margin:0;">Toca la imagen para ver especificaciones</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
+      <div style="position:relative;margin-bottom:12px;">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+        <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
       </div>
-      <div id="ord-esc" class="ord-sec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Paquetes escolares</p><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
-        <div style="position:relative;margin-bottom:12px;"><i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i><input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;"></div>
-        <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
-        <div class="esc-grid" id="esc-grid"></div>
-      </div>
-      <div id="ord-imp" class="ord-sec" style="display:none;">
-        <div class="hrow"><p class="slabel" style="margin:0;">Impresiones fotográficas</p><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div class="g2" id="imp-grid"></div>
-      </div>
-      <div id="ord-cats-dinamicas"></div>
+      <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
+      <div class="esc-grid" id="esc-grid"></div>
+    </div>
+
+    <!-- IMPRESIONES -->
+    <div id="page-impresiones" class="page">
+      <div class="hrow"><div><p class="ptitle">Impresiones</p><p class="psub" style="margin:0;">Precio editable con el lápiz en cada tarjeta</p></div><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar tamaño</button></div>
+      <div class="imp-grid" id="imp-grid"></div>
     </div>
 
     <!-- MARCOS VENTA -->
     <div id="page-marcos-venta" class="page">
-      <div class="hrow"><div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca para ver en grande · Al vender descuenta del inventario</p></div></div>
-      <div class="esc-grid" id="marcos-venta-grid"></div>
-    </div>
-
-    <!-- PEDIDOS -->
-    <div id="page-pedidos" class="page">
-      <div class="hrow"><div><p class="ptitle">Pedidos</p><p class="psub" style="margin:0;">Entregas pendientes y en proceso</p></div><button class="btn bgreen" onclick="openM('m-pedido-nuevo')"><i class="ti ti-plus"></i> Nuevo pedido</button></div>
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <button class="tab active" id="fil-todos" onclick="filtrarPedidos('todos',this)">Todos</button>
-        <button class="tab" id="fil-pendiente" onclick="filtrarPedidos('pendiente',this)">🔴 Pendientes</button>
-        <button class="tab" id="fil-proceso" onclick="filtrarPedidos('proceso',this)">🟡 En proceso</button>
-        <button class="tab" id="fil-listo" onclick="filtrarPedidos('listo',this)">🟢 Listos</button>
-        <button class="tab" id="fil-entregado" onclick="filtrarPedidos('entregado',this)">✅ Entregados</button>
+      <div class="hrow">
+        <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
       </div>
-      <div id="pedidos-lista"></div>
+      <div class="esc-grid" id="marcos-venta-grid"></div>
     </div>
 
     <!-- INVENTARIO -->
@@ -374,41 +661,160 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       </div>
     </div>
 
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <p class="ptitle">Reportes</p>
+      <p class="psub">Historial permanente de ventas</p>
+      <div class="tabs" style="margin-bottom:16px;" id="rep-tabs">
+        <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
+        <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
+        <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
+        <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
+        <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
+          <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-periodo">—</div>
+        </div>
+        <div class="stat">
+          <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
+          <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+        </div>
+      </div>
+      <p class="slabel">Urgentes</p>
+      <div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <p class="slabel">Paquetes escolares</p>
+      <div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <p class="slabel">Impresiones</p>
+      <div id="rep-impresiones" style="margin-bottom:14px;"></div>
+      <p class="slabel">Marcos</p>
+      <div id="rep-marcos" style="margin-bottom:14px;"></div>
+      <p class="slabel">Historial de ventas</p>
+      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+    </div>
 
+    <!-- INVENTARIO -->
+    <div id="page-inventario" class="page">
+      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
+      <div class="tabs">
+        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
+        <div class="tab" onclick="showT('papel',this)">Papel</div>
+        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
+        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
+        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
+      </div>
+
+      <div id="t-turno" class="tsec active">
+        <div id="turno-lock">
+          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
+          <div class="card"><p class="slabel">Abrir turno del día</p>
+            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
+            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
+          </div>
+        </div>
+        <div id="turno-abierto" style="display:none;">
+          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
+          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
+            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
+            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-papel" class="tsec">
+        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
+        <div id="papel-cnt" style="display:none;">
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
+            </div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
+                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
+              </div>
+              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
+              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
+            </div>
+          </div>
+          <p class="slabel">Esquema de cortes</p>
+          <div class="g2" style="margin-bottom:14px;">
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
+            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
+          </div>
+          <p class="slabel">Disponible ahora</p>
+          <div class="g3">
+            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
+            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
+            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="t-marcos" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
+        <div id="marcos-list"></div>
+        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-vidrio" class="tsec">
+        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
+        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
+      </div>
+
+      <div id="t-bitacora" class="tsec">
+        <p class="slabel">Todos los movimientos del día</p>
+        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
+      </div>
+    </div>
 
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
-      <p class="ptitle">Reportes</p><p class="psub">Historial permanente de ventas</p>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:nowrap;">
-        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="rep-tabs">
-          <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
-          <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
-          <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
-        </div>
-        <button onclick="abrirCalendario()" style="background:#f0fbf6;border:1px solid #a0dcc8;border-radius:10px;padding:6px 10px;cursor:pointer;color:#1D9E75;font-size:16px;flex-shrink:0;"><i class="ti ti-calendar"></i></button>
+      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
+        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
+        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
+        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
       </div>
-      <div id="rep-cal-wrap" style="display:none;background:#f0fbf6;border:1px solid #a0dcc8;border-radius:12px;padding:12px;margin-bottom:12px;">
-        <p style="font-size:11px;font-weight:600;color:#1D9E75;margin-bottom:8px;">Buscar por fecha</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Día específico</label><input type="date" id="rep-fecha-cal" onchange="cambiarPeriodoFecha(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;"></div>
-          <div><label style="font-size:10px;color:#888;display:block;margin-bottom:3px;">Mes específico</label><input type="month" id="rep-mes-cal" onchange="cambiarPeriodoMes(this.value)" style="padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;font-size:13px;"></div>
-        </div>
+      <p class="slabel">Infantil</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-inf6">0</div></div>
+        <div class="stat"><div class="sl">Color 9 fotos</div><div class="sv" id="r-inf9">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-inf6bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 9 fotos</div><div class="sv" id="r-inf9bn">0</div></div>
       </div>
-      <div class="g2" style="margin-bottom:14px;">
-        <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;"><div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div><div class="ss" id="rep-periodo">—</div></div>
-        <div class="stat"><div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div><div class="ss" id="rep-ticketprom">Ticket prom: $0</div></div>
+      <p class="slabel">Credencial</p>
+      <div class="g4" style="margin-bottom:10px;">
+        <div class="stat"><div class="sl">Color 4 fotos</div><div class="sv" id="r-cred4">0</div></div>
+        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-cred6">0</div></div>
+        <div class="stat"><div class="sl">B/N 4 fotos</div><div class="sv" id="r-cred4bn">0</div></div>
+        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-cred6bn">0</div></div>
       </div>
-      <p class="slabel">Urgentes</p><div id="rep-urgentes" style="margin-bottom:14px;"></div>
-      <p class="slabel">Paquetes escolares</p><div id="rep-escuelas" style="margin-bottom:14px;"></div>
-      <p class="slabel">Impresiones</p><div id="rep-impresiones" style="margin-bottom:14px;"></div>
-      <p class="slabel">Marcos</p><div id="rep-marcos" style="margin-bottom:14px;"></div>
+      <div class="g4" style="margin-bottom:14px;">
+        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
+        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
+        <div class="stat"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
+        <div class="stat"><div class="sl">Total infantil</div><div class="sv" id="r-inf">0</div></div>
+      </div>
       <p class="slabel">Historial de ventas</p>
-      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período</p></div>
+      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
     </div>
 
   </div>
 
-  <!-- CARRITO -->
+  <!-- CARRITO LATERAL -->
   <div class="cart-panel">
     <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
     <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
@@ -423,8 +829,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   </div>
 </div>
 
-
-
 <!-- LIGHTBOX -->
 <div class="lb" id="lb">
   <button class="lb-x" onclick="closeLb()"><i class="ti ti-x"></i></button>
@@ -436,6 +840,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 </div>
 
 <!-- MODALES -->
+<div class="modal-ov" id="m-nueva-cat"><div class="modal-box">
+  <p class="modal-t">Nueva categoría en Urgentes</p>
+  <div class="frow"><label>Nombre de la categoría</label><input type="text" id="nc-nombre" placeholder="Ej: Militares, Pasaportes, etc."></div>
+  <p style="font-size:11px;color:#888;margin-top:4px;">Después de crear la categoría podrás agregar productos desde el botón + dentro de ella.</p>
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-nueva-cat')">Cancelar</button><button class="btn bgreen" onclick="guardarNuevaCat()">Crear</button></div>
+</div></div>
+
 <div class="modal-ov" id="m-visa"><div class="modal-box"><p class="modal-t">Nueva visa / pasaporte</p>
   <div class="frow"><label>País o tipo de visa</label><input type="text" id="v-n" placeholder="Ej: Visa USA, Pasaporte China"></div>
   <div class="frow"><label>Precio</label><input type="text" id="v-p" placeholder="$200"></div>
@@ -470,6 +881,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 <div class="modal-ov" id="m-marc"><div class="modal-box"><p class="modal-t">Agregar marco</p>
   <div class="frow"><label>Nombre del marco</label><input type="text" id="ma-n" placeholder="Marco café claro"></div>
   <div class="frow"><label>Tamaño</label><input type="text" id="ma-t" placeholder="4x6"></div>
+  <div class="frow"><label>Precio ($)</label><input type="number" id="ma-precio" value="0" min="0"></div>
   <div class="frow"><label>Stock inicial</label><input type="number" id="ma-s" value="0" min="0"></div>
   <div class="frow"><label>Foto del marco</label><input type="file" accept="image/*" id="ma-img" style="font-size:11px;"></div>
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc')">Cancelar</button><button class="btn bgreen" onclick="guardarMarco()">Guardar</button></div>
@@ -489,59 +901,152 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-vid')">Cancelar</button><button class="btn bgreen" onclick="guardarVidrio()">Guardar</button></div>
 </div></div>
 
-<div class="modal-ov" id="m-ticket" style="z-index:1000;"><div class="modal-box" style="width:300px;">
+<div class="modal-ov" id="m-ticket"><div class="modal-box" style="width:300px;">
   <div style="overflow-y:auto;max-height:70vh;"><div class="ticket-wrap" id="ticket-content"></div></div>
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-ticket')"><i class="ti ti-x"></i> Cerrar</button><button class="btn bgreen" onclick="imprimirTicket()"><i class="ti ti-printer"></i> Imprimir</button></div>
 </div></div>
 
-<!-- TICKET MODAL -->
-
-
-<!-- MODAL PEDIDO -->
-<div class="modal-ov" id="m-pedido-nuevo"><div class="modal-box">
-  <p class="modal-t" id="mp-titulo">Nuevo pedido</p>
-  <div class="frow"><label>Cliente</label><input type="text" id="mp-cliente" placeholder="Nombre de quien dejó el pedido"></div>
-  <div class="frow"><label>Descripción</label><textarea id="mp-desc" rows="2" placeholder="Qué pidió..." style="resize:none;width:100%;border:1px solid #e0e0e0;border-radius:8px;padding:8px;font-size:13px;"></textarea></div>
-  <div class="frow"><label>Notas</label><input type="text" id="mp-notas" placeholder="Foto por BT, restauración..."></div>
-  <div class="g2">
-    <div class="frow"><label>Total ($)</label><input type="number" id="mp-total" placeholder="0" oninput="calcResta()"></div>
-    <div class="frow"><label>Anticipo ($)</label><input type="number" id="mp-pagado" placeholder="0" oninput="calcResta()"></div>
-  </div>
-  <div style="background:#f0fbf6;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;">
-    <span style="font-size:12px;color:#666;">Resta:</span>
-    <span style="font-size:16px;font-weight:700;color:#1D9E75;" id="mp-resta">$0</span>
-  </div>
-  <div class="frow"><label>Fecha de entrega</label><input type="date" id="mp-fecha"></div>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-    <input type="checkbox" id="mp-urgente" style="width:16px;height:16px;">
-    <label for="mp-urgente" style="font-size:13px;cursor:pointer;">Urgente (1 hora)</label>
-  </div>
-  <input type="hidden" id="mp-id">
-  <div class="modal-btns">
-    <button class="btn bgray" onclick="closeM('m-pedido-nuevo')">Cancelar</button>
-    <button class="btn bgreen" onclick="guardarPedido()">Guardar</button>
-  </div>
-</div></div>
-
 <script>
-
-
 const CLAVE='8888';
 let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
-let cnt={infantil6:0,infantil9:0,cred4:0,cred6:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
+let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
 let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
 let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
 let epsonBodega=100,tbaritaBodega=50;
 let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
+let categoriasDinamicas = []; // {id, nombre, productos:[]}
+
+function guardarNuevaCat(){
+  const nombre = document.getElementById('nc-nombre').value.trim();
+  if(!nombre) return;
+  const id = 'cat_'+Date.now();
+  categoriasDinamicas.push({id, nombre, productos:[]});
+  closeM('m-nueva-cat');
+  document.getElementById('nc-nombre').value='';
+  rendCatsDinamicas();
+  agregarTabDinamica(id, nombre);
+  autoGuardar();
+}
+
+function agregarTabDinamica(id, nombre){
+  const tabs = document.getElementById('urgentes-tabs');
+  if(!tabs) return;
+  // Check if tab already exists
+  if(document.getElementById('tab-'+id)) return;
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = 'tab-'+id;
+  tab.textContent = nombre;
+  tab.onclick = function(){ showT(id, this); };
+  tabs.appendChild(tab);
+}
+
+function rendCatsDinamicas(){
+  const cont = document.getElementById('cats-dinamicas');
+  if(!cont) return;
+  cont.innerHTML = categoriasDinamicas.map(cat=>`
+    <div id="t-${cat.id}" class="tsec">
+      <div class="hrow">
+        <p class="slabel" style="margin:0;">${cat.nombre}</p>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
+          <button class="btn" style="font-size:10px;padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:0.5px solid #f5c0c0;" onclick="eliminarCat('${cat.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div id="grid-${cat.id}" class="g2"></div>
+    </div>
+  `).join('');
+  // Render products for each category
+  categoriasDinamicas.forEach(cat=>{
+    rendCatProds(cat.id);
+  });
+}
+
+function rendCatProds(catId){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat) return;
+  const grid = document.getElementById('grid-'+catId);
+  if(!grid) return;
+  if(!cat.productos.length){
+    grid.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#888;padding:10px 0;">Sin productos — toca + Agregar</div>';
+    return;
+  }
+  grid.innerHTML = cat.productos.map((p,i)=>{
+    const precio = p.precio||0;
+    const nombre = p.nombre||'';
+    const desc = p.desc||'';
+    return `<div class="foto-card" style="position:relative;">
+      <div onclick="addCatProd('${catId}',${i})" style="cursor:pointer;">
+        <div class="fc-n">${nombre}</div>
+        <div class="fc-l">${desc}</div>
+        <div class="fc-p">$${precio}</div>
+      </div>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarCatProd('${catId}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarCatProd('${catId}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addCatProd(catId, i){
+  const cat = categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!cat.productos[i])return;
+  add(cat.productos[i].nombre, cat.productos[i].precio, 'otro');
+}
+
+function eliminarCat(catId){
+  const clave=prompt('Clave para eliminar categoría:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!confirm('¿Eliminar categoría "'+cat.nombre+'" y todos sus productos?'))return;
+  categoriasDinamicas=categoriasDinamicas.filter(c=>c.id!==catId);
+  const tab=document.getElementById('tab-'+catId);
+  if(tab)tab.remove();
+  rendCatsDinamicas();
+  autoGuardar();
+}
+
+function editarCatProd(catId, i){
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('ep-nombre').value=cat.productos[i].nombre;
+  document.getElementById('ep-desc').value=cat.productos[i].desc||'';
+  document.getElementById('ep-precio').value=cat.productos[i].precio;
+  document.getElementById('ep-cat').value=catId;
+  document.getElementById('ep-idx').value=i;
+  openM('m-prod-edit');
+}
+
+function eliminarCatProd(catId, i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  const cat=categoriasDinamicas.find(c=>c.id===catId);
+  if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
+  cat.productos.splice(i,1);
+  rendCatProds(catId);
+  autoGuardar();
+}
+
 let productos={
-  infantil:[{nombre:'Infantil 6 fotos',desc:'Color o B&N',precio:80,tipo:'infantil6'},{nombre:'Infantil 9 fotos',desc:'Color o B&N',precio:100,tipo:'infantil9'}],
-  credencial:[{nombre:'Credencial 4 fotos',desc:'Color o B&N',precio:100,tipo:'cred4'},{nombre:'Credencial 6 fotos',desc:'Color o B&N',precio:120,tipo:'cred6'}],
+  infantil:[
+    {nombre:'Infantil color 6 fotos',desc:'A color',precio:80,tipo:'infantil6'},
+    {nombre:'Infantil color 9 fotos',desc:'A color',precio:100,tipo:'infantil9'},
+    {nombre:'Infantil B/N 6 fotos',desc:'Blanco y negro',precio:80,tipo:'infantil6bn'},
+    {nombre:'Infantil B/N 9 fotos',desc:'Blanco y negro',precio:100,tipo:'infantil9bn'}
+  ],
+  credencial:[
+    {nombre:'Credencial color 4 fotos',desc:'A color',precio:100,tipo:'cred4'},
+    {nombre:'Credencial color 6 fotos',desc:'A color',precio:120,tipo:'cred6'},
+    {nombre:'Credencial B/N 4 fotos',desc:'Blanco y negro',precio:100,tipo:'cred4bn'},
+    {nombre:'Credencial B/N 6 fotos',desc:'Blanco y negro',precio:120,tipo:'cred6bn'}
+  ],
   cartilla:[{nombre:'Cartilla militar 4 fotos',desc:'TBarita',precio:100,tipo:'cartilla'},{nombre:'Cartilla militar 6 fotos',desc:'TBarita',precio:120,tipo:'cartilla'}],
   digital:[{nombre:'Imagen digital',desc:'',precio:250,tipo:'digital'}]
 };
 let escuelas=[{n:'Primaria Juárez',s:'2 fotos 5x7, 4 credencial, 1 grupal',p:'$320',img:null},{n:'Colegio San José',s:'3 infantil color, 2 B&N, porta-retrato',p:'$280',img:null}];
 let impresiones=[{sz:'6x8',p:100},{sz:'8x10',p:150},{sz:'11x14',p:350},{sz:'16x20',p:500}];
-let marcos=[{n:'Marco negro liso',t:'4x6',stock:24,img:null},{n:'Marco dorado',t:'5x7',stock:8,img:null},{n:'Marco plateado',t:'4x6',stock:3,img:null},{n:'Marco madera natural',t:'8x10',stock:0,img:null}];
+let marcos=[{n:'Marco negro liso',t:'4x6',stock:24,img:null,precio:0},{n:'Marco dorado',t:'5x7',stock:8,img:null,precio:0},{n:'Marco plateado',t:'4x6',stock:3,img:null,precio:0},{n:'Marco madera natural',t:'8x10',stock:0,img:null,precio:0}];
 let vidrios=[{m:'4x6',stock:20},{m:'5x7',stock:10},{m:'8x10',stock:5}];
 let bitacora=[];
 let secretSeq=[];
@@ -556,33 +1061,21 @@ document.addEventListener('keydown',function(e){
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
-  const page=document.getElementById('page-'+id);
-  if(page) page.classList.add('active');
+  document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  if(id==='ordinarias'){rendEsc();rendImp();}
-  if(id==='pedidos'&&typeof rendPedidos==='function')rendPedidos();
-  if(id==='marcos-venta'&&typeof rendMarcosVenta==='function')rendMarcosVenta();
   if(id==='reportes')setTimeout(cargarReportes,300);
-  if(id==='ordinarias'){rendEsc();rendImp();}
-  if(id==='marcos-venta'&&typeof rendMarcosVenta==='function')rendMarcosVenta();
-  if(id==='ordinarias'){rendEsc();rendImp();}
-  if(id==='marcos-venta'){rendMarcosVenta();}
 }
-function showOrdTab(id, el){
-  const tabs=document.getElementById('ord-tabs');
-  if(tabs) tabs.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  document.querySelectorAll('.ord-sec').forEach(s=>s.style.display='none');
-  const target=document.getElementById('ord-'+id);
-  if(target) target.style.display='block';
-}
-
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
+  if(!tabsEl)return;
+  // Deactivate all tabs in this tabs container
   tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  let sib=tabsEl.nextElementSibling;
-  while(sib){if(sib.classList&&sib.classList.contains('tsec'))sib.classList.remove('active');sib=sib.nextElementSibling;}
+  // Find the page container and hide ALL tsec inside it
+  const page=tabsEl.closest('.page');
+  if(page){
+    page.querySelectorAll('.tsec').forEach(s=>s.classList.remove('active'));
+  }
   const target=document.getElementById('t-'+id);
   if(target)target.classList.add('active');
 }
@@ -610,39 +1103,37 @@ function calcCambio(){
 function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
+  const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
   const now=new Date();
-  const dia=String(now.getDate()).padStart(2,'0');
-  const mes2=String(now.getMonth()+1).padStart(2,'0');
-  const fecha=dia+'/'+mes2+'/'+now.getFullYear();
+  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
-  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
-  const tiposOrd=['escuela','impresion','ordinaria'];
-  const itemsU=items.filter(c=>!tiposOrd.includes(c.tipo));
-  const itemsO=items.filter(c=>tiposOrd.includes(c.tipo));
-  const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
-  const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
-  const tickets=[];
-  if(itemsU.length>0){
-    const fU='FU-'+String(folioNum).padStart(4,'0');folioNum++;
-    ventas.push({f:fU,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
-    const vU={folio:fU,fecha,hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:totalU,pago:itemsO.length?totalU:pago,cambio:itemsO.length?0:pago-totalU,escuelas:[]};
-    if(db)db.collection('ventas').doc(fU).set(vU).then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
-    tickets.push({f:fU,fecha,hora,items:itemsU,total:totalU,pago:vU.pago,cambio:vU.cambio});
-  }
-  if(itemsO.length>0){
-    const fO='FO-'+String(folioNum).padStart(4,'0');folioNum++;
-    ventas.push({f:fO,desc:itemsO.map(c=>c.nombre).join(', '),total:totalO});
-    const vO={folio:fO,fecha,hora,timestamp:now.toISOString(),year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),total:totalO,pago:itemsU.length?totalO:pago,cambio:itemsU.length?0:pago-totalO,escuelas:itemsO.filter(c=>c.tipo==='escuela').map(c=>c.nombre)};
-    if(db)db.collection('ventas').doc(fO).set(vO).then(()=>setDriveStatus(true,'Guardado ✓')).catch(console.error);
-    tickets.push({f:fO,fecha,hora,items:itemsO,total:totalO,pago:vO.pago,cambio:vO.cambio});
-    setTimeout(function(){abrirNuevoPedido(itemsO.map(c=>c.nombre).join(', '),totalO);},800);
-  }
+  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
+  ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
+  ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
   totalDia+=total;updReportes();rendHist();
+  // Guardar venta en Firebase permanentemente
+  if(db){
+    const ventaData={
+      folio:f,
+      fecha:fecha,
+      hora:hora,
+      timestamp:now.toISOString(),
+      year:now.getFullYear(),
+      month:now.getMonth()+1,
+      dia:now.getDate(),
+      items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:total,
+      pago:pago,
+      cambio:pago-total,
+      // Escuelas vendidas en esta venta
+      escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))
+    };
+    db.collection('ventas').doc(f).set(ventaData).catch(e=>console.error('Error guardando venta:',e));
+  }
   carrito=[];document.getElementById('pago').value='';renderCarrito();
-  if(tickets.length>0)mostrarTicket(tickets[0],tickets[1]||null);
+  mostrarTicket(ultimaVenta);
 }
-
 function regConsumo(tipo){
   let desc='',imp='';
   if(tipo==='infantil6'){cons.inf6++;desc='Infantil 6f vendido';imp='-¼ pieza 11x28';}
@@ -673,153 +1164,108 @@ function updStock(){
   tbaritaBodega=parseInt(document.getElementById('st-tbar').value)||0;
   recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
 }
-function updReportes(){
-  document.getElementById('r-v').textContent=ventas.length;
-  document.getElementById('r-t').textContent='$'+totalDia;
-  document.getElementById('r-inf').textContent=cnt.infantil6+cnt.infantil9;
-  document.getElementById('r-cred').textContent=cnt.cred4+cnt.cred6;
-  document.getElementById('r-cart').textContent=cnt.cartilla;
-  document.getElementById('r-dig').textContent=cnt.digital;
-  document.getElementById('r-visa').textContent=cnt.visa;
-  document.getElementById('r-imp').textContent=cnt.impresion;
-  document.getElementById('r-esc').textContent=cnt.escuela;
+function updReportes(){}
+
+function rendHist(){
+  const el=document.getElementById('r-hist');
+  if(!el)return;
+  el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Desc</th><th>Total</th></tr></thead><tbody>'+
+    ventas.map(function(v){return '<tr><td style="color:#1D9E75;font-weight:600">'+v.f+'</td><td style="font-size:11px;">'+v.desc+'</td><td>$'+v.total+'</td></tr>';}).join('')+'</tbody></table>';
 }
+
 let periodoActual='hoy',ventasFB=[];
-function cambiarPeriodo(p,el){periodoActual=p;document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');cargarReportes();}
-function getFechaStr(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
-function abrirCalendario(){const w=document.getElementById('rep-cal-wrap');if(w)w.style.display=w.style.display==='none'?'block':'none';}
-function cambiarPeriodoFecha(v){if(!v)return;const[y,m,d]=v.split('-');document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));periodoActual='fecha';cargarReportesFecha(d+'/'+m+'/'+y);}
-function cambiarPeriodoMes(v){if(!v)return;const[y,m]=v.split('-');document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));periodoActual='mes_esp';cargarReportesMes(parseInt(y),parseInt(m));}
+
+function cambiarPeriodo(p,el){
+  periodoActual=p;
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  cargarReportes();
+}
+
+function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
+
 async function cargarReportes(){
   if(!db){mostrarReportesLocal();return;}
   const el=document.getElementById('rep-historial');
-  if(el)el.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Cargando...</p>';
+  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   try{
-    const now=new Date();let snap;
-    if(periodoActual==='hoy'){snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();}
-    else if(periodoActual==='semana'){
+    const now=new Date();
+    let snap;
+    if(periodoActual==='hoy'){
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='ayer'){
+      const ay=new Date(now);ay.setDate(ay.getDate()-1);
+      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ay)).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='semana'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
-      ventasFB=[];const h7=new Date(now);h7.setDate(h7.getDate()-7);
-      snap.forEach(function(d){const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
-      renderReportes();return;
-    } else {snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();}
-    ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();
+      ventasFB=[];
+      const h7=new Date(now);h7.setDate(h7.getDate()-7);
+      snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
+    } else if(periodoActual==='mes'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else {
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    }
+    renderReportes();
   }catch(e){console.error(e);mostrarReportesLocal();}
 }
-async function cargarReportesFecha(f){
-  if(!db)return;try{const snap=await db.collection('ventas').where('fecha','==',f).get();ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();}catch(e){console.error(e);}
+
+function mostrarReportesLocal(){
+  ventasFB=ventas.map(v=>({folio:v.f,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}],escuelas:[]}));
+  renderReportes();
 }
-async function cargarReportesMes(y,m){
-  if(!db)return;try{const snap=await db.collection('ventas').where('year','==',y).where('month','==',m).get();ventasFB=[];snap.forEach(function(d){ventasFB.push(d.data());});renderReportes();}catch(e){console.error(e);}
+
+function barraItem(n,total,count,max){
+  const pct=Math.round(total/max*100);
+  return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">${n}</span><span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;">(${count})</span></span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div></div></div>`;
 }
-function mostrarReportesLocal(){ventasFB=ventas.map(function(v){return{folio:v.f,total:v.total,fecha:'hoy',items:[{nombre:v.desc,precio:v.total,tipo:'otro'}]};});renderReportes();}
-function barraItem(n,total,count,max){var pct=Math.round(total/max*100);return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">'+n+'</span><span style="color:#1D9E75;font-weight:600;">$'+total.toLocaleString()+' ('+count+')</span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';}
-function renderSeccion(id,mapa){var el=document.getElementById(id);if(!el)return;var items=Object.entries(mapa).sort(function(a,b){return b[1].total-a[1].total;});if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}var max=items[0][1].total||1;el.innerHTML=items.map(function(x){return barraItem(x[0],x[1].total,x[1].count,max);}).join('');}
+
+function renderSeccion(id,mapa){
+  const el=document.getElementById(id);if(!el)return;
+  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
+  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
+  const max=items[0][1].total||1;
+  el.innerHTML=items.map(([n,d])=>barraItem(n,d.total,d.count,max)).join('');
+}
+
 function renderReportes(){
-  var activas=ventasFB.filter(function(v){return !v.cancelada;});
-  var total=activas.reduce(function(s,v){return s+v.total;},0);
-  var num=activas.length;
-  var prom=num?Math.round(total/num):0;
-  var labels={hoy:'Hoy',semana:'Últimos 7 días',anio:'Este año',fecha:'Fecha específica',mes_esp:'Mes específico'};
-  function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
-  set('rep-total','$'+total.toLocaleString());set('rep-numventas',num);set('rep-periodo',labels[periodoActual]||'—');set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
-  var urg={},esc={},imp={},marc={};
-  var catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',cred4:'Credencial 4f',cred6:'Credencial 6f',cartilla:'Cartilla',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro',ordinaria:'Ordinario'};
-  activas.forEach(function(v){(v.items||[]).forEach(function(item){var tipo=item.tipo||'otro';var precio=item.precio||0;var n=item.nombre||catN[tipo]||tipo;function add(m,k){if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;}if(tipo==='escuela')add(esc,n);else if(tipo==='impresion')add(imp,n);else if(tipo==='marco')add(marc,n);else add(urg,n);});});
-  renderSeccion('rep-urgentes',urg);renderSeccion('rep-escuelas',esc);renderSeccion('rep-impresiones',imp);renderSeccion('rep-marcos',marc);
-  var sorted=[...ventasFB].sort(function(a,b){return(b.timestamp||'').localeCompare(a.timestamp||'');});
-  var elH=document.getElementById('rep-historial');if(!elH)return;
-  if(!sorted.length){elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas</p>';return;}
-  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th></th></tr></thead><tbody>'+sorted.map(function(v){var cancelada=v.cancelada===true;var rs=cancelada?'opacity:0.5;background:#fff5f5;':'';var ts=cancelada?'color:#A32D2D;text-decoration:line-through;':'color:#1D9E75;font-weight:600;';var badge=cancelada?'<span style="font-size:9px;background:#FCEBEB;color:#A32D2D;padding:2px 4px;border-radius:4px;margin-left:3px;">✕</span>':'';var isU=(v.folio||'').startsWith('FU');var fc=isU?'color:#1D9E75;':'color:#E65100;';var btn=!cancelada?'<button class="btn-cx" data-folio="'+(v.folio||'')+'" style="background:none;border:1px solid #eee;border-radius:5px;cursor:pointer;color:#ccc;font-size:11px;padding:2px 6px;">✕</button>':'<span style="font-size:10px;color:#A32D2D;">Cancelada</span>';return '<tr style="'+rs+'"><td style="font-weight:600;font-size:11px;'+fc+'">'+(v.folio||'—')+badge+'</td><td style="font-size:10px;color:#888;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td><td style="font-size:11px;">'+(v.items||[]).map(function(i){return i.nombre;}).join(', ')+'</td><td style="'+ts+'">$'+v.total+'</td><td>'+btn+'</td></tr>';}).join('')+'</tbody></table>';
-  setTimeout(function(){elH.querySelectorAll('.btn-cx').forEach(function(btn){btn.onclick=function(){cancelarVenta(btn.dataset.folio);};});},100);
-}
-async function cancelarVenta(folio){
-  if(!folio)return;
-  var clave=prompt('Clave para cancelar '+folio+':');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
-  if(!confirm('Cancelar '+folio+'?'))return;
-  if(!db){alert('Sin conexión');return;}
-  try{setDriveStatus(true,'Cancelando...');await db.collection('ventas').doc(folio).update({cancelada:true,fechaCancelacion:new Date().toISOString()});setDriveStatus(true,'Cancelada');setTimeout(cargarReportes,500);}catch(e){setDriveStatus(false,'Error');console.error(e);}
-}
-
-function rendHist(){
-  document.getElementById('r-hist').innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Descripción</th><th>Total</th></tr></thead><tbody>'+
-    ventas.map(v=>`<tr><td style="color:#1D9E75;font-weight:600">${v.f}</td><td style="font-size:11px;">${v.desc}</td><td style="color:#1D9E75;font-weight:600">$${v.total}</td></tr>`).join('')+'</tbody></table>';
-}
-function mostrarTicket(v1,v2){
-  if(!v1)return;
-  function mkTicket(v){
-    const isU=(v.f||'').startsWith('FU');
-    const badge=isU?
-      '<div style="text-align:center;margin-bottom:6px;"><span style="background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;">URGENTE</span></div>':
-      '<div style="text-align:center;margin-bottom:6px;"><span style="background:#FFF3E0;color:#E65100;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;">ORDINARIO</span></div>';
-    const rows=(v.items||[]).map(function(c){
-      return '<tr><td style="font-size:11px;padding:3px 0;">'+c.nombre+'</td><td style="font-size:11px;text-align:right;">$'+c.precio+'</td></tr>';
-    }).join('');
-    return '<div style="border:1px dashed #ccc;border-radius:8px;padding:16px;margin-bottom:12px;">'+
-      '<div style="text-align:center;margin-bottom:10px;"><strong>Foto Bernal</strong><br>'+
-      '<small>Ocampo 407, Chihuahua, Chih.</small><br><small>Tel 614 4 15 42 42</small></div>'+
-      badge+
-      '<div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:5px 0;margin:5px 0;font-size:11px;">'+
-      'Folio: <strong>'+v.f+'</strong> &nbsp; '+v.fecha+' '+v.hora+'</div>'+
-      '<table style="width:100%;margin:6px 0;">'+rows+'</table>'+
-      '<div style="border-top:1px dashed #ccc;padding-top:6px;">'+
-        '<div style="display:flex;justify-content:space-between;font-weight:700;">TOTAL <span>$'+v.total+'</span></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">Pago <span>$'+v.pago+'</span></div>'+
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;">Cambio <span>$'+v.cambio+'</span></div>'+
-      '</div>'+
-      '<div style="text-align:center;font-size:10px;color:#888;margin-top:8px;">Gracias por su preferencia</div>'+
-    '</div>';
-  }
-  document.getElementById('ticket-content').innerHTML=mkTicket(v1)+(v2?mkTicket(v2):'');
-  openM('m-ticket');
-}
-
-function imprimirTicket(){
-  const c=document.getElementById('ticket-content').innerHTML;
-  const w=window.open('','_blank','width=320,height=550');
-  w.document.write(`<!DOCTYPE html><html><head><title>Ticket</title><style>body{font-family:'Courier New',monospace;padding:16px;font-size:12px;color:#111;max-width:280px;}.tkt-row{display:flex;justify-content:space-between;padding:2px 0;}.tkt-bold{font-weight:700;}.tkt-total{border-top:2px solid #111;padding-top:6px;margin-top:4px;font-size:14px;font-weight:700;}.tkt-hdr{text-align:center;margin-bottom:12px;}.tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:11px;}.tkt-div{border:none;border-top:1px dashed #ccc;margin:8px 0;}</style></head><body>${c}<script>window.onload=function(){window.print();}<\/script></body></html>`);
-  w.document.close();
-}
-
-function abrirTurno(){
-  if(document.getElementById('cl-turno').value!==CLAVE){alert('Clave incorrecta');return;}
-  turnoAbierto=true;
-  const now=new Date();
-  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
-  document.getElementById('turno-info').textContent='Abierto el '+fecha+' a las '+hora;
-  document.getElementById('turno-lock').style.display='none';
-  document.getElementById('turno-abierto').style.display='block';
-  recalcPapel();
-  regBit('Turno abierto','Epson:'+epsonBodega+' · TBarita:'+tbaritaBodega,'ok');
-}
-function cerrarTurno(){
-  const c=prompt('Ingresa la clave para cerrar el turno:');
-  if(c!==CLAVE){alert('Clave incorrecta');return;}
-  turnoAbierto=false;
-  document.getElementById('turno-lock').style.display='block';
-  document.getElementById('turno-abierto').style.display='none';
-  document.getElementById('cl-turno').value='';
-  regBit('Turno cerrado','Fin del día','ok');
-}
-function unlockPapel(){
-  if(document.getElementById('cl-papel').value!==CLAVE){alert('Clave incorrecta');return;}
-  document.getElementById('papel-lock').style.display='none';
-  document.getElementById('papel-cnt').style.display='block';
-  recalcPapel();
-}
-function unlockMarcos(){
-  if(document.getElementById('cl-marc').value!==CLAVE){alert('Clave incorrecta');return;}
-  marcosUnlocked=true;
-  document.getElementById('marc-lock').style.display='none';
-  rendMarcos();
-}
-function unlockVidrio(){
-  if(document.getElementById('cl-vid').value!==CLAVE){alert('Clave incorrecta');return;}
-  vidrioUnlocked=true;
-  document.getElementById('vid-lock').style.display='none';
-  rendVidrio();
+  const total=ventasFB.reduce((s,v)=>s+v.total,0);
+  const num=ventasFB.length;
+  const prom=num?Math.round(total/num):0;
+  const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rep-total','$'+total.toLocaleString());
+  set('rep-numventas',num);
+  set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  const urg={},esc={},imp={},marc={};
+  const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
+  ventasFB.forEach(v=>{
+    (v.items||[]).forEach(item=>{
+      const tipo=item.tipo||'otro';
+      const precio=item.precio||0;
+      const n=catN[tipo]||item.nombre||tipo;
+      const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela')add(esc,item.nombre||'Escuela');
+      else if(tipo==='impresion')add(imp,n);
+      else if(tipo==='marco')add(marc,n);
+      else add(urg,n);
+    });
+  });
+  renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-escuelas',esc);
+  renderSeccion('rep-impresiones',imp);
+  renderSeccion('rep-marcos',marc);
+  const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
+  const elH=document.getElementById('rep-historial');
+  if(elH)elH.innerHTML=sorted.length?
+    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
+    sorted.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+'</tbody></table>':
+    '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
 }
 
 function rendVisas(){
@@ -858,7 +1304,16 @@ function guardarVisaEdit(){
   rendVisas();closeM('m-visa-edit');autoGuardar();
 }
 function toggleVisa(i){document.getElementById('vb-'+i).classList.toggle('open');}
-function updVisaImg(i,input){if(!input.files[0])return;const r=new FileReader();r.onload=e=>{visas[i].img=e.target.result;rendVisas();document.getElementById('vb-'+i).classList.add('open');};r.readAsDataURL(input.files[0]);}
+function updVisaImg(i,input){
+  if(!input.files[0])return;
+  setDriveStatus(true,'Subiendo imagen...');
+  subirImagenCloudinary(input.files[0]).then(url=>{
+    visas[i].img=url;
+    rendVisas();
+    document.getElementById('vb-'+i).classList.add('open');
+    autoGuardar();
+  }).catch(()=>{setDriveStatus(false,'Error imagen');});
+}
 
 function filtrarEscuelas(){
   const q=document.getElementById('esc-buscar').value.toLowerCase().trim();
@@ -912,6 +1367,7 @@ function renderEscGrid(lista){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
           <button class="bsm" onclick="add('Paquete ${e.n}',${parseInt(e.p.replace('$',''))||0},'escuela')"><i class="ti ti-shopping-cart"></i> Agregar</button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
+            <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
         </div>
       </div>
     </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
@@ -920,15 +1376,61 @@ function abrirLb(i,tipo){
   let obj=tipo==='esc'?escuelas[i]:marcos[i];
   document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
   document.getElementById('lb-t').textContent=obj.n||obj.nombre||'';
-  document.getElementById('lb-s').textContent=obj.s||obj.t||'';
-  document.getElementById('lb-p').textContent=obj.p||('Stock: '+(obj.stock||0));
+  document.getElementById('lb-s').textContent=obj.s||obj.t||('Stock: '+(obj.stock||0));
+  document.getElementById('lb-p').textContent=obj.p||('$'+( obj.precio||0));
   if(tipo==='esc'){
     document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
     document.getElementById('lb-add-btn').onclick=()=>{add('Paquete '+(obj.n||obj.nombre),parseInt((obj.p||'$0').replace('$',''))||0,'escuela');closeLb();};
+  } else if(tipo==='marco'){
+    document.getElementById('lb-add-btn').style.display='';
+    document.getElementById('lb-add-btn').textContent='🛒 Vender marco';
+    document.getElementById('lb-add-btn').onclick=()=>{venderMarcoVenta(i);closeLb();};
   } else {
     document.getElementById('lb-add-btn').style.display='none';
   }
   document.getElementById('lb').classList.add('open');
+}
+
+function venderMarcoVenta(i){
+  if(!marcos[i]||marcos[i].stock<=0){alert('Sin stock disponible');return;}
+  const precio=marcos[i].precio||0;
+  add('Marco '+marcos[i].n, precio, 'marco');
+  marcos[i].stock--;
+  rendMarcosVenta();
+  rendMarcos();
+  autoGuardar();
+}
+
+function rendMarcosVenta(){
+  const grid=document.getElementById('marcos-venta-grid');
+  if(!grid)return;
+  const disponibles=marcos.filter((m,i)=>({...m,idx:i})).map((m,i)=>({...m,idx:i}));
+  if(!disponibles.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-frame" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin marcos en inventario</div>';
+    return;
+  }
+  grid.innerHTML=disponibles.map((m,i)=>{
+    const agotado=m.stock<=0;
+    return `<div class="esc-card" style="${agotado?'opacity:0.5;':''}">
+      <div class="esc-img" onclick="abrirLb(${m.idx},'marco')" style="cursor:pointer;">
+        ${m.img?`<img src="${m.img}" alt="${m.n}" style="width:100%;height:110px;object-fit:cover;"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto</span>'}
+      </div>
+      <div class="esc-body">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
+          <p class="esc-n">${m.n}</p>
+          <span style="font-size:12px;color:#1D9E75;font-weight:600;">$${m.precio||0}</span>
+        </div>
+        <p class="esc-s">${m.t} · Stock: ${m.stock}</p>
+        <div style="margin-top:8px;">
+          ${agotado
+            ? '<span style="font-size:11px;color:#A32D2D;font-weight:500;">Agotado</span>'
+            : `<button class="bsm" onclick="venderMarcoVenta(${m.idx})"><i class="ti ti-shopping-cart"></i> Vender</button>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 function closeLb(){document.getElementById('lb').classList.remove('open');}
 function editarEsc(i){
@@ -938,14 +1440,48 @@ function editarEsc(i){
   document.getElementById('ee-idx').value=i;
   openM('m-esc-edit');
 }
+
+function eliminarEsc(i){
+  const clave=prompt('Clave para eliminar escuela:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+escuelas[i].n+'"?'))return;
+  const docId=escuelas[i]._id||('e'+i);
+  escuelas.splice(i,1);
+  rendEsc();
+  guardarLocal();
+  if(db){
+    db.collection('escuelas').doc(docId).delete()
+      .then(()=>setDriveStatus(true,'Eliminado ✓'))
+      .catch(err=>setDriveStatus(false,'Error: '+err.code));
+  }
+}
 function guardarEscEdit(){
   const i=parseInt(document.getElementById('ee-idx').value);
   escuelas[i].n=document.getElementById('ee-n').value.trim()||escuelas[i].n;
   escuelas[i].s=document.getElementById('ee-s').value.trim()||escuelas[i].s;
   escuelas[i].p=document.getElementById('ee-p').value.trim()||escuelas[i].p;
   const img=document.getElementById('ee-img');
-  const save=()=>{rendEsc();closeM('m-esc-edit');autoGuardar();};
-  if(img.files[0]){const r=new FileReader();r.onload=e=>{escuelas[i].img=e.target.result;save();};r.readAsDataURL(img.files[0]);}else save();
+  const docId=escuelas[i]._id||('e'+i);
+  const save=()=>{
+    rendEsc();closeM('m-esc-edit');guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escuelas[i])
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>setDriveStatus(false,'Error: '+err.code));
+    }
+  };
+  if(img.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(img.files[0]).then(url=>{escuelas[i].img=url;save();}).catch(()=>save());
+  } else save();
+}
+function eliminarImp(i){
+  const clave=prompt('Clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar impresión "'+impresiones[i].sz+'"?'))return;
+  impresiones.splice(i,1);
+  rendImp();
+  autoGuardar();
 }
 
 function rendImp(){
@@ -956,7 +1492,10 @@ function rendImp(){
         <div class="fc-l">Impresión fotográfica</div>
         <div class="fc-p">$${im.p}</div>
       </div>
-      <button style="position:absolute;bottom:8px;right:8px;background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;" onclick="editarImp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+      <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarImp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarImp(${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+      </div>
     </div>`).join('');
 }
 
@@ -1040,10 +1579,31 @@ function guardarVisa(){
   if(imgI.files[0]){const r=new FileReader();r.onload=e=>{v.img=e.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
 }
 function guardarEsc(){
-  const n=document.getElementById('e-n').value.trim();const sp=document.getElementById('e-s').value.trim();const p=document.getElementById('e-p').value.trim();if(!n)return;
-  const e={n,s:sp||'Sin especificaciones',p:p||'$0',img:null};const imgI=document.getElementById('e-img');
-  const s=()=>{escuelas.push(e);rendEsc();closeM('m-esc');autoGuardar();['e-n','e-s','e-p'].forEach(id=>document.getElementById(id).value='');};
-  if(imgI.files[0]){const r=new FileReader();r.onload=ev=>{e.img=ev.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
+  const n=document.getElementById('e-n').value.trim();
+  const sp=document.getElementById('e-s').value.trim();
+  const p=document.getElementById('e-p').value.trim();
+  if(!n)return;
+  const docId='e_'+Date.now();
+  const e={n,s:sp||'Sin especificaciones',p:p||'$0',img:null,_id:docId};
+  const imgI=document.getElementById('e-img');
+  const guardar=(escData)=>{
+    escuelas.push(escData);
+    rendEsc();
+    closeM('m-esc');
+    ['e-n','e-s','e-p'].forEach(id2=>document.getElementById(id2).value='');
+    guardarLocal();
+    if(db){
+      db.collection('escuelas').doc(docId).set(escData)
+        .then(()=>setDriveStatus(true,'Guardado ✓'))
+        .catch(err=>{setDriveStatus(false,'Error: '+err.code);console.error(err);});
+    }
+  };
+  if(imgI.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(imgI.files[0])
+      .then(url=>{e.img=url;guardar(e);})
+      .catch(()=>guardar(e));
+  } else guardar(e);
 }
 function guardarImp(){
   const sz=document.getElementById('im-s').value.trim();const p=parseInt(document.getElementById('im-p').value.replace('$',''))||0;if(!sz)return;
@@ -1063,6 +1623,16 @@ function prevSpec(input,id){if(!input.files[0])return;const r=new FileReader();r
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
 
+function eliminarProd(cat,i){
+  const clave=prompt('Ingresa la clave para eliminar:');
+  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar "'+productos[cat][i].nombre+'"?'))return;
+  productos[cat].splice(i,1);
+  const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
+  rendProds(cat,gridMap[cat]);
+  autoGuardar();
+}
+
 function rendProds(cat,gridId){
   const el=document.getElementById(gridId);if(!el)return;
   const isDigital=cat==='digital';
@@ -1070,7 +1640,10 @@ function rendProds(cat,gridId){
     el.innerHTML=productos[cat].map((p,i)=>`
       <div class="dig-card" style="position:relative;" onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
         <i class="ti ti-device-floppy"></i><div class="dn">${p.nombre}</div><div class="dp">$${p.precio}</div>
-        <button style="position:absolute;bottom:8px;right:8px;background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="event.stopPropagation();eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
       </div>`).join('');
   } else {
     el.innerHTML=productos[cat].map((p,i)=>`
@@ -1080,7 +1653,10 @@ function rendProds(cat,gridId){
           <div class="fc-l">${p.desc}</div>
           <div class="fc-p">$${p.precio}</div>
         </div>
-        <button style="position:absolute;bottom:8px;right:8px;background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+        <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+        </div>
       </div>`).join('');
   }
 }
@@ -1110,14 +1686,28 @@ function agregarProd(){
   const desc=document.getElementById('ap-desc').value.trim();
   const precio=parseInt(document.getElementById('ap-precio').value)||0;
   if(!nombre)return;
-  const tipoMap={infantil6:'infantil6',infantil9:'infantil9',cred4:'cred4',cred6:'cred6',cartilla:'cartilla',digital:'digital'};
-  const catMap={infantil6:'infantil',cred4:'credencial',cartilla:'cartilla',digital:'digital'};
+
+  // Categoría dinámica (militares, etc.)
+  const dynCat=categoriasDinamicas.find(c=>c.id===cat);
+  if(dynCat){
+    dynCat.productos.push({nombre,desc,precio,tipo:'otro'});
+    rendCatProds(cat);
+    closeM('m-add-prod');
+    ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+    autoGuardar();
+    return;
+  }
+
+  // Categorías fijas
+  const catMap={infantil6:'infantil',infantil9:'infantil',cred4:'credencial',cred6:'credencial',cartilla:'cartilla',digital:'digital'};
   const finalCat=catMap[cat]||cat;
-  productos[finalCat].push({nombre,desc,precio,tipo:cat});autoGuardar();
+  if(!productos[finalCat]){closeM('m-add-prod');return;}
+  productos[finalCat].push({nombre,desc,precio,tipo:cat});
   const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
   rendProds(finalCat,gridMap[finalCat]);
   closeM('m-add-prod');
   ['ap-nombre','ap-desc','ap-precio'].forEach(id=>document.getElementById(id).value='');
+  autoGuardar();
 }
 function editarImp(i){
   document.getElementById('ei-sz').textContent=impresiones[i].sz+'"';
@@ -1142,7 +1732,7 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega};
+    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,ventasDia:ventas,folioNum};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
@@ -1213,152 +1803,113 @@ function iniciarFirebase(){
   setDriveStatus(true,'Conectando...');
   
   // Cargar datos UNA SOLA VEZ al inicio (get, no onSnapshot)
-  DOC_REF.get().then((doc)=>{
-    firebaseConectado = true;
-    if(doc.exists){
-      const datos = doc.data();
-      if(datos.visas) visas=datos.visas;
-      if(datos.escuelas) escuelas=datos.escuelas;
-      if(datos.impresiones) impresiones=datos.impresiones;
-      if(datos.marcos) marcos=datos.marcos;
-      if(datos.vidrios) vidrios=datos.vidrios;
-      if(datos.productos) productos=datos.productos;
-      if(datos.epsonBodega!==undefined) epsonBodega=datos.epsonBodega;
-      if(datos.tbaritaBodega!==undefined) tbaritaBodega=datos.tbaritaBodega;
-      rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
-      rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
-      rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
-      guardarLocal();
-      if(db){db.collection('ventas').get().then(function(snap){var mx=0;snap.forEach(function(doc){var n=parseInt(doc.id.replace(/^[A-Z]+-/,''))||0;if(n>mx)mx=n;});if(mx>=folioNum)folioNum=mx+1;}).catch(function(){});}
-    if(db){db.collection('ventas').get().then(function(snap){var mx=0;snap.forEach(function(doc){var n=parseInt(doc.id.replace(/^[A-Z]+-/,''))||0;if(n>mx)mx=n;});if(mx>=folioNum)folioNum=mx+1;}).catch(function(){});}
-    if(typeof cargarPedidosFB==='function')cargarPedidosFB();
-    setDriveStatus(true,'Datos cargados ✓');
-    } else {
-      // Primera vez — subir datos locales
-      guardarFirebase();
+  Promise.all([
+    db.collection('datos').doc('precios').get(),
+    db.collection('datos').doc('productos').get(),
+    db.collection('visas').get(),
+    db.collection('marcos').get(),
+    db.collection('escuelas').get()
+  ]).then(([precDoc,prodDoc,visSnap,marcSnap,escSnap])=>{
+    firebaseConectado=true; fbListo=true;
+    if(precDoc.exists){
+      const d=precDoc.data();
+      if(d.impresiones)impresiones=d.impresiones;
+      if(d.vidrios)vidrios=d.vidrios;
+      if(d.epsonBodega!==undefined)epsonBodega=d.epsonBodega;
+      if(d.tbaritaBodega!==undefined)tbaritaBodega=d.tbaritaBodega;
     }
-    fbListo = true;
-  }).catch((e)=>{
-    setDriveStatus(false,'Error: '+e.message);
+    if(prodDoc.exists){
+      const d=prodDoc.data();
+      if(d.infantil)productos.infantil=d.infantil;
+      if(d.credencial)productos.credencial=d.credencial;
+      if(d.cartilla)productos.cartilla=d.cartilla;
+      if(d.digital)productos.digital=d.digital;
+      if(d.categoriasDinamicas)categoriasDinamicas=d.categoriasDinamicas;
+    }
+    if(!visSnap.empty){const arr=[];visSnap.forEach(d=>arr.push(d.data()));visas=arr;}
+    if(!marcSnap.empty){const arr=[];marcSnap.forEach(d=>arr.push(d.data()));marcos=arr;}
+    if(!escSnap.empty){
+      const arr=[];
+      escSnap.forEach(d=>arr.push({...d.data(),_id:d.id}));
+      arr.sort((a,b)=>a.n.localeCompare(b.n,'es'));
+      escuelas=arr;
+    }
+    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+    rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
+    rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    rendCatsDinamicas();
+    categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
+    guardarLocal();
+    setDriveStatus(true,'Datos cargados ✓');
+    if(!precDoc.exists) guardarFirebase();
+  }).catch(e=>{
+    fbListo=true;
+    setDriveStatus(false,'Error cargando datos');
     cargarLocal();
   });
 }
 
+// ============================================================
+// CLOUDINARY — imágenes en la nube, se ven en todos los dispositivos
+// ============================================================
+async function subirImagenCloudinary(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = async function(ev){
+      try{
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'fotoestudio');
+        formData.append('folder', 'fotoestudio');
+        const res = await fetch('https://api.cloudinary.com/v1_1/dgnrfoxez/image/upload',
+          {method:'POST', body:formData});
+        const data = await res.json();
+        resolve(data.secure_url || null);
+      } catch(e){
+        console.error('Cloudinary error:', e);
+        resolve(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// FIREBASE — cada colección en documentos separados
+// ============================================================
 async function guardarFirebase(){
-  if(!DOC_REF) return;
+  if(!db) return;
   setDriveStatus(true,'Guardando...');
   try{
-    const datos = {visas,escuelas,impresiones,marcos,vidrios,productos,
-                   epsonBodega,tbaritaBodega,actualizado:new Date().toISOString()};
-    await DOC_REF.set(datos);
+    await db.collection('datos').doc('precios').set({
+      impresiones, vidrios, epsonBodega, tbaritaBodega,
+      actualizado: new Date().toISOString()
+    });
+    await db.collection('datos').doc('productos').set({
+      infantil:productos.infantil, credencial:productos.credencial,
+      cartilla:productos.cartilla, digital:productos.digital,
+      categoriasDinamicas:categoriasDinamicas
+    });
+    for(let i=0;i<visas.length;i++){
+      await db.collection('visas').doc('v'+i).set(visas[i]);
+    }
+    for(let i=0;i<marcos.length;i++){
+      await db.collection('marcos').doc('m'+i).set(marcos[i]);
+    }
+    for(let i=0;i<escuelas.length;i++){
+      await db.collection('escuelas').doc(escuelas[i]._id||('e'+i)).set(escuelas[i]);
+    }
     guardarLocal();
     setDriveStatus(true,'Guardado ✓');
   } catch(e){
-    setDriveStatus(false,'Error al guardar: '+e.code);
-    console.error('Firebase save error:', e);
+    setDriveStatus(false,'Error: '+e.code);
+    console.error('Firebase error:', e);
   }
-}
-
-function rendMarcosVenta(){
-  const grid=document.getElementById('marcos-venta-grid');
-  if(!grid)return;
-  if(!marcos.length){
-    grid.innerHTML='<div style="text-align:center;padding:30px;color:#888;">Sin marcos en inventario</div>';
-    return;
-  }
-  let out='';
-  for(let i=0;i<marcos.length;i++){
-    const m=marcos[i];
-    const agotado=m.stock<=0;
-    const imgHtml=m.img?'<img src="'+m.img+'" style="width:100%;height:110px;object-fit:cover;"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>':'<span style="font-size:11px;color:#888;">Sin foto</span>';
-    const btnHtml=agotado?'<span style="font-size:11px;color:#A32D2D;">Agotado</span>':'<button class="bsm" onclick="venderMarcoVenta('+i+')"><i class="ti ti-shopping-cart"></i> Vender</button>';
-    out+='<div class="esc-card" style="'+(agotado?'opacity:0.5;':'')+'">';
-    out+='<div class="esc-img" onclick="abrirLbMarco('+i+')" style="cursor:pointer;">'+imgHtml+'</div>';
-    out+='<div class="esc-body">';
-    out+='<div style="display:flex;justify-content:space-between;align-items:start;gap:6px;"><p class="esc-n">'+m.n+'</p><span style="font-size:12px;color:#1D9E75;font-weight:600;">$'+(m.precio||0)+'</span></div>';
-    out+='<p class="esc-s">'+m.t+' · Stock: '+m.stock+'</p>';
-    out+='<div style="margin-top:8px;">'+btnHtml+'</div>';
-    out+='</div></div>';
-  }
-  grid.innerHTML=out;
-}
-
-function abrirLbMarco(i){
-  const m=marcos[i];
-  if(!m)return;
-  document.getElementById('lb-img-wrap').innerHTML=m.img?'<img src="'+m.img+'" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="'+m.n+'">':'<div class="lb-noi">Sin imagen</div>';
-  document.getElementById('lb-t').textContent=m.n||'';
-  document.getElementById('lb-s').textContent=m.t+' · Stock: '+m.stock;
-  document.getElementById('lb-p').textContent='$'+(m.precio||0);
-  const btn=document.getElementById('lb-add-btn');
-  btn.style.display='';
-  btn.textContent='Vender marco';
-  btn.onclick=function(){venderMarcoVenta(i);closeLb();};
-  document.getElementById('lb').classList.add('open');
-}
-function venderMarcoVenta(i){
-  if(!marcos[i]||marcos[i].stock<=0){alert('Sin stock');return;}
-  add('Marco '+marcos[i].n,marcos[i].precio||0,'marco');
-  marcos[i].stock--;
-  rendMarcosVenta();
-  rendMarcos();
-  autoGuardar();
-}
-
-let catsDinamicasOrd=[];
-
-function guardarNuevaCatOrd(){
-  const nombre=document.getElementById('nco-nombre').value.trim();
-  if(!nombre)return;
-  const id='cord_'+Date.now();
-  catsDinamicasOrd.push({id,nombre,productos:[]});
-  closeM('m-nueva-cat-ord');
-  document.getElementById('nco-nombre').value='';
-  rendCatsOrd();
-  agregarTabOrd(id,nombre);
-  autoGuardar();
-}
-
-function agregarTabOrd(id,nombre){
-  const tabs=document.getElementById('ord-tabs');
-  if(!tabs||document.getElementById('tab-ord-'+id))return;
-  const tab=document.createElement('div');
-  tab.className='tab';tab.id='tab-ord-'+id;
-  tab.textContent=nombre;
-  tab.onclick=function(){showOrdTab(id,this);};
-  tabs.appendChild(tab);
-}
-
-function rendCatsOrd(){
-  const cont=document.getElementById('ord-cats-dinamicas');
-  if(!cont)return;
-  cont.innerHTML=catsDinamicasOrd.map(cat=>`
-    <div id="ord-${cat.id}" class="ord-sec" style="display:none;">
-      <div class="hrow"><p class="slabel" style="margin:0;">${cat.nombre}</p>
-        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='${cat.id}';document.getElementById('ap-titulo').textContent='Agregar a ${cat.nombre}';"><i class="ti ti-plus"></i> Agregar</button>
-      </div>
-      <div id="grid-ord-${cat.id}" class="g2"></div>
-    </div>`).join('');
-  catsDinamicasOrd.forEach(cat=>rendCatOrdProds(cat.id));
-}
-
-function rendCatOrdProds(catId){
-  const cat=catsDinamicasOrd.find(c=>c.id===catId);
-  if(!cat)return;
-  const grid=document.getElementById('grid-ord-'+catId);
-  if(!grid)return;
-  if(!cat.productos.length){grid.innerHTML='<div style="font-size:12px;color:#888;padding:10px 0;">Sin productos — toca Agregar</div>';return;}
-  grid.innerHTML=cat.productos.map((p,i)=>`
-    <div class="foto-card" style="position:relative;" onclick="add('${p.nombre}',${p.precio||0},'ordinaria')" style="cursor:pointer;">
-      <div class="fc-n">${p.nombre}</div>
-      <div class="fc-l">${p.desc||''}</div>
-      <div class="fc-p">$${p.precio}</div>
-    </div>`).join('');
 }
 
 function autoGuardar(){
   guardarLocal();
-  if(DOC_REF) setTimeout(guardarFirebase, 500);
+  if(db) setTimeout(guardarFirebase, 500);
 }
 
 // ============================================================
@@ -1384,48 +1935,37 @@ rendProds('cartilla','cart-grid');
 rendProds('digital','dig-grid');
 
 
-
-
-let pedidos=[],filtroPedidos='todos';
-function calcResta(){const t=parseFloat(document.getElementById('mp-total').value)||0;const p=parseFloat(document.getElementById('mp-pagado').value)||0;const el=document.getElementById('mp-resta');if(el)el.textContent='$'+Math.max(0,t-p).toLocaleString();}
-function abrirNuevoPedido(desc,total){document.getElementById('mp-titulo').textContent='Nuevo pedido';document.getElementById('mp-cliente').value='';document.getElementById('mp-desc').value=desc||'';document.getElementById('mp-notas').value='';document.getElementById('mp-total').value=total||'';document.getElementById('mp-pagado').value=total||'';document.getElementById('mp-fecha').value='';document.getElementById('mp-urgente').checked=false;document.getElementById('mp-id').value='';calcResta();openM('m-pedido-nuevo');}
-function guardarPedido(){
-  const cliente=document.getElementById('mp-cliente').value.trim();
-  const desc=document.getElementById('mp-desc').value.trim();
-  if(!cliente||!desc){alert('Escribe el cliente y la descripción');return;}
-  const total=parseFloat(document.getElementById('mp-total').value)||0;
-  const pagado=parseFloat(document.getElementById('mp-pagado').value)||0;
-  const now=new Date();
-  const id=document.getElementById('mp-id').value||('P-'+Date.now());
-  const pedido={id,cliente,desc,notas:document.getElementById('mp-notas').value.trim(),total,pagado,resta:Math.max(0,total-pagado),fecha:document.getElementById('mp-fecha').value,urgente:document.getElementById('mp-urgente').checked,estado:'pendiente',creado:now.toISOString(),creadoFecha:String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear(),creadoHora:now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
-  const idx=pedidos.findIndex(p=>p.id===id);
-  if(idx>=0){pedido.estado=pedidos[idx].estado;pedidos[idx]=pedido;}else pedidos.push(pedido);
-  closeM('m-pedido-nuevo');rendPedidos();
-  if(db)db.collection('pedidos').doc(pedido.id).set(pedido).catch(console.error);
-}
-function cambiarEstadoPedido(id,estado){const p=pedidos.find(p=>p.id===id);if(!p)return;p.estado=estado;rendPedidos();if(db)db.collection('pedidos').doc(id).update({estado}).catch(console.error);}
-function editarPedido(id){const p=pedidos.find(p=>p.id===id);if(!p)return;document.getElementById('mp-titulo').textContent='Editar pedido';document.getElementById('mp-cliente').value=p.cliente||'';document.getElementById('mp-desc').value=p.desc||'';document.getElementById('mp-notas').value=p.notas||'';document.getElementById('mp-total').value=p.total||0;document.getElementById('mp-pagado').value=p.pagado||0;document.getElementById('mp-fecha').value=p.fecha||'';document.getElementById('mp-urgente').checked=p.urgente||false;document.getElementById('mp-id').value=p.id;calcResta();openM('m-pedido-nuevo');}
-function eliminarPedido(id){const clave=prompt('Clave:');if(clave!=='8888'){alert('Clave incorrecta');return;}pedidos=pedidos.filter(p=>p.id!==id);rendPedidos();if(db)db.collection('pedidos').doc(id).delete().catch(console.error);}
-function filtrarPedidos(f,el){filtroPedidos=f;document.querySelectorAll('#page-pedidos .tab').forEach(t=>t.classList.remove('active'));if(el)el.classList.add('active');rendPedidos();}
-function rendPedidos(){
-  const el=document.getElementById('pedidos-lista');if(!el)return;
-  const cfg={pendiente:{label:'Pendiente',bg:'#fff5f5',color:'#A32D2D',dot:'🔴',next:'proceso',nextLabel:'Iniciar'},proceso:{label:'En proceso',bg:'#fffbeb',color:'#92610a',dot:'🟡',next:'listo',nextLabel:'Listo'},listo:{label:'Listo',bg:'#f0fbf6',color:'#085041',dot:'🟢',next:'entregado',nextLabel:'Entregar'},entregado:{label:'Entregado',bg:'#f5f5f5',color:'#666',dot:'✅',next:null,nextLabel:null}};
-  let lista=[...pedidos].sort((a,b)=>{if(a.urgente&&!b.urgente)return -1;if(!a.urgente&&b.urgente)return 1;const o={pendiente:0,proceso:1,listo:2,entregado:3};return (o[a.estado]||0)-(o[b.estado]||0);});
-  if(filtroPedidos!=='todos')lista=lista.filter(p=>p.estado===filtroPedidos);
-  if(!lista.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#888;">Sin pedidos</div>';return;}
-  el.innerHTML=lista.map(p=>{
-    const c=cfg[p.estado]||cfg.pendiente;
-    const urg=p.urgente?'<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;margin-left:6px;">URGENTE</span>':'';
-    const resta=p.resta>0?`<span style="background:#FCEBEB;color:#A32D2D;font-size:11px;padding:2px 7px;border-radius:10px;">Resta $${p.resta.toLocaleString()}</span>`:'<span style="background:#E1F5EE;color:#085041;font-size:11px;padding:2px 7px;border-radius:10px;">Pagado</span>';
-    const fecha=p.fecha?`<span style="font-size:11px;color:#888;">Entrega: ${p.fecha}</span>`:'';
-    const notas=p.notas?`<p style="font-size:11px;color:#888;margin-bottom:6px;">${p.notas}</p>`:'';
-    const next=c.next?`<button class="bsm pbtn-next" data-id="${p.id}" data-next="${c.next}">${c.nextLabel}</button>`:'';
-    return `<div style="background:${c.bg};border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #e0e0e0;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div><span style="font-size:14px;font-weight:600;">${p.cliente}</span>${urg}<span style="font-size:10px;color:#888;display:block;margin-top:2px;">${p.creadoFecha} ${p.creadoHora}</span></div><span style="font-size:11px;font-weight:600;color:${c.color};background:white;padding:3px 8px;border-radius:8px;">${c.dot} ${c.label}</span></div><p style="font-size:12px;color:#444;margin-bottom:4px;">${p.desc}</p>${notas}<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:13px;font-weight:600;">$${p.total.toLocaleString()}</span>${resta}${fecha}</div><div style="display:flex;gap:6px;">${next}<button class="pbtn-edit" data-id="${p.id}" style="background:transparent;border:1px solid #e0e0e0;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;">✏️</button><button class="pbtn-del" data-id="${p.id}" style="background:transparent;border:1px solid #fcc;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;">🗑️</button></div></div></div>`;
-  }).join('');
-  setTimeout(function(){el.querySelectorAll('.pbtn-next').forEach(b=>b.onclick=()=>cambiarEstadoPedido(b.dataset.id,b.dataset.next));el.querySelectorAll('.pbtn-edit').forEach(b=>b.onclick=()=>editarPedido(b.dataset.id));el.querySelectorAll('.pbtn-del').forEach(b=>b.onclick=()=>eliminarPedido(b.dataset.id));},50);
-}
-async function cargarPedidosFB(){if(!db)return;try{const snap=await db.collection('pedidos').get();if(!snap.empty){pedidos=[];snap.forEach(d=>pedidos.push(d.data()));}rendPedidos();}catch(e){console.error(e);}}
-
 </script>
+<div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
+  <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ei-p" min="0"></div>
+  <input type="hidden" id="ei-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarImpEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-prod-edit"><div class="modal-box"><p class="modal-t">Editar producto</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ep-nombre"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ep-desc"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ep-precio" min="0"></div>
+  <input type="hidden" id="ep-cat"><input type="hidden" id="ep-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-prod-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarProdEdit()">Guardar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-add-prod"><div class="modal-box"><p class="modal-t" id="ap-titulo">Agregar producto</p>
+  <div class="frow"><label>Nombre del producto</label><input type="text" id="ap-nombre" placeholder="Ej: Infantil 12 fotos"></div>
+  <div class="frow"><label>Descripción (ej: Color o B&N)</label><input type="text" id="ap-desc" placeholder="Color o B&N"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ap-precio" min="0" placeholder="0"></div>
+  <input type="hidden" id="ap-tipo">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-add-prod')">Cancelar</button><button class="btn bgreen" onclick="agregarProd()">Agregar</button></div>
+</div></div>
+
+<div class="modal-ov" id="m-visa-edit"><div class="modal-box"><p class="modal-t">Editar visa / pasaporte</p>
+  <div class="frow"><label>Nombre</label><input type="text" id="ev-n"></div>
+  <div class="frow"><label>Precio</label><input type="number" id="ev-p" min="0"></div>
+  <div class="frow"><label>¿Es Visa USA?</label><select id="ev-usa"><option value="0">No</option><option value="1">Sí</option></select></div>
+  <input type="hidden" id="ev-idx">
+  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarVisaEdit()">Guardar</button></div>
+</div></div>
+
 </body>
 </html>
