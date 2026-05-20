@@ -1099,6 +1099,7 @@ function renderEscGrid(lista){
       </div>
     </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
 }
+function closeLb(){document.getElementById('lb').classList.remove('open');}
 function abrirLb(i,tipo){
   let obj=escuelas[i];
   document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
