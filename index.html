@@ -883,6 +883,14 @@ function showT(id,el){
   if(target)target.classList.add('active');
 }
 
+function addEscuela(i){
+  var e=escuelas[i];
+  if(!e)return;
+  var precio=parseInt((e.p||'$0').replace('$',''))||0;
+  carrito.push({nombre:'Paquete '+e.n, precio:precio, tipo:'escuela', detalle:e.s||''});
+  renderCarrito();
+}
+
 function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
 function delItem(i){carrito.splice(i,1);renderCarrito();}
 function limpiar(){carrito=[];document.getElementById('pago').value='';renderCarrito();}
@@ -1174,15 +1182,25 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
     </div>
     <hr class="tkt-div">
     ${(v.items||[]).map(i=>{
-      if(i.tipo==='escuela' && window._calcSpecs && window._calcSpecs.nombre && i.nombre.includes(window._calcSpecs.nombre)){
-        var cs=window._calcSpecs;
-        var lineasHtml=cs.lineas.map(function(l){
-          return '<div class="tkt-row"><span style="padding-left:6px;">'+l.nombre+'</span><span>$'+l.precio+'</span></div>';
-        }).join('');
-        var descHtml=cs.descuento>0?'<div class="tkt-row" style="color:#A32D2D;font-size:11px;"><span>Descuento</span><span>-$'+cs.descuento+'</span></div>':'';
-        var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes];
-        var specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
-        return '<div style="font-size:12px;font-weight:600;margin-bottom:2px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
+      if(i.tipo==='escuela'){
+        // Desde calculadora: usa _calcSpecs
+        if(window._calcSpecs && window._calcSpecs.nombre && i.nombre.includes(window._calcSpecs.nombre)){
+          var cs=window._calcSpecs;
+          var lineasHtml=cs.lineas.map(function(l){
+            return '<div class="tkt-row"><span style="padding-left:6px;">'+l.nombre+'</span><span>$'+l.precio+'</span></div>';
+          }).join('');
+          var descHtml=cs.descuento>0?'<div class="tkt-row" style="color:#A32D2D;font-size:11px;"><span>Descuento</span><span>-$'+cs.descuento+'</span></div>':'';
+          var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes];
+          var specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
+          return '<div style="font-size:12px;font-weight:600;margin-bottom:2px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
+        }
+        // Desde escuela guardada: usa i.detalle (campo s)
+        if(i.detalle){
+          var partes=i.detalle.split(' | ');
+          var detalleHtml=partes.map(function(p){return '<div style="font-size:10px;color:#555;padding:1px 0;">'+p+'</div>';}).join('');
+          return '<div style="font-size:12px;font-weight:600;margin-bottom:3px;">'+i.nombre+'</div>'
+               + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
+        }
       }
       return '<div class="tkt-row"><span>'+i.nombre+'</span><span>$'+i.precio+'</span></div>';
     }).join('')}
@@ -1200,7 +1218,7 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
     <div class="tkt-row" style="margin-top:2px;">
       <span style="color:#888;">Método</span><span style="text-transform:capitalize;">${v.metodoPago||'efectivo'}</span>
     </div>`:''}
-    ${v.fechaEntrega?`<div style="background:#E1F5EE;border-radius:6px;padding:6px 8px;margin-top:6px;text-align:center;font-size:11px;color:#085041;font-weight:600;">📅 Entrega: ${v.fechaEntrega}</div>`:''}
+    ${v.fechaEntrega?`<div style="background:#FCEBEB;border-radius:6px;padding:6px 8px;margin-top:6px;text-align:center;font-size:11px;color:#A32D2D;font-weight:600;">📅 Entrega: ${v.fechaEntrega}</div>`:''}
     <div class="tkt-ftr">Gracias por su preferencia</div>
     <br>`;
   });
@@ -1528,7 +1546,7 @@ function renderEscGrid(lista){
         </div>
         <p class="esc-s">${e.s}</p>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-          <button class="bsm" onclick="add('Paquete ${e.n}',${parseInt(e.p.replace('$',''))||0},'escuela')"><i class="ti ti-shopping-cart"></i> Agregar</button>
+          <button class="bsm" onclick="addEscuela(${e.idx})"><i class="ti ti-shopping-cart"></i> Agregar</button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
             <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
         </div>
@@ -1545,7 +1563,7 @@ function abrirLb(i,tipo){
   if(tipo==='esc'){
     document.getElementById('lb-add-btn').style.display='';
     document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
-    document.getElementById('lb-add-btn').onclick=()=>{add('Paquete '+(obj.n||obj.nombre),parseInt((obj.p||'$0').replace('$',''))||0,'escuela');closeLb();};
+    var escIdx=i;document.getElementById('lb-add-btn').onclick=()=>{addEscuela(escIdx);closeLb();};
   } else {
     document.getElementById('lb-add-btn').style.display='none';
   }
