@@ -502,10 +502,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     </div>
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
     <div class="nav" onclick="showPage('ordinarios',this)"><i class="ti ti-clock"></i> Ordinarios</div>
-    <div id="nav-rep" class="nav" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
+    <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
 
   <div class="main">
+    <!-- Zona toque secreto móvil -->
+    <div id="secret-tap-zone" style="position:fixed;top:0;left:0;width:100%;height:44px;z-index:5;background:transparent;pointer-events:none;display:none;" onclick="secretTap()"></div>
 
     <!-- URGENTES -->
     <div id="page-urgentes" class="page active">
@@ -586,12 +588,38 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div><p class="ptitle">Reportes</p><p class="psub" style="margin:0;">Historial permanente de ventas</p></div>
         <button class="btn bgray" style="font-size:11px;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Limpiar ventas</button>
       </div>
-      <div class="tabs" style="margin-bottom:16px;" id="rep-tabs">
-        <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
-        <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
-        <div class="tab" onclick="cambiarPeriodo('semana',this)">Semana</div>
-        <div class="tab" onclick="cambiarPeriodo('mes',this)">Este mes</div>
-        <div class="tab" onclick="cambiarPeriodo('anio',this)">Este año</div>
+      <!-- Botones rápidos -->
+      <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;" id="rep-tabs">
+        <div class="tab active" onclick="cambiarPeriodo('hoy',this)"><i class="ti ti-sun" style="font-size:12px;"></i> Hoy</div>
+        <div class="tab" onclick="cambiarPeriodo('semana',this)"><i class="ti ti-calendar-week" style="font-size:12px;"></i> Esta semana</div>
+        <div class="tab" onclick="cambiarPeriodo('mes',this)"><i class="ti ti-calendar-month" style="font-size:12px;"></i> Este mes</div>
+        <div class="tab" onclick="cambiarPeriodo('anio',this)"><i class="ti ti-calendar" style="font-size:12px;"></i> Este año</div>
+      </div>
+
+      <!-- Calendario avanzado -->
+      <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+          <button id="cal-btn-dia" class="btn bgreen" style="font-size:11px;padding:5px 12px;" onclick="selModo('dia')"><i class="ti ti-calendar-event"></i> Día</button>
+          <button id="cal-btn-rango" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="selModo('rango')"><i class="ti ti-calendar-stats"></i> Rango</button>
+          <button id="cal-btn-mes" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="selModo('mes_cal')"><i class="ti ti-calendar-month"></i> Mes</button>
+        </div>
+        <!-- Modo Día -->
+        <div id="cal-dia" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="date" id="cal-dia-val" style="flex:1;min-width:140px;font-size:13px;">
+          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+        </div>
+        <!-- Modo Rango -->
+        <div id="cal-rango" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="date" id="cal-desde" style="flex:1;min-width:130px;font-size:13px;">
+          <span style="font-size:12px;color:#888;">hasta</span>
+          <input type="date" id="cal-hasta" style="flex:1;min-width:130px;font-size:13px;">
+          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+        </div>
+        <!-- Modo Mes -->
+        <div id="cal-mes" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="month" id="cal-mes-val" style="flex:1;min-width:140px;font-size:13px;">
+          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+        </div>
       </div>
       <div class="g2" style="margin-bottom:14px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
@@ -1031,15 +1059,50 @@ function limpiarTodasVentas(){
 
 
 let periodoActual='hoy',ventasFB=[];
+let calModo='dia'; // modo activo del calendario
+
+// ── Modo calendario ──────────────────────────────────────────
+function selModo(modo){
+  calModo=modo;
+  ['dia','rango','mes'].forEach(m=>{
+    const el=document.getElementById('cal-'+m);
+    if(el)el.style.display='none';
+  });
+  const show=document.getElementById('cal-'+(modo==='mes_cal'?'mes':modo));
+  if(show)show.style.display='flex';
+  // Resaltar botón activo
+  ['dia','rango','mes_cal'].forEach(m=>{
+    const btn=document.getElementById('cal-btn-'+( m==='mes_cal'?'mes':m));
+    if(btn){btn.className=m===modo?'btn bgreen':'btn bgray';btn.style.fontSize='11px';btn.style.padding='5px 12px';}
+  });
+  // Quitar activo de tabs rápidos
+  document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+}
+
+function consultarCal(){
+  periodoActual=calModo;
+  cargarReportes();
+}
 
 function cambiarPeriodo(p,el){
   periodoActual=p;
   document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
+  // Quitar resaltado de botones calendario
+  ['dia','rango','mes'].forEach(m=>{
+    const btn=document.getElementById('cal-btn-'+m);
+    if(btn){btn.className='btn bgray';btn.style.fontSize='11px';btn.style.padding='5px 12px';}
+  });
   cargarReportes();
 }
 
 function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
+function fechaInputToStr(val){
+  // val = "2026-05-20" → "20/05/2026"
+  if(!val)return '';
+  const [y,m,d]=val.split('-');
+  return d+'/'+m+'/'+y;
+}
 
 async function cargarReportes(){
   if(!db){mostrarReportesLocal();return;}
@@ -1051,10 +1114,6 @@ async function cargarReportes(){
     if(periodoActual==='hoy'){
       snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
       ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else if(periodoActual==='ayer'){
-      const ay=new Date(now);ay.setDate(ay.getDate()-1);
-      snap=await db.collection('ventas').where('fecha','==',getFechaStr(ay)).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else if(periodoActual==='semana'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
       ventasFB=[];
@@ -1062,6 +1121,34 @@ async function cargarReportes(){
       snap.forEach(d=>{const v=d.data();if(v.timestamp&&new Date(v.timestamp)>=h7)ventasFB.push(v);});
     } else if(periodoActual==='mes'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='anio'){
+      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    // ── Modos calendario ──
+    } else if(periodoActual==='dia'){
+      const val=document.getElementById('cal-dia-val').value;
+      if(!val){alert('Selecciona un día');return;}
+      const fechaStr=fechaInputToStr(val);
+      snap=await db.collection('ventas').where('fecha','==',fechaStr).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='rango'){
+      const desde=document.getElementById('cal-desde').value;
+      const hasta=document.getElementById('cal-hasta').value;
+      if(!desde||!hasta){alert('Selecciona fecha inicio y fin');return;}
+      const tsDesde=new Date(desde+'T00:00:00').toISOString();
+      const tsHasta=new Date(hasta+'T23:59:59').toISOString();
+      snap=await db.collection('ventas')
+        .where('timestamp','>=',tsDesde)
+        .where('timestamp','<=',tsHasta).get();
+      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    } else if(periodoActual==='mes_cal'){
+      const val=document.getElementById('cal-mes-val').value;
+      if(!val){alert('Selecciona un mes');return;}
+      const [y,m]=val.split('-');
+      snap=await db.collection('ventas')
+        .where('year','==',parseInt(y))
+        .where('month','==',parseInt(m)).get();
       ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else {
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
@@ -1093,7 +1180,7 @@ function renderReportes(){
   const total=ventasFB.reduce((s,v)=>s+v.total,0);
   const num=ventasFB.length;
   const prom=num?Math.round(total/num):0;
-  const labels={hoy:'Hoy',ayer:'Ayer',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año'};
+  const labels={hoy:'Hoy',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año',dia:'Día específico',rango:'Rango de fechas',mes_cal:'Mes seleccionado'};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set('rep-total','$'+total.toLocaleString());
   set('rep-numventas',num);
@@ -1658,6 +1745,40 @@ rendProds('credencial','cred-grid');
 rendProds('cartilla','cart-grid');
 rendProds('digital','dig-grid');
 
+
+// ── Acceso secreto a Reportes ────────────────────────────────
+let secretSeq=[];
+let tapCount=0,tapTimer=null;
+
+document.addEventListener('keydown',function(e){
+  secretSeq.push(e.key);
+  if(secretSeq.length>4)secretSeq.shift();
+  if(secretSeq.join(',')===('ArrowUp,ArrowUp,ArrowDown,ArrowDown')){
+    toggleReportes();
+    secretSeq=[];
+  }
+});
+
+function secretTap(){
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer=setTimeout(()=>{tapCount=0;},1500);
+  if(tapCount>=5){tapCount=0;toggleReportes();}
+}
+
+function toggleReportes(){
+  const nav=document.getElementById('nav-rep');
+  if(!nav)return;
+  const visible=nav.style.display==='flex'||nav.style.display==='block';
+  nav.style.display=visible?'none':'flex';
+}
+
+window.addEventListener('load',function(){
+  if(window.innerWidth<=768){
+    const zone=document.getElementById('secret-tap-zone');
+    if(zone){zone.style.display='block';zone.style.pointerEvents='auto';}
+  }
+});
 
 </script>
 <div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
