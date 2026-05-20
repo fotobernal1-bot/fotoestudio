@@ -662,6 +662,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgray" id="mp-tarjeta" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('tarjeta')"><i class="ti ti-credit-card"></i> Tarjeta</button>
       </div>
       <button class="bcobrar" id="btn-cobrar" onclick="iniciarCobro()" disabled><i class="ti ti-check"></i> Cobrar</button>
+      <button class="blimpiar" onclick="openM('m-extra')" style="margin-bottom:5px;"><i class="ti ti-plus"></i> Servicio extra</button>
       <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
     </div>
   </div>
@@ -889,6 +890,18 @@ function addEscuela(i){
   var precio=parseInt((e.p||'$0').replace('$',''))||0;
   carrito.push({nombre:'Paquete '+e.n, precio:precio, tipo:'escuela', detalle:e.s||''});
   renderCarrito();
+}
+
+
+function agregarExtra(){
+  var concepto=document.getElementById('extra-concepto').value.trim();
+  var precio=parseInt(document.getElementById('extra-precio').value)||0;
+  if(!concepto){alert('Escribe el concepto del servicio');return;}
+  carrito.push({nombre:concepto, precio:precio, tipo:'extra'});
+  renderCarrito();
+  closeM('m-extra');
+  document.getElementById('extra-concepto').value='';
+  document.getElementById('extra-precio').value='';
 }
 
 function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
@@ -1202,6 +1215,7 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
                + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
         }
       }
+      if(i.tipo==='extra') return '<div class="tkt-row"><span>'+i.nombre+'</span><span style="font-size:10px;color:#888;">incluido</span></div>';
       return '<div class="tkt-row"><span>'+i.nombre+'</span><span>$'+i.precio+'</span></div>';
     }).join('')}
     <hr class="tkt-div">
@@ -2045,18 +2059,20 @@ window.addEventListener('load',function(){
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
 let calcState = {
-  infantil: {cant:0, color:'color', adherible:false},
-  diploma:  {cant:0, color:'color', adherible:false},
-  titulo:   {cant:0, color:'color', adherible:false},
-  digital:  {cant:0, color:'color', espec:''},
+  infantil:   {cant:0, color:'color', adherible:false},
+  credencial: {cant:0, color:'color', adherible:false},
+  diploma:    {cant:0, color:'color', adherible:false},
+  titulo:     {cant:0, color:'color', adherible:false},
+  digital:    {cant:0, color:'color', espec:'', vestimenta:''},
 };
 const CALC_CFG = {
-  infantil: {nombre:'Infantil', xPaq:8, precioBase:80,  precioAdh:100, tieneAdh:true},
-  diploma:  {nombre:'Diploma',  xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
-  titulo:   {nombre:'Título',   xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
-  digital:  {nombre:'Digital',  xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false},
+  infantil:   {nombre:'Infantil',   xPaq:8, precioBase:80,  precioAdh:100, tieneAdh:true},
+  credencial: {nombre:'Credencial', xPaq:6, precioBase:100, precioAdh:120, tieneAdh:true},
+  diploma:    {nombre:'Diploma',    xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
+  titulo:     {nombre:'Título',     xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
+  digital:    {nombre:'Digital',    xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false},
 };
-let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
+let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:'',barba:''};
 
 function abrirCalculadora(){
   // Reset estado
@@ -2067,7 +2083,7 @@ function abrirCalculadora(){
     if(k==='digital') calcState[k].espec='';
   });
   // Reset contadores en pantalla
-  ['infantil','diploma','titulo','digital'].forEach(k=>{
+  ['infantil','credencial','diploma','titulo','digital'].forEach(k=>{
     document.getElementById('cant-'+k).value='0';
     document.getElementById('sub-'+k).textContent='';
     // Activar color por defecto
@@ -2077,7 +2093,7 @@ function abrirCalculadora(){
     document.getElementById('opt-'+k+'-bn').style.cssText='font-size:11px;padding:4px 9px;';
   });
   // Reset adherible buttons
-  ['infantil','diploma','titulo'].forEach(k=>{
+  ['infantil','credencial','diploma','titulo'].forEach(k=>{
     document.getElementById('opt-'+k+'-sad').className='btn bgreen';
     document.getElementById('opt-'+k+'-sad').style.cssText='font-size:11px;padding:4px 9px;';
     document.getElementById('opt-'+k+'-cad').className='btn bgray';
@@ -2085,8 +2101,11 @@ function abrirCalculadora(){
   });
   // Reset campo digital
   document.getElementById('calc-dig-espec').value='';
+  document.getElementById('calc-dig-vest-txt').value='';
+  document.getElementById('calc-barba-si').className='btn bgray';document.getElementById('calc-barba-si').style.cssText='font-size:11px;padding:5px 10px;';
+  document.getElementById('calc-barba-no').className='btn bgray';document.getElementById('calc-barba-no').style.cssText='font-size:11px;padding:5px 10px;';
   // Reset specs
-  calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
+  calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:'',barba:''};
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
   document.getElementById('calc-desc-pct').value='';
@@ -2151,6 +2170,7 @@ function selSpec(tipo, valor){
     vestimenta: [{id:'calc-vest-clara',v:'Clara'},{id:'calc-vest-oscura',v:'Oscura'},{id:'calc-vest-libre',v:''}],
     cabello:    [{id:'calc-cab-recogido',v:'Recogido'},{id:'calc-cab-libre',v:'Libre'}],
     aretes:     [{id:'calc-ar-si',v:'Permitidos'},{id:'calc-ar-no',v:'No permitidos'}],
+    barba:      [{id:'calc-barba-si',v:'Sí'},{id:'calc-barba-no',v:'No'}],
   };
   mapa[tipo].forEach(function(b){
     var el=document.getElementById(b.id);
@@ -2221,7 +2241,10 @@ function cobrarCalculadora(){
   var cab=calcSpecs.cabello||'No especificado';
   var aretes=calcSpecs.aretes||'No especificado';
   var notas=document.getElementById('calc-notas').value.trim();
-  var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
+  var barba=calcSpecs.barba||'No especificado';
+  var digVest=document.getElementById('calc-dig-vest-txt').value.trim();
+  if(!digVest) digVest=calcState.digital&&calcState.digital.vestimenta?calcState.digital.vestimenta:'';
+  var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,'Barba: '+barba,digVest?'Vestimenta digital: '+digVest:'',notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
   var descripcionCompleta=lineas.map(function(l){return l.nombre+' $'+l.precio;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
   var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
   if(guardar){
@@ -2237,7 +2260,7 @@ function cobrarCalculadora(){
     }
   }
   add('Paquete '+nombre, total, 'escuela');
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes};
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes,barba:barba};
   closeM('m-calc');
 }
 </script>
@@ -2306,6 +2329,28 @@ function cobrarCalculadora(){
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-infantil"></div>
   </div>
 
+
+  <!-- CREDENCIAL -->
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Credencial</div>
+        <div style="font-size:10px;color:#888;">$100 sin adh · $120 con adh · paq de 6</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('credencial',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <input id="cant-credencial" type="number" min="0" value="0" oninput="syncCant('credencial')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
+        <button onclick="ajCant('credencial',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="opt-credencial-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','color')">Color</button>
+      <button id="opt-credencial-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','bn')">B/N</button>
+      <button id="opt-credencial-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',false)">Sin adherible</button>
+      <button id="opt-credencial-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',true)">Con adherible</button>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-credencial"></div>
+  </div>
   <!-- DIPLOMA -->
   <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -2367,7 +2412,8 @@ function cobrarCalculadora(){
       <button id="opt-digital-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
       <button id="opt-digital-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
     </div>
-    <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;">
+    <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;margin-bottom:5px;">
+    <input type="text" id="calc-dig-vest-txt" placeholder="Vestimenta digital: Ej: Saco negro..." style="font-size:11px;width:100%;">
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-digital"></div>
   </div>
 
@@ -2413,6 +2459,15 @@ function cobrarCalculadora(){
     </div>
   </div>
 
+
+  <!-- Barba -->
+  <div class="frow">
+    <label>Barba</label>
+    <div style="display:flex;gap:6px;">
+      <button id="calc-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('barba','Sí')">Sí</button>
+      <button id="calc-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('barba','No')">No</button>
+    </div>
+  </div>
   <!-- Notas adicionales -->
   <div class="frow">
     <label>Notas adicionales</label>
@@ -2503,6 +2558,24 @@ function cobrarCalculadora(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-entrega')">Cancelar</button>
     <button class="btn bgreen" id="btn-confirmar-entrega" onclick="confirmarEntrega()" disabled><i class="ti ti-check"></i> Confirmar y cobrar</button>
+  </div>
+</div></div>
+
+<!-- MODAL SERVICIO EXTRA -->
+<div class="modal-ov" id="m-extra"><div class="modal-box" style="width:300px;">
+  <p class="modal-t"><i class="ti ti-plus"></i> Servicio extra</p>
+  <div class="frow">
+    <label>Concepto</label>
+    <input type="text" id="extra-concepto" placeholder="Ej: Edición de barba, Retoque...">
+  </div>
+  <div class="frow">
+    <label>Precio ($)</label>
+    <input type="number" id="extra-precio" min="0" placeholder="0" style="font-size:16px;font-weight:600;">
+  </div>
+  <p style="font-size:10px;color:#888;margin-top:4px;">El precio se suma al total pero no aparece en el ticket del cliente.</p>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-extra')">Cancelar</button>
+    <button class="btn bgreen" onclick="agregarExtra()"><i class="ti ti-shopping-cart"></i> Agregar</button>
   </div>
 </div></div>
 </body>
