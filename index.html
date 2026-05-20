@@ -582,8 +582,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
-      <p class="ptitle">Reportes</p>
-      <p class="psub">Historial permanente de ventas</p>
+      <div class="hrow">
+        <div><p class="ptitle">Reportes</p><p class="psub" style="margin:0;">Historial permanente de ventas</p></div>
+        <button class="btn bgray" style="font-size:11px;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Limpiar ventas</button>
+      </div>
       <div class="tabs" style="margin-bottom:16px;" id="rep-tabs">
         <div class="tab active" onclick="cambiarPeriodo('hoy',this)">Hoy</div>
         <div class="tab" onclick="cambiarPeriodo('ayer',this)">Ayer</div>
@@ -685,9 +687,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
 <script>
 const CLAVE='8888';
-let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
+let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
 let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
 let turnoAbierto=false;
+// Origen: 'urgentes' u 'ordinarios' — se actualiza al navegar
+let origenActual='urgentes';
 let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
 let categoriasDinamicas = []; // {id, nombre, productos:[]}
 
@@ -829,6 +833,8 @@ function showPage(id,el){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
+  if(id==='urgentes') origenActual='urgentes';
+  if(id==='ordinarios') origenActual='ordinarios';
   if(id==='reportes')setTimeout(cargarReportes,300);
 }
 function showT(id,el){
@@ -866,39 +872,163 @@ function calcCambio(){
   if(pago>=total&&carrito.length){row.classList.remove('cambio-ins');btn.disabled=false;document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);}
   else{row.classList.add('cambio-ins');btn.disabled=true;document.getElementById('cambio-val').textContent=pago>0&&pago<total?'Faltan $'+(total-pago).toFixed(0):'$0';}
 }
-function cobrar(){
+function generarFolio(tipo){
+  // F-U = Urgentes (azul claro), F-O = Ordinarios (azul oscuro)
+  const prefix = tipo==='urgentes' ? 'F-U' : 'F-O';
+  const ts = Date.now().toString().slice(-6);
+  return prefix+'-'+ts;
+}
+
+async function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
-  const f='FS-'+String(folioNum).padStart(4,'0');folioNum++;
   const now=new Date();
   const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
-  ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
-  ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
-  // Guardar venta en Firebase permanentemente
-  if(db){
-    const ventaData={
-      folio:f,
-      fecha:fecha,
-      hora:hora,
-      timestamp:now.toISOString(),
-      year:now.getFullYear(),
-      month:now.getMonth()+1,
-      dia:now.getDate(),
-      items:items.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
-      total:total,
-      pago:pago,
-      cambio:pago-total,
-      // Escuelas vendidas en esta venta
-      escuelas:items.filter(c=>c.tipo==='escuela').map(c=>c.nombre.replace('Paquete ',''))
+
+  // Separar items urgentes vs ordinarios
+  const tiposOrdinarios=['escuela','impresion'];
+  const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
+  const itemsO=items.filter(c=>tiposOrdinarios.includes(c.tipo));
+
+  const tickets=[];
+
+  // Venta mixta: generar dos tickets separados
+  // Venta solo urgentes o solo ordinarios: un ticket del tipo correspondiente
+  const hayU = itemsU.length>0;
+  const hayO = itemsO.length>0;
+
+  if(hayU){
+    const folio=generarFolio('urgentes');
+    const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
+    const ventaU={
+      folio,origen:'urgentes',
+      fecha,hora,timestamp:now.toISOString(),
+      year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
+      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:totalU,pago:hayO?totalU:pago,cambio:hayO?0:pago-total
     };
-    db.collection('ventas').doc(f).set(ventaData).catch(e=>console.error('Error guardando venta:',e));
+    if(db) db.collection('ventas').doc(folio).set(ventaU).catch(e=>console.error(e));
+    ventas.push({f:folio,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
+    tickets.push(ventaU);
   }
+  if(hayO){
+    const folio=generarFolio('ordinarios');
+    const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
+    const ventaO={
+      folio,origen:'ordinarios',
+      fecha,hora,timestamp:now.toISOString(),
+      year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
+      items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      total:totalO,pago:hayU?totalO:pago,cambio:hayU?0:pago-total
+    };
+    if(db) db.collection('ventas').doc(folio).set(ventaO).catch(e=>console.error(e));
+    ventas.push({f:folio,desc:itemsO.map(c=>c.nombre).join(', '),total:totalO});
+    tickets.push(ventaO);
+  }
+
+  totalDia+=total;
+  ultimaVenta=tickets;
   carrito=[];document.getElementById('pago').value='';renderCarrito();
-  mostrarTicket(ultimaVenta);
+  guardarLocal();
+  mostrarTicket(tickets,pago,total);
 }
+
+
+function mostrarTicket(tickets, pagoTotal, totalGeneral){
+  const el=document.getElementById('ticket-content');
+  if(!el)return;
+
+  // tickets es un array de 1 o 2 objetos venta
+  let html='';
+  tickets.forEach(v=>{
+    const esU = v.origen==='urgentes';
+    const color = esU ? '#0C7ED6' : '#0C447C';         // F-U azul claro, F-O azul oscuro
+    const etiqueta = esU ? 'URGENTE' : 'ORDINARIO';
+    const cambio = tickets.length===1 ? (pagoTotal - totalGeneral) : 0;
+
+    html+=`
+    <div class="tkt-hdr">
+      <p>📸 FotoEstudio</p>
+      <span>${v.fecha} ${v.hora}</span>
+    </div>
+    <hr class="tkt-div">
+    <div class="tkt-row">
+      <span style="font-weight:700;color:${color};font-size:13px;">${v.folio}</span>
+      <span style="background:${color};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">${etiqueta}</span>
+    </div>
+    <hr class="tkt-div">
+    ${(v.items||[]).map(i=>`
+    <div class="tkt-row">
+      <span>${i.nombre}</span>
+      <span>$${i.precio}</span>
+    </div>`).join('')}
+    <hr class="tkt-div">
+    <div class="tkt-row tkt-total">
+      <span>TOTAL</span><span style="color:${color};">$${v.total}</span>
+    </div>
+    ${tickets.length===1?`
+    <div class="tkt-row" style="margin-top:4px;">
+      <span>Pagó</span><span>$${pagoTotal}</span>
+    </div>
+    <div class="tkt-row tkt-bold" style="color:#1D9E75;">
+      <span>Cambio</span><span>$${Math.max(0,cambio).toFixed(0)}</span>
+    </div>`:''}
+    <div class="tkt-ftr">Gracias por su preferencia</div>
+    <br>`;
+  });
+
+  // Si es venta mixta mostrar resumen al final
+  if(tickets.length>1){
+    html+=`
+    <hr class="tkt-div">
+    <div class="tkt-row tkt-bold">
+      <span>TOTAL GENERAL</span><span>$${totalGeneral}</span>
+    </div>
+    <div class="tkt-row"><span>Pagó</span><span>$${pagoTotal}</span></div>
+    <div class="tkt-row tkt-bold" style="color:#1D9E75;">
+      <span>Cambio</span><span>$${Math.max(0,pagoTotal-totalGeneral).toFixed(0)}</span>
+    </div>`;
+  }
+
+  el.innerHTML=html;
+  openM('m-ticket');
+}
+
+function imprimirTicket(){
+  const contenido=document.getElementById('ticket-content').innerHTML;
+  const win=window.open('','_blank','width=320,height=600');
+  win.document.write('<html><head><title>Ticket</title><style>body{font-family:monospace;font-size:12px;padding:10px;}hr{border:1px dashed #ccc;}.tkt-row{display:flex;justify-content:space-between;padding:2px 0;}.tkt-total{font-weight:700;font-size:14px;border-top:2px solid #111;padding-top:6px;}.tkt-bold{font-weight:700;font-size:13px;}.tkt-hdr{text-align:center;margin-bottom:8px;}.tkt-ftr{text-align:center;font-size:10px;color:#777;margin-top:8px;}</style></head><body>'+contenido+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(),400);
+}
+
+
+function limpiarTodasVentas(){
+  const clave=prompt('Clave para eliminar TODAS las ventas:');
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
+  if(!confirm('¿Eliminar TODAS las ventas de Firebase y localStorage? Esta acción no se puede deshacer.'))return;
+  // Limpiar localStorage
+  ventas=[];totalDia=0;
+  guardarLocal();
+  // Limpiar Firebase
+  if(db){
+    db.collection('ventas').get().then(snap=>{
+      const batch=db.batch();
+      snap.forEach(d=>batch.delete(d.ref));
+      return batch.commit();
+    }).then(()=>{
+      alert('Ventas eliminadas correctamente. El folio reinicia desde 0.');
+      cargarReportes();
+    }).catch(e=>alert('Error al eliminar: '+e.message));
+  } else {
+    alert('Sin conexión a Firebase. Solo se limpió localStorage.');
+  }
+}
+
 
 let periodoActual='hoy',ventasFB=[];
 
@@ -979,7 +1109,6 @@ function renderReportes(){
       const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
       if(tipo==='escuela')add(esc,item.nombre||'Escuela');
       else if(tipo==='impresion')add(imp,n);
-      else if(tipo==='marco')add(marc,n);
       else add(urg,n);
     });
   });
@@ -989,8 +1118,13 @@ function renderReportes(){
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
   if(elH)elH.innerHTML=sorted.length?
-    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead><tbody>'+
-    sorted.map(v=>`<tr><td style="color:#1D9E75;font-weight:600;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${(v.items||[]).map(i=>i.nombre).join(', ')||'—'}</td><td style="color:#1D9E75;font-weight:600;">$${v.total}</td></tr>`).join('')+'</tbody></table>':
+    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead><tbody>'+
+    sorted.map(v=>{
+      const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
+      const color=esU?'#0C7ED6':'#0C447C';
+      const detalle=(v.items||[]).map(i=>i.nombre).join(', ')||'—';
+      return `<tr><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${detalle}</td><td style="color:${color};font-weight:600;">$${v.total}</td></tr>`;
+    }).join('')+'</tbody></table>':
     '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
 }
 
@@ -1334,7 +1468,7 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,productos,categoriasDinamicas,ventasDia:ventas,folioNum};
+    const datos={visas,escuelas,impresiones,productos,categoriasDinamicas};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
