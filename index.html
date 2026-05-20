@@ -503,10 +503,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
     <div class="nav" onclick="showPage('escuelas',this)"><i class="ti ti-school"></i> Paquetes escolares</div>
     <div class="nav" onclick="showPage('impresiones',this)"><i class="ti ti-printer"></i> Impresiones</div>
-    <div class="nav" onclick="showPage('marcos-venta',this)"><i class="ti ti-frame"></i> Marcos</div>
-    <div class="nav-sep"></div>
-    <div class="nav" onclick="showPage('inventario',this)"><i class="ti ti-package"></i> Inventario</div>
-    <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
+    <div id="nav-rep" class="nav"  onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
 
   <div class="main">
@@ -568,99 +565,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div class="imp-grid" id="imp-grid"></div>
     </div>
 
-    <!-- MARCOS VENTA -->
-    <div id="page-marcos-venta" class="page">
-      <div class="hrow">
-        <div><p class="ptitle">Marcos</p><p class="psub" style="margin:0;">Toca la imagen para ver en grande · Al vender descuenta del inventario</p></div>
-      </div>
-      <div class="esc-grid" id="marcos-venta-grid"></div>
-    </div>
-
-    <!-- INVENTARIO -->
-    <div id="page-inventario" class="page">
-      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
-      <div class="tabs">
-        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
-        <div class="tab" onclick="showT('papel',this)">Papel</div>
-        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
-        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
-        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
-      </div>
-
-      <div id="t-turno" class="tsec active">
-        <div id="turno-lock">
-          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
-          <div class="card"><p class="slabel">Abrir turno del día</p>
-            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
-            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
-          </div>
-        </div>
-        <div id="turno-abierto" style="display:none;">
-          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
-          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
-          <div class="g3">
-            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
-            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
-            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="t-papel" class="tsec">
-        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
-        <div id="papel-cnt" style="display:none;">
-          <div class="g2" style="margin-bottom:14px;">
-            <div class="card">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
-                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
-              </div>
-              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
-              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
-            </div>
-            <div class="card">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
-                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
-              </div>
-              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
-              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
-            </div>
-          </div>
-          <p class="slabel">Esquema de cortes</p>
-          <div class="g2" style="margin-bottom:14px;">
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
-          </div>
-          <p class="slabel">Disponible ahora</p>
-          <div class="g3">
-            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
-            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
-            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="t-marcos" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
-        <div id="marcos-list"></div>
-        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
-      </div>
-
-      <div id="t-vidrio" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
-        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
-      </div>
-
-      <div id="t-bitacora" class="tsec">
-        <p class="slabel">Todos los movimientos del día</p>
-        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
-      </div>
-    </div>
-
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
       <p class="ptitle">Reportes</p>
@@ -688,128 +592,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div id="rep-escuelas" style="margin-bottom:14px;"></div>
       <p class="slabel">Impresiones</p>
       <div id="rep-impresiones" style="margin-bottom:14px;"></div>
-      <p class="slabel">Marcos</p>
-      <div id="rep-marcos" style="margin-bottom:14px;"></div>
       <p class="slabel">Historial de ventas</p>
       <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
-    </div>
-
-    <!-- INVENTARIO -->
-    <div id="page-inventario" class="page">
-      <p class="ptitle">Inventario</p><p class="psub">Sistema blindado — todos los movimientos quedan registrados en bitácora</p>
-      <div class="tabs">
-        <div class="tab active" onclick="showT('turno',this)"><i class="ti ti-lock" style="font-size:13px;"></i> Turno</div>
-        <div class="tab" onclick="showT('papel',this)">Papel</div>
-        <div class="tab" onclick="showT('marcos',this)">Marcos</div>
-        <div class="tab" onclick="showT('vidrio',this)">Vidrio</div>
-        <div class="tab" onclick="showT('bitacora',this)">Bitácora</div>
-      </div>
-
-      <div id="t-turno" class="tsec active">
-        <div id="turno-lock">
-          <div style="background:#FCEBEB;border:1px solid #f5c0c0;border-radius:10px;padding:16px;text-align:center;margin-bottom:12px;"><p style="font-size:14px;font-weight:600;color:#A32D2D;margin-bottom:4px;"><i class="ti ti-lock"></i> Turno cerrado</p><p style="font-size:12px;color:#888;">Solo el responsable puede abrir el día</p></div>
-          <div class="card"><p class="slabel">Abrir turno del día</p>
-            <div class="frow"><label>Clave de acceso</label><input type="password" id="cl-turno" placeholder="••••" maxlength="4"></div>
-            <button class="btn bgreen" onclick="abrirTurno()"><i class="ti ti-lock-open"></i> Abrir turno</button>
-          </div>
-        </div>
-        <div id="turno-abierto" style="display:none;">
-          <div class="turno-open"><div><p><i class="ti ti-check"></i> Turno abierto</p><span id="turno-info">—</span></div><button class="btn bgray" onclick="cerrarTurno()">Cerrar turno</button></div>
-          <p class="slabel" style="margin-bottom:10px;">Disponible para hoy</p>
-          <div class="g3">
-            <div class="stat"><div class="sl">Piezas 11x28 Epson</div><div class="sv green" id="rt-p">0</div><div class="ss">Para infantil y cred 6f</div></div>
-            <div class="stat"><div class="sl">Restos 11x8</div><div class="sv amber" id="rt-r">0</div><div class="ss">Para inf9 / visa / cred 4f</div></div>
-            <div class="stat"><div class="sl">Hojas TBarita</div><div class="sv blue" id="rt-t">0</div><div class="ss">Para cartilla militar</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="t-papel" class="tsec">
-        <div id="papel-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar inventario de papel</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-papel" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockPapel()">Entrar</button></div></div>
-        <div id="papel-cnt" style="display:none;">
-          <div class="g2" style="margin-bottom:14px;">
-            <div class="card">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <p class="slabel" style="margin:0;">Epson (hojas carta)</p>
-                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
-              </div>
-              <div class="frow"><label>Total en bodega</label><input type="number" id="st-epson" value="100" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#1D9E75;text-align:center;border:1px solid #1D9E75;border-radius:8px;"></div>
-              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="ep-hoy">0</div></div>
-            </div>
-            <div class="card">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <p class="slabel" style="margin:0;">TBarita (hojas carta)</p>
-                <span style="font-size:10px;color:#1D9E75;font-weight:500;"><i class="ti ti-pencil"></i> Editable</span>
-              </div>
-              <div class="frow"><label>Total en bodega</label><input type="number" id="st-tbar" value="50" min="0" oninput="updStock()" style="font-size:18px;font-weight:600;color:#0C447C;text-align:center;border:1px solid #0C447C;border-radius:8px;"></div>
-              <div class="stat" style="margin-top:8px;"><div class="sl">Usadas hoy</div><div class="sv amber" id="tb-hoy">0</div></div>
-            </div>
-          </div>
-          <p class="slabel">Esquema de cortes</p>
-          <div class="g2" style="margin-bottom:14px;">
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Pieza 11x28 Epson</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-inf">Inf 1</div><div class="cd-c cd-inf">Inf 2</div></div><div class="cd-r"><div class="cd-c cd-inf">Inf 3</div><div class="cd-c cd-inf">Inf 4</div></div><div class="cd-r"><div class="cd-c cd-rst" style="flex:2;">Resto 11x8 cm</div></div></div><p style="font-size:10px;color:#888;">4 infantiles 6f + 1 resto · 2 piezas por hoja carta</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">Resto 11x8 (girado)</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-rst">I1</div><div class="cd-c cd-rst">I2</div><div class="cd-c cd-rst">I3</div></div><div class="cd-r"><div class="cd-c cd-rst">I4</div><div class="cd-c cd-rst">I5</div><div class="cd-c cd-rst">I6</div></div><div class="cd-r"><div class="cd-c cd-rst">I7</div><div class="cd-c cd-rst">I8</div><div class="cd-c cd-rst">I9</div></div></div><p style="font-size:10px;color:#888;">9 infantil 9f · ó 1 visa · ó 1 cred 4f · Visa USA = 2 restos</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">11x28 Epson — Credencial 6f</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #1</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #2</div></div><div class="cd-r"><div class="cd-c cd-crd">Credencial 6f #3</div></div></div><p style="font-size:10px;color:#888;">3 paquetes por hoja · hoja exclusiva sin mezclar</p></div>
-            <div class="card"><p style="font-size:12px;font-weight:600;margin-bottom:8px;">TBarita — Cartilla militar</p><div class="cd-dg"><div class="cd-r"><div class="cd-c cd-tba">Cartilla 4f</div><div class="cd-c cd-tba">Cartilla 4f</div></div><div class="cd-r"><div class="cd-c cd-tba">Cartilla 6f</div><div class="cd-c cd-tba">Cartilla 6f</div></div></div><p style="font-size:10px;color:#888;">Papel TBarita exclusivo para cartilla militar</p></div>
-          </div>
-          <p class="slabel">Disponible ahora</p>
-          <div class="g3">
-            <div class="stat"><div class="sl">Piezas 11x28 disponibles</div><div class="sv green" id="dp-p">0</div><div class="ss">Hojas Epson</div></div>
-            <div class="stat"><div class="sl">Restos 11x8 disponibles</div><div class="sv amber" id="dp-r">0</div><div class="ss">Para inf9 / visa / cred4</div></div>
-            <div class="stat"><div class="sl">TBarita disponibles</div><div class="sv blue" id="dp-t">0</div><div class="ss">Para cartilla militar</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="t-marcos" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Marcos en inventario</p><button class="btn bgreen" onclick="openM('m-marc')"><i class="ti ti-plus"></i> Agregar marco</button></div>
-        <div id="marcos-list"></div>
-        <div id="marc-lock" class="clave-wall"><p><i class="ti ti-lock"></i> Clave para editar stock de marcos</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-marc" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockMarcos()">Desbloquear</button></div></div>
-      </div>
-
-      <div id="t-vidrio" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Vidrio por medida</p><button class="btn bgreen" onclick="openM('m-vid')"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div class="card" style="padding:0;overflow:hidden;"><div id="vidrio-list"></div></div>
-        <div id="vid-lock" class="clave-wall" style="margin-top:10px;"><p><i class="ti ti-lock"></i> Clave para editar stock de vidrio</p><div style="display:flex;justify-content:center;gap:8px;"><input type="password" id="cl-vid" placeholder="••••" maxlength="4" style="width:100px;"><button class="btn bgreen" onclick="unlockVidrio()">Desbloquear</button></div></div>
-      </div>
-
-      <div id="t-bitacora" class="tsec">
-        <p class="slabel">Todos los movimientos del día</p>
-        <div class="card" id="bit-list"><p style="font-size:12px;color:#888;text-align:center;padding:14px;">Sin movimientos registrados aún.</p></div>
-      </div>
-    </div>
-
-    <!-- REPORTES -->
-    <div id="page-reportes" class="page">
-      <p class="ptitle">Reportes</p><p class="psub">Acceso privado — activa con ↑↑↓↓</p>
-      <div class="g4" style="margin-bottom:10px;">
-        <div class="stat"><div class="sl">Ventas totales</div><div class="sv green" id="r-v">0</div></div>
-        <div class="stat"><div class="sl">Total del día</div><div class="sv green" id="r-t">$0</div></div>
-        <div class="stat"><div class="sl">Cartilla militar</div><div class="sv" id="r-cart">0</div></div>
-        <div class="stat"><div class="sl">Imagen digital</div><div class="sv" id="r-dig">0</div></div>
-      </div>
-      <p class="slabel">Infantil</p>
-      <div class="g4" style="margin-bottom:10px;">
-        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-inf6">0</div></div>
-        <div class="stat"><div class="sl">Color 9 fotos</div><div class="sv" id="r-inf9">0</div></div>
-        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-inf6bn">0</div></div>
-        <div class="stat"><div class="sl">B/N 9 fotos</div><div class="sv" id="r-inf9bn">0</div></div>
-      </div>
-      <p class="slabel">Credencial</p>
-      <div class="g4" style="margin-bottom:10px;">
-        <div class="stat"><div class="sl">Color 4 fotos</div><div class="sv" id="r-cred4">0</div></div>
-        <div class="stat"><div class="sl">Color 6 fotos</div><div class="sv" id="r-cred6">0</div></div>
-        <div class="stat"><div class="sl">B/N 4 fotos</div><div class="sv" id="r-cred4bn">0</div></div>
-        <div class="stat"><div class="sl">B/N 6 fotos</div><div class="sv" id="r-cred6bn">0</div></div>
-      </div>
-      <div class="g4" style="margin-bottom:14px;">
-        <div class="stat"><div class="sl">Visas / Pasaportes</div><div class="sv" id="r-visa">0</div></div>
-        <div class="stat"><div class="sl">Impresiones</div><div class="sv" id="r-imp">0</div></div>
-        <div class="stat"><div class="sl">Paquetes escolares</div><div class="sv" id="r-esc">0</div></div>
-        <div class="stat"><div class="sl">Total infantil</div><div class="sv" id="r-inf">0</div></div>
-      </div>
-      <p class="slabel">Historial de ventas</p>
-      <div id="r-hist"><p style="font-size:12px;color:#888;">Sin ventas aún.</p></div>
     </div>
 
   </div>
@@ -878,28 +662,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-imp')">Cancelar</button><button class="btn bgreen" onclick="guardarImp()">Guardar</button></div>
 </div></div>
 
-<div class="modal-ov" id="m-marc"><div class="modal-box"><p class="modal-t">Agregar marco</p>
-  <div class="frow"><label>Nombre del marco</label><input type="text" id="ma-n" placeholder="Marco café claro"></div>
-  <div class="frow"><label>Tamaño</label><input type="text" id="ma-t" placeholder="4x6"></div>
-  <div class="frow"><label>Precio ($)</label><input type="number" id="ma-precio" value="0" min="0"></div>
-  <div class="frow"><label>Stock inicial</label><input type="number" id="ma-s" value="0" min="0"></div>
-  <div class="frow"><label>Foto del marco</label><input type="file" accept="image/*" id="ma-img" style="font-size:11px;"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc')">Cancelar</button><button class="btn bgreen" onclick="guardarMarco()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-marc-edit"><div class="modal-box"><p class="modal-t">Editar marco</p>
-  <div class="frow"><label>Nombre</label><input type="text" id="me-n"></div>
-  <div class="frow"><label>Tamaño</label><input type="text" id="me-t"></div>
-  <div class="frow"><label>Nueva foto (opcional)</label><input type="file" accept="image/*" id="me-img" style="font-size:11px;"></div>
-  <input type="hidden" id="me-idx">
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-marc-edit')">Cancelar</button><button class="btn bgreen" onclick="guardarMarcoEdit()">Guardar</button></div>
-</div></div>
-
-<div class="modal-ov" id="m-vid"><div class="modal-box"><p class="modal-t">Agregar vidrio</p>
-  <div class="frow"><label>Medida (debe coincidir con el marco)</label><input type="text" id="vi-m" placeholder="4x6"></div>
-  <div class="frow"><label>Stock inicial</label><input type="number" id="vi-s" value="0" min="0"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-vid')">Cancelar</button><button class="btn bgreen" onclick="guardarVidrio()">Guardar</button></div>
-</div></div>
 
 <div class="modal-ov" id="m-ticket"><div class="modal-box" style="width:300px;">
   <div style="overflow-y:auto;max-height:70vh;"><div class="ticket-wrap" id="ticket-content"></div></div>
@@ -910,9 +672,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 const CLAVE='8888';
 let carrito=[],ventas=[],totalDia=0,folioNum=1,ultimaVenta=null;
 let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
-let turnoAbierto=false,marcosUnlocked=false,vidrioUnlocked=false;
-let cons={inf6:0,inf9:0,visas:0,visaUSA:0,cred4:0,cred6:0,cart:0};
-let epsonBodega=100,tbaritaBodega=50;
+let turnoAbierto=false;
 let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
 let categoriasDinamicas = []; // {id, nombre, productos:[]}
 
@@ -1046,15 +806,8 @@ let productos={
 };
 let escuelas=[{n:'Primaria Juárez',s:'2 fotos 5x7, 4 credencial, 1 grupal',p:'$320',img:null},{n:'Colegio San José',s:'3 infantil color, 2 B&N, porta-retrato',p:'$280',img:null}];
 let impresiones=[{sz:'6x8',p:100},{sz:'8x10',p:150},{sz:'11x14',p:350},{sz:'16x20',p:500}];
-let marcos=[{n:'Marco negro liso',t:'4x6',stock:24,img:null,precio:0},{n:'Marco dorado',t:'5x7',stock:8,img:null,precio:0},{n:'Marco plateado',t:'4x6',stock:3,img:null,precio:0},{n:'Marco madera natural',t:'8x10',stock:0,img:null,precio:0}];
-let vidrios=[{m:'4x6',stock:20},{m:'5x7',stock:10},{m:'8x10',stock:5}];
-let bitacora=[];
-let secretSeq=[];
 
 document.addEventListener('keydown',function(e){
-  secretSeq.push(e.key);if(secretSeq.length>4)secretSeq.shift();
-  if(secretSeq.join(',')===('ArrowUp,ArrowUp,ArrowDown,ArrowDown')){
-    const n=document.getElementById('nav-rep');n.style.display=n.style.display==='none'?'flex':'none';secretSeq=[];
   }
 });
 
@@ -1108,10 +861,9 @@ function cobrar(){
   const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
-  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;if(turnoAbierto)regConsumo(c.tipo);});
   ultimaVenta={f,fecha,hora,items,total,pago,cambio:pago-total};
   ventas.push({f,desc:items.map(c=>c.nombre).join(', '),total});
-  totalDia+=total;updReportes();rendHist();
+  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
   // Guardar venta en Firebase permanentemente
   if(db){
     const ventaData={
@@ -1133,44 +885,6 @@ function cobrar(){
   }
   carrito=[];document.getElementById('pago').value='';renderCarrito();
   mostrarTicket(ultimaVenta);
-}
-function regConsumo(tipo){
-  let desc='',imp='';
-  if(tipo==='infantil6'){cons.inf6++;desc='Infantil 6f vendido';imp='-¼ pieza 11x28';}
-  else if(tipo==='infantil9'){cons.inf9++;desc='Infantil 9f vendido';imp='-1 resto 11x8';}
-  else if(tipo==='cred4'){cons.cred4++;desc='Credencial 4f vendida';imp='-1 resto 11x8';}
-  else if(tipo==='cred6'){cons.cred6++;desc='Credencial 6f vendida';imp='-⅓ pieza 11x28';}
-  else if(tipo==='cartilla'){cons.cart++;desc='Cartilla militar vendida';imp='-½ hoja TBarita';}
-  else if(tipo==='visaUSA'){cons.visaUSA++;desc='Visa USA vendida';imp='-2 restos 11x8';}
-  else if(tipo==='visa'){cons.visas++;desc='Visa/Pasaporte vendido';imp='-1 resto 11x8';}
-  else{desc=tipo+' vendido';imp='—';}
-  regBit(desc,imp,'ok');
-  recalcPapel();
-}
-function recalcPapel(){
-  const pUsadas=Math.ceil(cons.inf6/4)+Math.ceil(cons.cred6/3);
-  const rUsados=cons.inf9+cons.visas+(cons.visaUSA*2)+cons.cred4;
-  const tUsada=Math.ceil(cons.cart/2);
-  const pD=Math.max(0,epsonBodega*2-pUsadas);
-  const rD=Math.max(0,epsonBodega*2-rUsados);
-  const tD=Math.max(0,tbaritaBodega-tUsada);
-  const sv=(id,val)=>{const e=document.getElementById(id);if(!e)return;e.textContent=val;e.className='sv '+(val>5?'green':val>2?'amber':'red');};
-  sv('rt-p',pD);sv('rt-r',rD);sv('rt-t',tD);sv('dp-p',pD);sv('dp-r',rD);sv('dp-t',tD);
-  const eh=document.getElementById('ep-hoy');if(eh)eh.textContent=Math.ceil(pUsadas/2);
-  const th=document.getElementById('tb-hoy');if(th)th.textContent=tUsada;
-}
-function updStock(){
-  epsonBodega=parseInt(document.getElementById('st-epson').value)||0;
-  tbaritaBodega=parseInt(document.getElementById('st-tbar').value)||0;
-  recalcPapel();autoGuardar();regBit('Stock papel editado','Epson:'+epsonBodega+' TBarita:'+tbaritaBodega,'ok');
-}
-function updReportes(){}
-
-function rendHist(){
-  const el=document.getElementById('r-hist');
-  if(!el)return;
-  el.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Desc</th><th>Total</th></tr></thead><tbody>'+
-    ventas.map(function(v){return '<tr><td style="color:#1D9E75;font-weight:600">'+v.f+'</td><td style="font-size:11px;">'+v.desc+'</td><td>$'+v.total+'</td></tr>';}).join('')+'</tbody></table>';
 }
 
 let periodoActual='hoy',ventasFB=[];
@@ -1242,7 +956,7 @@ function renderReportes(){
   set('rep-numventas',num);
   set('rep-periodo',labels[periodoActual]||'—');
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
-  const urg={},esc={},imp={},marc={};
+  const urg={},esc={},imp={};
   const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
   ventasFB.forEach(v=>{
     (v.items||[]).forEach(item=>{
@@ -1259,7 +973,6 @@ function renderReportes(){
   renderSeccion('rep-urgentes',urg);
   renderSeccion('rep-escuelas',esc);
   renderSeccion('rep-impresiones',imp);
-  renderSeccion('rep-marcos',marc);
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
   if(elH)elH.innerHTML=sorted.length?
@@ -1373,7 +1086,7 @@ function renderEscGrid(lista){
     </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
 }
 function abrirLb(i,tipo){
-  let obj=tipo==='esc'?escuelas[i]:marcos[i];
+  let obj=escuelas[i];
   document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
   document.getElementById('lb-t').textContent=obj.n||obj.nombre||'';
   document.getElementById('lb-s').textContent=obj.s||obj.t||('Stock: '+(obj.stock||0));
@@ -1382,57 +1095,12 @@ function abrirLb(i,tipo){
     document.getElementById('lb-add-btn').style.display='';
     document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
     document.getElementById('lb-add-btn').onclick=()=>{add('Paquete '+(obj.n||obj.nombre),parseInt((obj.p||'$0').replace('$',''))||0,'escuela');closeLb();};
-  } else if(tipo==='marco'){
-    document.getElementById('lb-add-btn').style.display='';
-    document.getElementById('lb-add-btn').textContent='🛒 Vender marco';
-    document.getElementById('lb-add-btn').onclick=()=>{venderMarcoVenta(i);closeLb();};
   } else {
     document.getElementById('lb-add-btn').style.display='none';
   }
   document.getElementById('lb').classList.add('open');
 }
 
-function venderMarcoVenta(i){
-  if(!marcos[i]||marcos[i].stock<=0){alert('Sin stock disponible');return;}
-  const precio=marcos[i].precio||0;
-  add('Marco '+marcos[i].n, precio, 'marco');
-  marcos[i].stock--;
-  rendMarcosVenta();
-  rendMarcos();
-  autoGuardar();
-}
-
-function rendMarcosVenta(){
-  const grid=document.getElementById('marcos-venta-grid');
-  if(!grid)return;
-  const disponibles=marcos.filter((m,i)=>({...m,idx:i})).map((m,i)=>({...m,idx:i}));
-  if(!disponibles.length){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;"><i class="ti ti-frame" style="font-size:36px;display:block;margin:0 auto 10px;"></i>Sin marcos en inventario</div>';
-    return;
-  }
-  grid.innerHTML=disponibles.map((m,i)=>{
-    const agotado=m.stock<=0;
-    return `<div class="esc-card" style="${agotado?'opacity:0.5;':''}">
-      <div class="esc-img" onclick="abrirLb(${m.idx},'marco')" style="cursor:pointer;">
-        ${m.img?`<img src="${m.img}" alt="${m.n}" style="width:100%;height:110px;object-fit:cover;"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto</span>'}
-      </div>
-      <div class="esc-body">
-        <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
-          <p class="esc-n">${m.n}</p>
-          <span style="font-size:12px;color:#1D9E75;font-weight:600;">$${m.precio||0}</span>
-        </div>
-        <p class="esc-s">${m.t} · Stock: ${m.stock}</p>
-        <div style="margin-top:8px;">
-          ${agotado
-            ? '<span style="font-size:11px;color:#A32D2D;font-weight:500;">Agotado</span>'
-            : `<button class="bsm" onclick="venderMarcoVenta(${m.idx})"><i class="ti ti-shopping-cart"></i> Vender</button>`
-          }
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-function closeLb(){document.getElementById('lb').classList.remove('open');}
 function editarEsc(i){
   document.getElementById('ee-n').value=escuelas[i].n;
   document.getElementById('ee-s').value=escuelas[i].s;
@@ -1499,77 +1167,6 @@ function rendImp(){
     </div>`).join('');
 }
 
-function rendMarcos(){
-  document.getElementById('marcos-list').innerHTML=marcos.map((m,i)=>{
-    const b=m.stock===0?'bout':m.stock<=3?'blow':'bok';
-    const bt=m.stock===0?'Agotado':m.stock<=3?'Stock bajo':'Disponible';
-    return `<div class="marco-card">
-      <div class="marco-img" onclick="abrirLb(${i},'marco')">
-        ${m.img?`<img src="${m.img}" alt="${m.n}"><div class="esc-zh"><i class="ti ti-zoom-in" style="font-size:10px;"></i> Ver</div>`:'<span style="font-size:11px;color:#888;">Sin foto — toca para ver</span>'}
-      </div>
-      <div class="marco-body">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><div class="marco-n">${m.n}</div><div style="font-size:11px;color:#888;margin-top:3px;">${m.t} · <span class="badge ${b}">${bt}</span></div></div>
-          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:4px;" onclick="editarMarco(${i})" title="Editar marco"><i class="ti ti-pencil"></i></button>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
-          <div class="stk-ctrl">
-            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},-1)" ${m.stock===0?'disabled':''}>−</button>`:''}
-            <span class="stk-n">${m.stock}</span>
-            ${marcosUnlocked?`<button class="stk-btn" onclick="ajMarco(${i},1)">+</button>`:''}
-          </div>
-          <button class="btn bgreen" style="font-size:11px;padding:5px 11px;" onclick="venderMarco(${i})" ${m.stock===0?'disabled style="opacity:.4;cursor:not-allowed;"':''}><i class="ti ti-shopping-cart"></i> Vender</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-function ajMarco(i,d){marcos[i].stock=Math.max(0,marcos[i].stock+d);regBit('Stock marco editado',marcos[i].n+': '+marcos[i].stock,'ok');rendMarcos();}
-function venderMarco(i){
-  if(marcos[i].stock===0)return;
-  add('Marco '+marcos[i].n,0,'marco');
-  marcos[i].stock--;
-  regBit('Marco vendido',marcos[i].n,'−1 stock');
-  rendMarcos();
-}
-function editarMarco(i){
-  document.getElementById('me-n').value=marcos[i].n;
-  document.getElementById('me-t').value=marcos[i].t;
-  document.getElementById('me-idx').value=i;
-  openM('m-marc-edit');
-}
-function guardarMarcoEdit(){
-  const i=parseInt(document.getElementById('me-idx').value);
-  marcos[i].n=document.getElementById('me-n').value.trim()||marcos[i].n;
-  marcos[i].t=document.getElementById('me-t').value.trim()||marcos[i].t;
-  const img=document.getElementById('me-img');
-  const save=()=>{rendMarcos();closeM('m-marc-edit');autoGuardar();};
-  if(img.files[0]){const r=new FileReader();r.onload=e=>{marcos[i].img=e.target.result;save();};r.readAsDataURL(img.files[0]);}else save();
-}
-
-function rendVidrio(){
-  document.getElementById('vidrio-list').innerHTML=vidrios.map((v,i)=>{
-    const b=v.stock===0?'bout':v.stock<=3?'blow':'bok';
-    const bt=v.stock===0?'Agotado':v.stock<=3?'Bajo':'OK';
-    return `<div class="vrow">
-      <div><div style="font-size:13px;font-weight:500;">Vidrio ${v.m}"</div><span class="badge ${b}">${bt}</span></div>
-      <div class="stk-ctrl">
-        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},-1)" ${v.stock===0?'disabled':''}>−</button>`:''}
-        <span class="stk-n">${v.stock}</span>
-        ${vidrioUnlocked?`<button class="stk-btn" onclick="ajVidrio(${i},1)">+</button>`:''}
-      </div>
-    </div>`;
-  }).join('');
-}
-function ajVidrio(i,d){vidrios[i].stock=Math.max(0,vidrios[i].stock+d);regBit('Stock vidrio editado','Vidrio '+vidrios[i].m+': '+vidrios[i].stock,'ok');rendVidrio();}
-
-function regBit(desc,det,tipo){
-  const now=new Date();
-  const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  bitacora.unshift({desc,det,tipo,hora});
-  const el=document.getElementById('bit-list');
-  if(el)el.innerHTML=bitacora.map(b=>`<div class="bit-row"><div><div class="bd">${b.desc}</div><div class="bh">${b.hora}</div></div><div style="font-size:12px;font-weight:500;color:${b.tipo==='ok'?'#1D9E75':'#A32D2D'}">${b.det}</div></div>`).join('');
-}
 
 function guardarVisa(){
   const n=document.getElementById('v-n').value.trim();const p=parseInt(document.getElementById('v-p').value.replace('$',''))||0;if(!n)return;
@@ -1608,16 +1205,6 @@ function guardarEsc(){
 function guardarImp(){
   const sz=document.getElementById('im-s').value.trim();const p=parseInt(document.getElementById('im-p').value.replace('$',''))||0;if(!sz)return;
   impresiones.push({sz,p});rendImp();closeM('m-imp');autoGuardar();document.getElementById('im-s').value='';document.getElementById('im-p').value='';
-}
-function guardarMarco(){
-  const n=document.getElementById('ma-n').value.trim();const t=document.getElementById('ma-t').value.trim();const s=parseInt(document.getElementById('ma-s').value)||0;if(!n)return;
-  const m={n,t,stock:s,img:null};const imgI=document.getElementById('ma-img');
-  const save=()=>{marcos.push(m);rendMarcos();closeM('m-marc');autoGuardar();['ma-n','ma-t'].forEach(id=>document.getElementById(id).value='');document.getElementById('ma-s').value='0';};
-  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{m.img=e.target.result;save();};r.readAsDataURL(imgI.files[0]);}else save();
-}
-function guardarVidrio(){
-  const med=document.getElementById('vi-m').value.trim();const s=parseInt(document.getElementById('vi-s').value)||0;if(!med)return;
-  vidrios.push({m:med,stock:s});rendVidrio();closeM('m-vid');autoGuardar();document.getElementById('vi-m').value='';document.getElementById('vi-s').value='0';
 }
 function prevSpec(input,id){if(!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(id);img.src=e.target.result;img.style.display='block';};r.readAsDataURL(input.files[0]);}
 function openM(id){document.getElementById(id).classList.add('open');}
@@ -1732,7 +1319,7 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,marcos,vidrios,productos,epsonBodega,tbaritaBodega,categoriasDinamicas,ventasDia:ventas,folioNum};
+    const datos={visas,escuelas,impresiones,productos,categoriasDinamicas,ventasDia:ventas,folioNum};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
@@ -1744,12 +1331,8 @@ function cargarLocal(){
     if(datos.visas) visas=datos.visas;
     if(datos.escuelas) escuelas=datos.escuelas;
     if(datos.impresiones) impresiones=datos.impresiones;
-    if(datos.marcos) marcos=datos.marcos;
-    if(datos.vidrios) vidrios=datos.vidrios;
     if(datos.productos) productos=datos.productos;
-    if(datos.epsonBodega) epsonBodega=datos.epsonBodega;
-    if(datos.tbaritaBodega) tbaritaBodega=datos.tbaritaBodega;
-    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();rendMarcosVenta();
+    rendVisas();rendEsc();rendImp();
     rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
     rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
     return true;
@@ -1807,16 +1390,12 @@ function iniciarFirebase(){
     db.collection('datos').doc('precios').get(),
     db.collection('datos').doc('productos').get(),
     db.collection('visas').get(),
-    db.collection('marcos').get(),
     db.collection('escuelas').get()
-  ]).then(([precDoc,prodDoc,visSnap,marcSnap,escSnap])=>{
+  ]).then(([precDoc,prodDoc,visSnap,escSnap])=>{
     firebaseConectado=true; fbListo=true;
     if(precDoc.exists){
       const d=precDoc.data();
       if(d.impresiones)impresiones=d.impresiones;
-      if(d.vidrios)vidrios=d.vidrios;
-      if(d.epsonBodega!==undefined)epsonBodega=d.epsonBodega;
-      if(d.tbaritaBodega!==undefined)tbaritaBodega=d.tbaritaBodega;
     }
     if(prodDoc.exists){
       const d=prodDoc.data();
@@ -1827,14 +1406,13 @@ function iniciarFirebase(){
       if(d.categoriasDinamicas)categoriasDinamicas=d.categoriasDinamicas;
     }
     if(!visSnap.empty){const arr=[];visSnap.forEach(d=>arr.push(d.data()));visas=arr;}
-    if(!marcSnap.empty){const arr=[];marcSnap.forEach(d=>arr.push(d.data()));marcos=arr;}
     if(!escSnap.empty){
       const arr=[];
       escSnap.forEach(d=>arr.push({...d.data(),_id:d.id}));
       arr.sort((a,b)=>a.n.localeCompare(b.n,'es'));
       escuelas=arr;
     }
-    rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+    rendVisas();rendEsc();rendImp();
     rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
     rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
     rendCatsDinamicas();
@@ -1882,7 +1460,7 @@ async function guardarFirebase(){
   setDriveStatus(true,'Guardando...');
   try{
     await db.collection('datos').doc('precios').set({
-      impresiones, vidrios, epsonBodega, tbaritaBodega,
+      impresiones,
       actualizado: new Date().toISOString()
     });
     await db.collection('datos').doc('productos').set({
@@ -1892,9 +1470,6 @@ async function guardarFirebase(){
     });
     for(let i=0;i<visas.length;i++){
       await db.collection('visas').doc('v'+i).set(visas[i]);
-    }
-    for(let i=0;i<marcos.length;i++){
-      await db.collection('marcos').doc('m'+i).set(marcos[i]);
     }
     for(let i=0;i<escuelas.length;i++){
       await db.collection('escuelas').doc(escuelas[i]._id||('e'+i)).set(escuelas[i]);
@@ -1914,7 +1489,7 @@ function autoGuardar(){
 
 // ============================================================
 
-rendVisas();rendEsc();rendImp();rendMarcos();rendVidrio();
+rendVisas();rendEsc();rendImp();
 rendProds('infantil','inf-grid');
 rendProds('credencial','cred-grid');
 rendProds('cartilla','cart-grid');
