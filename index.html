@@ -652,6 +652,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <p class="pago-lbl">¿Con cuánto paga?</p>
       <input class="pago-inp" type="number" id="pago" placeholder="0" min="0" oninput="calcCambio()">
       <div class="cambio-row" id="cambio-row"><span>Cambio</span><strong id="cambio-val">$0</strong></div>
+      <p class="pago-lbl" style="margin-bottom:4px;">Método de pago</p>
+      <div style="display:flex;gap:5px;margin-bottom:9px;" id="metodo-pago">
+        <button class="btn bgreen" id="mp-efectivo" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('efectivo')"><i class="ti ti-cash"></i> Efectivo</button>
+        <button class="btn bgray" id="mp-transferencia" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('transferencia')"><i class="ti ti-transfer"></i> Transfer</button>
+        <button class="btn bgray" id="mp-tarjeta" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('tarjeta')"><i class="ti ti-credit-card"></i> Tarjeta</button>
+      </div>
       <button class="bcobrar" id="btn-cobrar" onclick="cobrar()" disabled><i class="ti ti-check"></i> Cobrar</button>
       <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
     </div>
@@ -900,11 +906,42 @@ function calcCambio(){
   if(pago>=total&&carrito.length){row.classList.remove('cambio-ins');btn.disabled=false;document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);}
   else{row.classList.add('cambio-ins');btn.disabled=true;document.getElementById('cambio-val').textContent=pago>0&&pago<total?'Faltan $'+(total-pago).toFixed(0):'$0';}
 }
-function generarFolio(tipo){
-  // F-U = Urgentes (azul claro), F-O = Ordinarios (azul oscuro)
-  const prefix = tipo==='urgentes' ? 'F-U' : 'F-O';
-  const ts = Date.now().toString().slice(-6);
-  return prefix+'-'+ts;
+// Meses en español para folio ordinario
+const MESES_FOLIO=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+let metodoPagoActual='efectivo';
+
+function selMetodo(m){
+  metodoPagoActual=m;
+  ['efectivo','transferencia','tarjeta'].forEach(x=>{
+    const btn=document.getElementById('mp-'+x);
+    if(btn){btn.className=x===m?'btn bgreen':'btn bgray';btn.style.flex='1';btn.style.fontSize='11px';btn.style.padding='5px 0';}
+  });
+}
+
+function generarFolioU(){
+  // Urgentes: F-U-XXXXXX con timestamp
+  return 'F-U-'+Date.now().toString().slice(-6);
+}
+
+async function generarFolioO(now){
+  // Ordinarios: ORD-0001-MAY-2026 con contador anual en Firebase
+  const year=now.getFullYear();
+  const mes=MESES_FOLIO[now.getMonth()];
+  if(!db) return 'ORD-LOCAL-'+mes+'-'+year;
+  const contRef=db.collection('contadores').doc('ordinarios_'+year);
+  try{
+    const nuevo = await db.runTransaction(async t=>{
+      const doc=await t.get(contRef);
+      const actual=doc.exists?(doc.data().contador||0):0;
+      const siguiente=actual+1;
+      t.set(contRef,{contador:siguiente,year});
+      return siguiente;
+    });
+    return 'ORD-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
+  }catch(e){
+    console.error('Error contador:',e);
+    return 'ORD-ERR-'+mes+'-'+year;
+  }
 }
 
 async function cobrar(){
@@ -914,25 +951,21 @@ async function cobrar(){
   const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
+  const metodo=metodoPagoActual||'efectivo';
   items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
 
-  // Separar items urgentes vs ordinarios
   const tiposOrdinarios=['escuela','impresion'];
   const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
   const itemsO=items.filter(c=>tiposOrdinarios.includes(c.tipo));
-
+  const hayU=itemsU.length>0;
+  const hayO=itemsO.length>0;
   const tickets=[];
 
-  // Venta mixta: generar dos tickets separados
-  // Venta solo urgentes o solo ordinarios: un ticket del tipo correspondiente
-  const hayU = itemsU.length>0;
-  const hayO = itemsO.length>0;
-
   if(hayU){
-    const folio=generarFolio('urgentes');
+    const folio=generarFolioU();
     const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
     const ventaU={
-      folio,origen:'urgentes',
+      folio,origen:'urgentes',metodoPago:metodo,cancelado:false,
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
       items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
@@ -943,10 +976,10 @@ async function cobrar(){
     tickets.push(ventaU);
   }
   if(hayO){
-    const folio=generarFolio('ordinarios');
+    const folio=await generarFolioO(now);
     const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
     const ventaO={
-      folio,origen:'ordinarios',
+      folio,origen:'ordinarios',metodoPago:metodo,cancelado:false,
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
       items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
@@ -959,7 +992,10 @@ async function cobrar(){
 
   totalDia+=total;
   ultimaVenta=tickets;
-  carrito=[];document.getElementById('pago').value='';renderCarrito();
+  carrito=[];document.getElementById('pago').value='';
+  // Resetear método de pago a efectivo
+  selMetodo('efectivo');
+  renderCarrito();
   guardarLocal();
   mostrarTicket(tickets,pago,total);
 }
@@ -1003,6 +1039,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
     </div>
     <div class="tkt-row tkt-bold" style="color:#1D9E75;">
       <span>Cambio</span><span>$${Math.max(0,cambio).toFixed(0)}</span>
+    </div>
+    <div class="tkt-row" style="margin-top:2px;">
+      <span style="color:#888;">Método</span><span style="text-transform:capitalize;">${v.metodoPago||'efectivo'}</span>
     </div>`:''}
     <div class="tkt-ftr">Gracias por su preferencia</div>
     <br>`;
@@ -1034,6 +1073,20 @@ function imprimirTicket(){
   setTimeout(()=>win.print(),400);
 }
 
+
+
+function cancelarVenta(folio){
+  const clave=prompt('Clave para cancelar la venta '+folio+':');
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
+  if(!confirm('¿Cancelar la venta '+folio+'? Quedará registrada como cancelada.'))return;
+  if(!db){alert('Sin conexión a Firebase');return;}
+  db.collection('ventas').doc(folio).update({cancelado:true})
+    .then(()=>{
+      alert('Venta '+folio+' cancelada correctamente.');
+      cargarReportes();
+    })
+    .catch(e=>alert('Error al cancelar: '+e.message));
+}
 
 function limpiarTodasVentas(){
   const clave=prompt('Clave para eliminar TODAS las ventas:');
@@ -1208,9 +1261,13 @@ function renderReportes(){
     '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead><tbody>'+
     sorted.map(v=>{
       const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
-      const color=esU?'#0C7ED6':'#0C447C';
+      const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
       const detalle=(v.items||[]).map(i=>i.nombre).join(', ')||'—';
-      return `<tr><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}</td><td style="font-size:11px;">${detalle}</td><td style="color:${color};font-weight:600;">$${v.total}</td></tr>`;
+      const metodo=v.metodoPago||'efectivo';
+      const iconMetodo=metodo==='transferencia'?'🔄':metodo==='tarjeta'?'💳':'💵';
+      const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">CANCELADA</span>':'';
+      const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:2px 7px;cursor:pointer;">✕ Cancelar</button>`;
+      return `<tr style="${v.cancelado?'opacity:0.5;text-decoration:line-through;':''}"><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'} ${cancelBadge}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}<br><span style="font-size:9px;">${iconMetodo} ${metodo}</span></td><td style="font-size:11px;">${detalle}</td><td style="color:${color};font-weight:600;">$${v.total}<br>${cancelBtn}</td></tr>`;
     }).join('')+'</tbody></table>':
     '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
 }
