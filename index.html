@@ -1920,39 +1920,49 @@ window.addEventListener('load',function(){
 });
 
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
-const CALC_PRODUCTOS = [
-  {id:'inf-col',    nombre:'Infantil color',          xPaq:8, precio:80},
-  {id:'inf-col-ad', nombre:'Infantil color adherible', xPaq:8, precio:100},
-  {id:'inf-bn',     nombre:'Infantil B/N',             xPaq:8, precio:80},
-  {id:'inf-bn-ad',  nombre:'Infantil B/N adherible',   xPaq:8, precio:100},
-  {id:'diploma',    nombre:'Diploma',                  xPaq:3, precio:150},
-  {id:'diploma-ad', nombre:'Diploma adherible',        xPaq:3, precio:200},
-  {id:'titulo',     nombre:'Título',                   xPaq:3, precio:150},
-  {id:'titulo-ad',  nombre:'Título adherible',         xPaq:3, precio:200},
-  {id:'dig-col',    nombre:'Digital color',            xPaq:1, precio:250},
-  {id:'dig-bn',     nombre:'Digital B/N',              xPaq:1, precio:250},
-];
-
-let calcSpecs = {fondo:'', vestimenta:'', cabello:'', aretes:''};
+// Estado por grupo — sin generar HTML dinámico
+let calcState = {
+  infantil: {cant:0, color:'color', adherible:false},
+  diploma:  {cant:0, color:'color', adherible:false},
+  titulo:   {cant:0, color:'color', adherible:false},
+  digital:  {cant:0, color:'color', espec:''},
+};
+const CALC_CFG = {
+  infantil: {nombre:'Infantil', xPaq:8, precioBase:80,  precioAdh:100, tieneAdh:true},
+  diploma:  {nombre:'Diploma',  xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
+  titulo:   {nombre:'Título',   xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
+  digital:  {nombre:'Digital',  xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false},
+};
+let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
 
 function abrirCalculadora(){
-  // Renderizar productos
-  const cont = document.getElementById('calc-productos');
-  cont.innerHTML = CALC_PRODUCTOS.map(p=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
-      <div>
-        <div style="font-size:12px;font-weight:500;">${p.nombre}</div>
-        <div style="font-size:10px;color:#888;">$${p.precio} x paq de ${p.xPaq} foto${p.xPaq>1?'s':''}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCantCalc('${p.id}',-1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:14px;">−</button>
-        <span id="cant-${p.id}" style="font-size:14px;font-weight:600;min-width:20px;text-align:center;">0</span>
-        <button onclick="ajCantCalc('${p.id}',1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:14px;">+</button>
-        <span id="sub-${p.id}" style="font-size:11px;color:#1D9E75;min-width:36px;text-align:right;"></span>
-      </div>
-    </div>`).join('');
-
-  // Reset todo
+  // Reset estado
+  Object.keys(calcState).forEach(k=>{
+    calcState[k].cant=0;
+    calcState[k].color='color';
+    calcState[k].adherible=false;
+    if(k==='digital') calcState[k].espec='';
+  });
+  // Reset contadores en pantalla
+  ['infantil','diploma','titulo','digital'].forEach(k=>{
+    document.getElementById('cant-'+k).textContent='0';
+    document.getElementById('sub-'+k).textContent='';
+    // Activar color por defecto
+    document.getElementById('opt-'+k+'-color').className='btn bgreen';
+    document.getElementById('opt-'+k+'-color').style.cssText='font-size:11px;padding:4px 9px;';
+    document.getElementById('opt-'+k+'-bn').className='btn bgray';
+    document.getElementById('opt-'+k+'-bn').style.cssText='font-size:11px;padding:4px 9px;';
+  });
+  // Reset adherible buttons
+  ['infantil','diploma','titulo'].forEach(k=>{
+    document.getElementById('opt-'+k+'-sad').className='btn bgreen';
+    document.getElementById('opt-'+k+'-sad').style.cssText='font-size:11px;padding:4px 9px;';
+    document.getElementById('opt-'+k+'-cad').className='btn bgray';
+    document.getElementById('opt-'+k+'-cad').style.cssText='font-size:11px;padding:4px 9px;';
+  });
+  // Reset campo digital
+  document.getElementById('calc-dig-espec').value='';
+  // Reset specs
   calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
@@ -1960,137 +1970,118 @@ function abrirCalculadora(){
   document.getElementById('calc-notas').value='';
   document.getElementById('calc-fondo-txt').style.display='none';
   document.getElementById('calc-vest-txt').style.display='none';
-  // Reset botones specs
   ['calc-fondo-blanco','calc-fondo-libre',
    'calc-vest-clara','calc-vest-oscura','calc-vest-libre',
    'calc-cab-recogido','calc-cab-libre',
-   'calc-ar-si','calc-ar-no'].forEach(id=>{
-    const b=document.getElementById(id);
-    if(b)b.className='btn bgray';b&&(b.style.fontSize='11px')&&(b.style.padding='5px 10px');
+   'calc-ar-si','calc-ar-no'].forEach(function(id){
+    var b=document.getElementById(id);
+    if(b){b.className='btn bgray';b.style.fontSize='11px';b.style.padding='5px 10px';}
   });
   calcTotal();
   openM('m-calc');
 }
 
-function ajCantCalc(id, delta){
-  const el=document.getElementById('cant-'+id);
-  const val=Math.max(0, parseInt(el.textContent||0)+delta);
-  el.textContent=val;
-  // Mostrar subtotal por producto
-  const prod=CALC_PRODUCTOS.find(p=>p.id===id);
-  const paquetes=val>0?Math.ceil(val/prod.xPaq):0;
-  const sub=document.getElementById('sub-'+id);
-  sub.textContent=paquetes>0?'$'+(paquetes*prod.precio):'';
+function ajCant(grupo, delta){
+  var s=calcState[grupo];
+  s.cant=Math.max(0, s.cant+delta);
+  document.getElementById('cant-'+grupo).textContent=s.cant;
+  var cfg=CALC_CFG[grupo];
+  var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
+  var paq=s.cant>0?Math.ceil(s.cant/cfg.xPaq):0;
+  document.getElementById('sub-'+grupo).textContent=paq>0?'$'+(paq*precio):'';
+  calcTotal();
+}
+
+function setColor(grupo, val){
+  calcState[grupo].color=val;
+  document.getElementById('opt-'+grupo+'-color').className=val==='color'?'btn bgreen':'btn bgray';
+  document.getElementById('opt-'+grupo+'-bn').className=val==='bn'?'btn bgreen':'btn bgray';
+  // No afecta precio — solo registro
+}
+
+function setAdh(grupo, val){
+  calcState[grupo].adherible=val;
+  document.getElementById('opt-'+grupo+'-sad').className=!val?'btn bgreen':'btn bgray';
+  document.getElementById('opt-'+grupo+'-cad').className=val?'btn bgreen':'btn bgray';
+  // Recalcular subtotal del grupo
+  var s=calcState[grupo];
+  var cfg=CALC_CFG[grupo];
+  var precio=val?cfg.precioAdh:cfg.precioBase;
+  var paq=s.cant>0?Math.ceil(s.cant/cfg.xPaq):0;
+  document.getElementById('sub-'+grupo).textContent=paq>0?'$'+(paq*precio):'';
   calcTotal();
 }
 
 function calcTotal(){
-  let subtotal=0;
-  CALC_PRODUCTOS.forEach(p=>{
-    const cant=parseInt(document.getElementById('cant-'+p.id)?.textContent||0);
-    if(cant>0) subtotal+=Math.ceil(cant/p.xPaq)*p.precio;
+  var subtotal=0;
+  Object.keys(calcState).forEach(function(k){
+    var s=calcState[k];
+    var cfg=CALC_CFG[k];
+    if(s.cant>0){
+      var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
+      subtotal+=Math.ceil(s.cant/cfg.xPaq)*precio;
+    }
   });
-  const descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
-  const descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
-  const descTotal=Math.min(subtotal, descPesos + Math.round(subtotal*descPct/100));
-  const total=Math.max(0, subtotal-descTotal);
+  var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
+  var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
+  var descTotal=Math.min(subtotal, descPesos+Math.round(subtotal*descPct/100));
+  var total=Math.max(0, subtotal-descTotal);
   document.getElementById('calc-subtotal').textContent='$'+subtotal;
   document.getElementById('calc-desc-val').textContent='-$'+descTotal;
-  const descRow=document.getElementById('calc-desc-row');
-  if(descRow) descRow.style.display=descTotal>0?'flex':'none';
+  var row=document.getElementById('calc-desc-row');
+  if(row) row.style.display=descTotal>0?'flex':'none';
   document.getElementById('calc-total').textContent='$'+total;
 }
 
-function selSpec(tipo, valor){
-  calcSpecs[tipo]=valor;
-  // Mapeo de botones por tipo
-  const mapa={
-    fondo:   [{id:'calc-fondo-blanco',v:'Blanco'},{id:'calc-fondo-libre',v:''}],
-    vestimenta:[{id:'calc-vest-clara',v:'Clara'},{id:'calc-vest-oscura',v:'Oscura'},{id:'calc-vest-libre',v:''}],
-    cabello: [{id:'calc-cab-recogido',v:'Recogido'},{id:'calc-cab-libre',v:'Libre'}],
-    aretes:  [{id:'calc-ar-si',v:'Permitidos'},{id:'calc-ar-no',v:'No permitidos'}],
-  };
-  mapa[tipo].forEach(b=>{
-    const el=document.getElementById(b.id);
-    if(el){el.className=b.v===valor?'btn bgreen':'btn bgray';el.style.fontSize='11px';el.style.padding='5px 10px';}
-  });
-  // Mostrar campo libre si aplica
-  if(tipo==='fondo'){
-    const txt=document.getElementById('calc-fondo-txt');
-    txt.style.display=valor===''?'block':'none';
-    if(valor!=='')txt.value='';
-  }
-  if(tipo==='vestimenta'){
-    const txt=document.getElementById('calc-vest-txt');
-    txt.style.display=valor===''?'block':'none';
-    if(valor!=='')txt.value='';
-  }
-}
-
 function cobrarCalculadora(){
-  const nombre=document.getElementById('calc-nombre').value.trim();
+  var nombre=document.getElementById('calc-nombre').value.trim();
   if(!nombre){alert('Escribe el nombre de la escuela');return;}
-
-  // Armar descripción de productos
-  const lineas=[];
-  CALC_PRODUCTOS.forEach(p=>{
-    const cant=parseInt(document.getElementById('cant-'+p.id)?.textContent||0);
-    if(cant>0){
-      const paquetes=Math.ceil(cant/p.xPaq);
-      lineas.push(cant+' '+p.nombre+' ('+paquetes+' paq × $'+p.precio+')');
+  var lineas=[];
+  Object.keys(calcState).forEach(function(k){
+    var s=calcState[k];
+    var cfg=CALC_CFG[k];
+    if(s.cant>0){
+      var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
+      var paq=Math.ceil(s.cant/cfg.xPaq);
+      var colorTxt=s.color==='bn'?'B/N':'Color';
+      var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
+      var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
+      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt;
+      if(especTxt) linea+=' ('+especTxt+')';
+      linea+=' ('+paq+' paq × $'+precio+')';
+      lineas.push(linea);
     }
   });
   if(!lineas.length){alert('Agrega al menos un producto');return;}
-
-  // Precio final
-  const totalEl=document.getElementById('calc-total').textContent;
-  const total=parseInt(totalEl.replace('$',''))||0;
-  const subtotalEl=document.getElementById('calc-subtotal').textContent;
-  const subtotal=parseInt(subtotalEl.replace('$',''))||0;
-  const descuento=subtotal-total;
-
-  // Armar especificaciones
-  const fondo=calcSpecs.fondo||document.getElementById('calc-fondo-txt').value||'No especificado';
-  const vest=calcSpecs.vestimenta||document.getElementById('calc-vest-txt').value||'No especificado';
-  const cab=calcSpecs.cabello||'No especificado';
-  const aretes=calcSpecs.aretes||'No especificado';
-  const notas=document.getElementById('calc-notas').value.trim();
-
-  const specs=[
-    'Fondo: '+fondo,
-    'Vestimenta: '+vest,
-    'Cabello: '+cab,
-    'Aretes: '+aretes,
-    notas?'Notas: '+notas:'',
-  ].filter(Boolean).join(' | ');
-
-  const descripcionCompleta=lineas.join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
-
-  // Preguntar si guardar como escuela nueva
-  const guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
+  var totalEl=document.getElementById('calc-total').textContent;
+  var total=parseInt(totalEl.replace('$',''))||0;
+  var subtotalEl=document.getElementById('calc-subtotal').textContent;
+  var subtotal=parseInt(subtotalEl.replace('$',''))||0;
+  var descuento=subtotal-total;
+  var fondo=calcSpecs.fondo||document.getElementById('calc-fondo-txt').value||'No especificado';
+  var vest=calcSpecs.vestimenta||document.getElementById('calc-vest-txt').value||'No especificado';
+  var cab=calcSpecs.cabello||'No especificado';
+  var aretes=calcSpecs.aretes||'No especificado';
+  var notas=document.getElementById('calc-notas').value.trim();
+  var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
+  var descripcionCompleta=lineas.join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
+  var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
   if(guardar){
-    const docId='e_'+Date.now();
-    const escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId};
+    var docId='e_'+Date.now();
+    var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId};
     escuelas.push(escData);
     rendEsc();
     guardarLocal();
     if(db){
       db.collection('escuelas').doc(docId).set(escData)
-        .then(()=>setDriveStatus(true,'Escuela guardada ✓'))
-        .catch(e=>setDriveStatus(false,'Error: '+e.code));
+        .then(function(){setDriveStatus(true,'Escuela guardada ✓');})
+        .catch(function(e){setDriveStatus(false,'Error: '+e.code);});
     }
   }
-
-  // Agregar al carrito con specs incluidas en el nombre
   add('Paquete '+nombre, total, 'escuela');
-
-  // Guardar specs en ultimaVenta para el ticket
-  window._calcSpecs={nombre,specs,lineas,descuento,subtotal,total};
-
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total};
   closeM('m-calc');
 }
-
-
 </script>
 <div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
   <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
@@ -2134,11 +2125,95 @@ function cobrarCalculadora(){
     <input type="text" id="calc-nombre" placeholder="Ej: Primaria Benito Juárez">
   </div>
 
-  <!-- Productos -->
-  <p class="slabel" style="margin-bottom:8px;">Cantidad de fotos</p>
-  <div id="calc-productos"></div>
+  <!-- INFANTIL -->
+  <p class="slabel" style="margin:10px 0 6px;">Cantidad de fotos</p>
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Infantil</div>
+        <div style="font-size:10px;color:#888;">$80 sin adh · $100 con adh · paq de 8</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('infantil',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cant-infantil" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <button onclick="ajCant('infantil',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="opt-infantil-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','color')">Color</button>
+      <button id="opt-infantil-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','bn')">B/N</button>
+      <button id="opt-infantil-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',false)">Sin adherible</button>
+      <button id="opt-infantil-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',true)">Con adherible</button>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-infantil"></div>
+  </div>
 
-  <!-- Especificaciones -->
+  <!-- DIPLOMA -->
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Diploma</div>
+        <div style="font-size:10px;color:#888;">$150 sin adh · $200 con adh · paq de 3</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('diploma',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cant-diploma" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <button onclick="ajCant('diploma',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="opt-diploma-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','color')">Color</button>
+      <button id="opt-diploma-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','bn')">B/N</button>
+      <button id="opt-diploma-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',false)">Sin adherible</button>
+      <button id="opt-diploma-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',true)">Con adherible</button>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-diploma"></div>
+  </div>
+
+  <!-- TÍTULO -->
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Título</div>
+        <div style="font-size:10px;color:#888;">$150 sin adh · $200 con adh · paq de 3</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('titulo',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cant-titulo" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <button onclick="ajCant('titulo',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="opt-titulo-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','color')">Color</button>
+      <button id="opt-titulo-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','bn')">B/N</button>
+      <button id="opt-titulo-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',false)">Sin adherible</button>
+      <button id="opt-titulo-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',true)">Con adherible</button>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-titulo"></div>
+  </div>
+
+  <!-- DIGITAL -->
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Digital</div>
+        <div style="font-size:10px;color:#888;">$250 c/u</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('digital',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cant-digital" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <button onclick="ajCant('digital',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+      <button id="opt-digital-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
+      <button id="opt-digital-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
+    </div>
+    <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;">
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-digital"></div>
+  </div>
+
+  <!-- Especificaciones del cliente -->
   <p class="slabel" style="margin:12px 0 8px;">Especificaciones confirmadas con el cliente</p>
 
   <!-- Fondo -->
@@ -2199,19 +2274,16 @@ function cobrarCalculadora(){
     </div>
   </div>
 
-  <!-- Resumen de precio -->
+  <!-- Resumen -->
   <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin:12px 0;">
     <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-      <span style="color:#888;">Subtotal</span>
-      <span id="calc-subtotal">$0</span>
+      <span style="color:#888;">Subtotal</span><span id="calc-subtotal">$0</span>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;" id="calc-desc-row" style="display:none;">
-      <span style="color:#A32D2D;">Descuento</span>
-      <span id="calc-desc-val" style="color:#A32D2D;">-$0</span>
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;" id="calc-desc-row">
+      <span style="color:#A32D2D;">Descuento</span><span id="calc-desc-val" style="color:#A32D2D;">-$0</span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;border-top:1px solid #e0e0e0;padding-top:8px;margin-top:4px;">
-      <span>Total</span>
-      <span id="calc-total" style="color:#1D9E75;">$0</span>
+      <span>Total</span><span id="calc-total" style="color:#1D9E75;">$0</span>
     </div>
   </div>
 
