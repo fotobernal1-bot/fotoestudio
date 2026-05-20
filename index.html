@@ -1125,7 +1125,7 @@ async function cobrar(){
       folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||''})),
       total:totalEsc,pago:(hayU||hayImp)?totalEsc:pago,cambio:(hayU||hayImp)?0:pago-total
     };
     if(db) db.collection('ventas').doc(folio).set(ventaEsc).catch(e=>console.error(e));
