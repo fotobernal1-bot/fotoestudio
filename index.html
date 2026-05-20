@@ -936,24 +936,45 @@ async function generarFolioU(now){
   }
 }
 
-async function generarFolioO(now){
-  // Ordinarios: ORD-0001-MAY-2026 con contador anual en Firebase
+async function generarFolioEsc(now){
+  // Escuelas: ESC-0001-MAY-2026 contador anual
   const year=now.getFullYear();
   const mes=MESES_FOLIO[now.getMonth()];
-  if(!db) return 'ORD-LOCAL-'+mes+'-'+year;
-  const contRef=db.collection('contadores').doc('ordinarios_'+year);
+  if(!db) return 'ESC-LOCAL-'+mes+'-'+year;
+  const contRef=db.collection('contadores').doc('escuelas_'+year);
   try{
-    const nuevo = await db.runTransaction(async t=>{
+    const nuevo=await db.runTransaction(async t=>{
       const doc=await t.get(contRef);
       const actual=doc.exists?(doc.data().contador||0):0;
       const siguiente=actual+1;
       t.set(contRef,{contador:siguiente,year});
       return siguiente;
     });
-    return 'ORD-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
+    return 'ESC-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
   }catch(e){
-    console.error('Error contador:',e);
-    return 'ORD-ERR-'+mes+'-'+year;
+    console.error('Error contador escuelas:',e);
+    return 'ESC-ERR-'+mes+'-'+year;
+  }
+}
+
+async function generarFolioImp(now){
+  // Impresiones: IMP-0001-MAY-2026 contador anual
+  const year=now.getFullYear();
+  const mes=MESES_FOLIO[now.getMonth()];
+  if(!db) return 'IMP-LOCAL-'+mes+'-'+year;
+  const contRef=db.collection('contadores').doc('impresiones_'+year);
+  try{
+    const nuevo=await db.runTransaction(async t=>{
+      const doc=await t.get(contRef);
+      const actual=doc.exists?(doc.data().contador||0):0;
+      const siguiente=actual+1;
+      t.set(contRef,{contador:siguiente,year});
+      return siguiente;
+    });
+    return 'IMP-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
+  }catch(e){
+    console.error('Error contador impresiones:',e);
+    return 'IMP-ERR-'+mes+'-'+year;
   }
 }
 
@@ -967,7 +988,7 @@ async function cobrar(){
   const metodo=metodoPagoActual||'efectivo';
 
   const tiposOrdinarios=['escuela','impresion'];
-  const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
+  const itemsU=items.filter(c=>c.tipo!=='escuela'&&c.tipo!=='impresion');
   const itemsO=items.filter(c=>tiposOrdinarios.includes(c.tipo));
   const hayU=itemsU.length>0;
   const hayO=itemsO.length>0;
@@ -987,19 +1008,40 @@ async function cobrar(){
     ventas.push({f:folio,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
     tickets.push(ventaU);
   }
-  if(hayO){
-    const folio=await generarFolioO(now);
-    const totalO=itemsO.reduce((s,c)=>s+c.precio,0);
-    const ventaO={
-      folio,origen:'ordinarios',metodoPago:metodo,cancelado:false,
+  // Escuelas — folio ESC
+  const itemsEsc=items.filter(c=>c.tipo==='escuela');
+  const itemsImp=items.filter(c=>c.tipo==='impresion');
+  const hayEsc=itemsEsc.length>0;
+  const hayImp=itemsImp.length>0;
+
+  if(hayEsc){
+    const folio=await generarFolioEsc(now);
+    const totalEsc=itemsEsc.reduce((s,c)=>s+c.precio,0);
+    const ventaEsc={
+      folio,origen:'escuelas',metodoPago:metodo,cancelado:false,
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsO.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
-      total:totalO,pago:hayU?totalO:pago,cambio:hayU?0:pago-total
+      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||''})),
+      total:totalEsc,pago:hayU||hayImp?totalEsc:pago,cambio:hayU||hayImp?0:pago-total
     };
-    if(db) db.collection('ventas').doc(folio).set(ventaO).catch(e=>console.error(e));
-    ventas.push({f:folio,desc:itemsO.map(c=>c.nombre).join(', '),total:totalO});
-    tickets.push(ventaO);
+    if(db) db.collection('ventas').doc(folio).set(ventaEsc).catch(e=>console.error(e));
+    ventas.push({f:folio,desc:itemsEsc.map(c=>c.nombre).join(', '),total:totalEsc});
+    tickets.push(ventaEsc);
+  }
+  // Impresiones — folio IMP
+  if(hayImp){
+    const folio=await generarFolioImp(now);
+    const totalImp=itemsImp.reduce((s,c)=>s+c.precio,0);
+    const ventaImp={
+      folio,origen:'impresiones',metodoPago:metodo,cancelado:false,
+      fecha,hora,timestamp:now.toISOString(),
+      year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
+      items:itemsImp.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,copias:c.copias||1,descripcion:c.descripcion||''})),
+      total:totalImp,pago:hayU||hayEsc?totalImp:pago,cambio:hayU||hayEsc?0:pago-total
+    };
+    if(db) db.collection('ventas').doc(folio).set(ventaImp).catch(e=>console.error(e));
+    ventas.push({f:folio,desc:itemsImp.map(c=>c.nombre).join(', '),total:totalImp});
+    tickets.push(ventaImp);
   }
 
   ultimaVenta=tickets;
@@ -1035,11 +1077,17 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
       <span style="background:${color};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">${etiqueta}</span>
     </div>
     <hr class="tkt-div">
-    ${(v.items||[]).map(i=>`
-    <div class="tkt-row">
-      <span>${i.nombre}</span>
-      <span>$${i.precio}</span>
-    </div>`).join('')}
+    ${(v.items||[]).map(i=>{
+      // Si es escuela y hay detalle de calculadora, mostrarlo completo
+      if(i.tipo==='escuela' && window._calcSpecs && window._calcSpecs.nombre && i.nombre.includes(window._calcSpecs.nombre)){
+        const cs=window._calcSpecs;
+        const lineasHtml=cs.lineas.map(l=>`<div class="tkt-row" style="font-size:11px;"><span style="padding-left:8px;">• ${l}</span></div>`).join('');
+        const descHtml=cs.descuento>0?`<div class="tkt-row" style="font-size:11px;color:#A32D2D;"><span>Descuento</span><span>-$${cs.descuento}</span></div>`:'';
+        const specsHtml=`<div style="font-size:10px;color:#555;margin-top:4px;padding:5px 0;border-top:1px dashed #ddd;">${cs.specs.split(' | ').map(s=>`<div>• ${s}</div>`).join('')}</div>`;
+        return `<div style="margin-bottom:4px;"><div class="tkt-row" style="font-weight:600;""><span>${i.nombre}</span></div>${lineasHtml}${descHtml}${specsHtml}</div>`;
+      }
+      return `<div class="tkt-row"><span>${i.nombre}</span><span>$${i.precio}</span></div>`;
+    }).join('')}
     <hr class="tkt-div">
     <div class="tkt-row tkt-total">
       <span>TOTAL</span><span style="color:${color};">$${v.total}</span>
@@ -1447,6 +1495,40 @@ function guardarEscEdit(){
     subirImagenCloudinary(img.files[0]).then(url=>{escuelas[i].img=url;save();}).catch(()=>save());
   } else save();
 }
+
+function abrirModalImp(i){
+  const im=impresiones[i];
+  const sz=im.sz.split('x')[0]+'x';
+  document.getElementById('mi-sz').textContent=sz;
+  document.getElementById('mi-precio').textContent='$'+im.p+' c/u';
+  document.getElementById('mi-idx').value=i;
+  document.getElementById('mi-cant').value=1;
+  document.getElementById('mi-desc').value='';
+  document.getElementById('mi-total').textContent='$'+im.p;
+  openM('m-imp-modal');
+}
+
+function calcTotalImp(){
+  const i=parseInt(document.getElementById('mi-idx').value);
+  const cant=parseInt(document.getElementById('mi-cant').value)||1;
+  const precio=impresiones[i]?.p||0;
+  document.getElementById('mi-total').textContent='$'+(cant*precio);
+}
+
+function agregarImpCarrito(){
+  const i=parseInt(document.getElementById('mi-idx').value);
+  const cant=parseInt(document.getElementById('mi-cant').value)||1;
+  const desc=document.getElementById('mi-desc').value.trim();
+  const im=impresiones[i];
+  const sz=im.sz.split('x')[0]+'x';
+  const nombre=sz+' ×'+cant+(desc?' — '+desc:'');
+  const precio=cant*im.p;
+  // Agregar al carrito con metadata extra
+  carrito.push({nombre,precio,tipo:'impresion',copias:cant,descripcion:desc,tamanio:sz});
+  renderCarrito();
+  closeM('m-imp-modal');
+}
+
 function eliminarImp(i){
   const clave=prompt('Clave para eliminar:');
   if(clave!=='8888'){alert('Clave incorrecta');return;}
@@ -1459,8 +1541,8 @@ function eliminarImp(i){
 function rendImp(){
   document.getElementById('imp-grid').innerHTML=impresiones.map((im,i)=>`
     <div class="foto-card" style="position:relative;">
-      <div onclick="add('Impresión ${im.sz}',impresiones[${i}].p,'impresion')" style="cursor:pointer;">
-        <div class="fc-n">${im.sz}"</div>
+      <div onclick="abrirModalImp(${i})" style="cursor:pointer;">
+        <div class="fc-n">${im.sz.split('x')[0]}x</div>
         <div class="fc-l">Impresión fotográfica</div>
         <div class="fc-p">$${im.p}</div>
       </div>
@@ -1848,39 +1930,48 @@ window.addEventListener('load',function(){
 });
 
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
-const CALC_PRODUCTOS = [
-  {id:'inf-col',    nombre:'Infantil color',          xPaq:8, precio:80},
-  {id:'inf-col-ad', nombre:'Infantil color adherible', xPaq:8, precio:100},
-  {id:'inf-bn',     nombre:'Infantil B/N',             xPaq:8, precio:80},
-  {id:'inf-bn-ad',  nombre:'Infantil B/N adherible',   xPaq:8, precio:100},
-  {id:'diploma',    nombre:'Diploma',                  xPaq:3, precio:150},
-  {id:'diploma-ad', nombre:'Diploma adherible',        xPaq:3, precio:200},
-  {id:'titulo',     nombre:'Título',                   xPaq:3, precio:150},
-  {id:'titulo-ad',  nombre:'Título adherible',         xPaq:3, precio:200},
-  {id:'dig-col',    nombre:'Digital color',            xPaq:1, precio:250},
-  {id:'dig-bn',     nombre:'Digital B/N',              xPaq:1, precio:250},
+// Grupos: {id, nombre, xPaq, precioBase, precioAdh, tieneAdh, tieneColor, tieneEspec}
+const CALC_GRUPOS = [
+  {id:'infantil', nombre:'Infantil',  xPaq:8, precioBase:80,  precioAdh:100, tieneAdh:true,  tieneColor:true,  tieneEspec:false},
+  {id:'diploma',  nombre:'Diploma',   xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true,  tieneColor:true,  tieneEspec:false},
+  {id:'titulo',   nombre:'Título',    xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true,  tieneColor:true,  tieneEspec:false},
+  {id:'digital',  nombre:'Digital',   xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false, tieneColor:true,  tieneEspec:true},
 ];
 
-let calcSpecs = {fondo:'', vestimenta:'', cabello:'', aretes:''};
+let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
+// Estado de opciones por grupo
+let calcOpts={};
 
 function abrirCalculadora(){
-  // Renderizar productos
-  const cont = document.getElementById('calc-productos');
-  cont.innerHTML = CALC_PRODUCTOS.map(p=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
-      <div>
-        <div style="font-size:12px;font-weight:500;">${p.nombre}</div>
-        <div style="font-size:10px;color:#888;">$${p.precio} x paq de ${p.xPaq} foto${p.xPaq>1?'s':''}</div>
+  calcOpts={};
+  CALC_GRUPOS.forEach(g=>{
+    calcOpts[g.id]={cant:0, color:'color', adherible:false, espec:''};
+  });
+
+  const cont=document.getElementById('calc-productos');
+  cont.innerHTML=CALC_GRUPOS.map(g=>`
+    <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">${g.nombre}</div>
+          <div style="font-size:10px;color:#888;">$${g.precioBase} x paq de ${g.xPaq} foto${g.xPaq>1?'s':''}${g.tieneAdh?' · adherible $'+g.precioAdh:''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button onclick="ajGrupo('${g.id}',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+          <span id="cant-${g.id}" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+          <button onclick="ajGrupo('${g.id}',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCantCalc('${p.id}',-1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:14px;">−</button>
-        <span id="cant-${p.id}" style="font-size:14px;font-weight:600;min-width:20px;text-align:center;">0</span>
-        <button onclick="ajCantCalc('${p.id}',1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:14px;">+</button>
-        <span id="sub-${p.id}" style="font-size:11px;color:#1D9E75;min-width:36px;text-align:right;"></span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <button id="opt-${g.id}-color" class="btn bgreen" style="font-size:10px;padding:3px 9px;" onclick="setOpt('${g.id}','color','color')">Color</button>
+        <button id="opt-${g.id}-bn" class="btn bgray" style="font-size:10px;padding:3px 9px;" onclick="setOpt('${g.id}','color','bn')">B/N</button>
+        ${g.tieneAdh?'<button id="opt-'+g.id+'-sad" class="btn bgray" style="font-size:10px;padding:3px 9px;" onclick="setOpt(''+g.id+'','adherible',false)">Sin adherible</button><button id="opt-'+g.id+'-cad" class="btn bgray" style="font-size:10px;padding:3px 9px;" onclick="setOpt(''+g.id+'','adherible',true)">Con adherible</button>':''}
       </div>
+      ${g.tieneEspec?'<input type="text" id="espec-'+g.id+'" placeholder="Especificaciones: 6x9, 300kb..." style="margin-top:6px;font-size:11px;" oninput="calcTotal()">':''}
+      <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-${g.id}"></div>
     </div>`).join('');
 
-  // Reset todo
+  // Reset specs y campos
   calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:''};
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
@@ -1888,40 +1979,64 @@ function abrirCalculadora(){
   document.getElementById('calc-notas').value='';
   document.getElementById('calc-fondo-txt').style.display='none';
   document.getElementById('calc-vest-txt').style.display='none';
-  // Reset botones specs
   ['calc-fondo-blanco','calc-fondo-libre',
    'calc-vest-clara','calc-vest-oscura','calc-vest-libre',
    'calc-cab-recogido','calc-cab-libre',
    'calc-ar-si','calc-ar-no'].forEach(id=>{
     const b=document.getElementById(id);
-    if(b)b.className='btn bgray';b&&(b.style.fontSize='11px')&&(b.style.padding='5px 10px');
+    if(b){b.className='btn bgray';b.style.fontSize='11px';b.style.padding='5px 10px';}
+  });
+  // Activar Color por defecto en cada grupo
+  CALC_GRUPOS.forEach(g=>{
+    const btn=document.getElementById('opt-'+g.id+'-color');
+    if(btn){btn.className='btn bgreen';btn.style.fontSize='10px';btn.style.padding='3px 9px';}
   });
   calcTotal();
   openM('m-calc');
 }
 
-function ajCantCalc(id, delta){
-  const el=document.getElementById('cant-'+id);
-  const val=Math.max(0, parseInt(el.textContent||0)+delta);
-  el.textContent=val;
-  // Mostrar subtotal por producto
-  const prod=CALC_PRODUCTOS.find(p=>p.id===id);
-  const paquetes=val>0?Math.ceil(val/prod.xPaq):0;
-  const sub=document.getElementById('sub-'+id);
-  sub.textContent=paquetes>0?'$'+(paquetes*prod.precio):'';
+function ajGrupo(id, delta){
+  calcOpts[id].cant=Math.max(0,(calcOpts[id].cant||0)+delta);
+  document.getElementById('cant-'+id).textContent=calcOpts[id].cant;
+  calcTotal();
+}
+
+function setOpt(gid, tipo, val){
+  calcOpts[gid][tipo]=val;
+  if(tipo==='color'){
+    const btnC=document.getElementById('opt-'+gid+'-color');
+    const btnB=document.getElementById('opt-'+gid+'-bn');
+    if(btnC){btnC.className=val==='color'?'btn bgreen':'btn bgray';btnC.style.fontSize='10px';btnC.style.padding='3px 9px';}
+    if(btnB){btnB.className=val==='bn'?'btn bgreen':'btn bgray';btnB.style.fontSize='10px';btnB.style.padding='3px 9px';}
+  }
+  if(tipo==='adherible'){
+    const btnS=document.getElementById('opt-'+gid+'-sad');
+    const btnC=document.getElementById('opt-'+gid+'-cad');
+    if(btnS){btnS.className=!val?'btn bgreen':'btn bgray';btnS.style.fontSize='10px';btnS.style.padding='3px 9px';}
+    if(btnC){btnC.className=val?'btn bgreen':'btn bgray';btnC.style.fontSize='10px';btnC.style.padding='3px 9px';}
+  }
   calcTotal();
 }
 
 function calcTotal(){
   let subtotal=0;
-  CALC_PRODUCTOS.forEach(p=>{
-    const cant=parseInt(document.getElementById('cant-'+p.id)?.textContent||0);
-    if(cant>0) subtotal+=Math.ceil(cant/p.xPaq)*p.precio;
+  CALC_GRUPOS.forEach(g=>{
+    const opt=calcOpts[g.id]||{cant:0,adherible:false};
+    const cant=opt.cant||0;
+    if(cant>0){
+      const precio=g.tieneAdh&&opt.adherible?g.precioAdh:g.precioBase;
+      const paquetes=Math.ceil(cant/g.xPaq);
+      const sub=paquetes*precio;
+      subtotal+=sub;
+      document.getElementById('sub-'+g.id).textContent='$'+sub;
+    } else {
+      document.getElementById('sub-'+g.id).textContent='';
+    }
   });
   const descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
   const descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
-  const descTotal=Math.min(subtotal, descPesos + Math.round(subtotal*descPct/100));
-  const total=Math.max(0, subtotal-descTotal);
+  const descTotal=Math.min(subtotal, descPesos+Math.round(subtotal*descPct/100));
+  const total=Math.max(0,subtotal-descTotal);
   document.getElementById('calc-subtotal').textContent='$'+subtotal;
   document.getElementById('calc-desc-val').textContent='-$'+descTotal;
   const descRow=document.getElementById('calc-desc-row');
@@ -1959,13 +2074,18 @@ function cobrarCalculadora(){
   const nombre=document.getElementById('calc-nombre').value.trim();
   if(!nombre){alert('Escribe el nombre de la escuela');return;}
 
-  // Armar descripción de productos
+  // Armar descripción de productos desde grupos
   const lineas=[];
-  CALC_PRODUCTOS.forEach(p=>{
-    const cant=parseInt(document.getElementById('cant-'+p.id)?.textContent||0);
+  CALC_GRUPOS.forEach(g=>{
+    const opt=calcOpts[g.id]||{cant:0};
+    const cant=opt.cant||0;
     if(cant>0){
-      const paquetes=Math.ceil(cant/p.xPaq);
-      lineas.push(cant+' '+p.nombre+' ('+paquetes+' paq × $'+p.precio+')');
+      const precio=g.tieneAdh&&opt.adherible?g.precioAdh:g.precioBase;
+      const paquetes=Math.ceil(cant/g.xPaq);
+      const colorTxt=opt.color==='bn'?'B/N':'Color';
+      const adhTxt=g.tieneAdh?(opt.adherible?' adherible':''):'';
+      const especTxt=g.tieneEspec?(document.getElementById('espec-'+g.id)?.value.trim()||''):'';
+      lineas.push(cant+' '+g.nombre+' '+colorTxt+adhTxt+(especTxt?' ('+especTxt+')')+ ' ('+paquetes+' paq × $'+precio+')');
     }
   });
   if(!lineas.length){alert('Agrega al menos un producto');return;}
@@ -2146,6 +2266,32 @@ function cobrarCalculadora(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-calc')">Cancelar</button>
     <button class="btn bgreen" onclick="cobrarCalculadora()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+  </div>
+</div></div>
+
+<!-- MODAL IMPRESIÓN -->
+<div class="modal-ov" id="m-imp-modal"><div class="modal-box" style="width:300px;">
+  <p class="modal-t"><i class="ti ti-printer"></i> Agregar impresión</p>
+  <div style="text-align:center;margin-bottom:14px;">
+    <span id="mi-sz" style="font-size:32px;font-weight:700;color:#111;"></span>
+    <span id="mi-precio" style="font-size:13px;color:#888;margin-left:8px;"></span>
+  </div>
+  <div class="frow">
+    <label>Cantidad de copias</label>
+    <input type="number" id="mi-cant" min="1" value="1" oninput="calcTotalImp()" style="font-size:18px;font-weight:600;text-align:center;">
+  </div>
+  <div class="frow">
+    <label>¿Qué se manda a imprimir?</label>
+    <input type="text" id="mi-desc" placeholder="Ej: foto de graduación, quinceañera...">
+  </div>
+  <input type="hidden" id="mi-idx">
+  <div style="background:#E1F5EE;border-radius:8px;padding:10px;text-align:center;margin:10px 0;">
+    <span style="font-size:11px;color:#085041;">Total</span>
+    <div id="mi-total" style="font-size:22px;font-weight:700;color:#1D9E75;">$0</div>
+  </div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-imp-modal')">Cancelar</button>
+    <button class="btn bgreen" onclick="agregarImpCarrito()"><i class="ti ti-shopping-cart"></i> Agregar</button>
   </div>
 </div></div>
 </body>
