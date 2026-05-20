@@ -900,14 +900,17 @@ function addEscuela(i){
 
 
 function selExtraBarba(){
-  // Pide solo precio, concepto ya definido
-  var precio=prompt('Precio por edición de barba ($):');
-  if(precio===null) return;
-  var p=parseInt(precio)||0;
+  document.getElementById('barba-precio').value='';
+  closeM('m-extra');
+  openM('m-barba');
+}
+
+function agregarBarba(){
+  var p=parseInt(document.getElementById('barba-precio').value)||0;
   if(p<=0){alert('Ingresa un precio válido');return;}
   carrito.push({nombre:'Edición de barba', precio:p, tipo:'extra'});
   renderCarrito();
-  closeM('m-extra');
+  closeM('m-barba');
 }
 
 function agregarExtra(){
@@ -2606,6 +2609,20 @@ function cobrarCalculadora(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-extra')">Cancelar</button>
     <button class="btn bgreen" onclick="agregarExtra()"><i class="ti ti-shopping-cart"></i> Agregar</button>
+  </div>
+</div></div>
+
+<!-- MODAL BARBA PRECIO -->
+<div class="modal-ov" id="m-barba"><div class="modal-box" style="width:280px;">
+  <p class="modal-t"><i class="ti ti-scissors"></i> Edición de barba</p>
+  <p style="font-size:11px;color:#888;margin-bottom:12px;">Aparece en el ticket como "incluido" sin precio visible.</p>
+  <div class="frow">
+    <label>Precio ($)</label>
+    <input type="number" id="barba-precio" min="0" placeholder="0" style="font-size:22px;font-weight:700;text-align:center;" autofocus>
+  </div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-barba');openM('m-extra')">← Regresar</button>
+    <button class="btn bgreen" onclick="agregarBarba()"><i class="ti ti-shopping-cart"></i> Agregar</button>
   </div>
 </div></div>
 </body>
