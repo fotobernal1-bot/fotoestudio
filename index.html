@@ -918,9 +918,25 @@ function selMetodo(m){
   });
 }
 
-function generarFolioU(){
-  // Urgentes: F-U-XXXXXX con timestamp
-  return 'F-U-'+Date.now().toString().slice(-6);
+async function generarFolioU(now){
+  // Urgentes: F-U-00001-MAY-2026 contador continuo eterno en Firebase
+  const mes=MESES_FOLIO[now.getMonth()];
+  const year=now.getFullYear();
+  if(!db) return 'F-U-LOCAL-'+mes+'-'+year;
+  const contRef=db.collection('contadores').doc('urgentes');
+  try{
+    const nuevo = await db.runTransaction(async t=>{
+      const doc=await t.get(contRef);
+      const actual=doc.exists?(doc.data().contador||0):0;
+      const siguiente=actual+1;
+      t.set(contRef,{contador:siguiente});
+      return siguiente;
+    });
+    return 'F-U-'+String(nuevo).padStart(5,'0')+'-'+mes+'-'+year;
+  }catch(e){
+    console.error('Error contador urgentes:',e);
+    return 'F-U-ERR-'+mes+'-'+year;
+  }
 }
 
 async function generarFolioO(now){
@@ -962,7 +978,7 @@ async function cobrar(){
   const tickets=[];
 
   if(hayU){
-    const folio=generarFolioU();
+    const folio=await generarFolioU(now);
     const totalU=itemsU.reduce((s,c)=>s+c.precio,0);
     const ventaU={
       folio,origen:'urgentes',metodoPago:metodo,cancelado:false,
