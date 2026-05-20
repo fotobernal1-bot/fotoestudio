@@ -648,7 +648,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
   <!-- CARRITO LATERAL -->
   <div class="cart-panel">
-    <div class="cart-hdr"><p><i class="ti ti-shopping-cart"></i> Carrito</p><span id="cart-cnt">0 productos</span></div>
+    <div class="cart-hdr">
+      <p><i class="ti ti-shopping-cart"></i> Carrito</p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="cart-cnt">0 productos</span>
+        <button onclick="limpiar()" title="Limpiar carrito" style="background:transparent;border:none;cursor:pointer;color:#bbb;font-size:15px;padding:2px 4px;border-radius:5px;" onmouseover="this.style.color='#A32D2D'" onmouseout="this.style.color='#bbb'"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
     <div class="cart-items" id="cart-items"><div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div></div>
     <div class="cart-ftr">
       <div class="trow big"><span>Total</span><span id="cart-total">$0</span></div>
@@ -662,8 +668,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgray" id="mp-tarjeta" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('tarjeta')"><i class="ti ti-credit-card"></i> Tarjeta</button>
       </div>
       <button class="bcobrar" id="btn-cobrar" onclick="iniciarCobro()" disabled><i class="ti ti-check"></i> Cobrar</button>
-      <button class="blimpiar" onclick="openM('m-extra')" style="margin-bottom:5px;"><i class="ti ti-plus"></i> Servicio extra</button>
-      <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
+      <button class="blimpiar" onclick="openM('m-extra')"><i class="ti ti-plus"></i> Servicio extra</button>
     </div>
   </div>
 </div>
@@ -892,6 +897,18 @@ function addEscuela(i){
   renderCarrito();
 }
 
+
+
+function selExtraBarba(){
+  // Pide solo precio, concepto ya definido
+  var precio=prompt('Precio por edición de barba ($):');
+  if(precio===null) return;
+  var p=parseInt(precio)||0;
+  if(p<=0){alert('Ingresa un precio válido');return;}
+  carrito.push({nombre:'Edición de barba', precio:p, tipo:'extra'});
+  renderCarrito();
+  closeM('m-extra');
+}
 
 function agregarExtra(){
   var concepto=document.getElementById('extra-concepto').value.trim();
@@ -1200,12 +1217,12 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
         if(window._calcSpecs && window._calcSpecs.nombre && i.nombre.includes(window._calcSpecs.nombre)){
           var cs=window._calcSpecs;
           var lineasHtml=cs.lineas.map(function(l){
-            return '<div class="tkt-row"><span style="padding-left:6px;">'+l.nombre+'</span><span>$'+l.precio+'</span></div>';
+            return '<div style="font-size:11px;padding:2px 0 2px 8px;color:#333;">• '+l.nombre+'</div>';
           }).join('');
-          var descHtml=cs.descuento>0?'<div class="tkt-row" style="color:#A32D2D;font-size:11px;"><span>Descuento</span><span>-$'+cs.descuento+'</span></div>':'';
-          var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes];
+          var descHtml=cs.descuento>0?'<div style="font-size:11px;color:#A32D2D;padding:2px 0;">Descuento aplicado: -$'+cs.descuento+'</div>':'';
+          var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
           var specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
-          return '<div style="font-size:12px;font-weight:600;margin-bottom:2px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
+          return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
         }
         // Desde escuela guardada: usa i.detalle (campo s)
         if(i.detalle){
@@ -1215,8 +1232,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
                + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
         }
       }
-      if(i.tipo==='extra') return '<div class="tkt-row"><span>'+i.nombre+'</span><span style="font-size:10px;color:#888;">incluido</span></div>';
-      return '<div class="tkt-row"><span>'+i.nombre+'</span><span>$'+i.precio+'</span></div>';
+      if(i.tipo==='extra') return '<div style="font-size:11px;padding:2px 0;">• '+i.nombre+' <span style="color:#888;font-size:10px;">(incluido)</span></div>';
+      // Urgentes e impresiones: solo nombre sin precio
+      return '<div style="font-size:11px;padding:2px 0;">• '+i.nombre+'</div>';
     }).join('')}
     <hr class="tkt-div">
     <div class="tkt-row tkt-total">
@@ -1420,8 +1438,10 @@ function renderSeccion(id,mapa){
 }
 
 function renderReportes(){
-  const total=ventasFB.reduce((s,v)=>s+v.total,0);
-  const num=ventasFB.length;
+  // Excluir ventas canceladas de todos los contadores
+  const ventasActivas=ventasFB.filter(v=>!v.cancelado);
+  const total=ventasActivas.reduce((s,v)=>s+v.total,0);
+  const num=ventasActivas.length;
   const prom=num?Math.round(total/num):0;
   const labels={hoy:'Hoy',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año',dia:'Día específico',rango:'Rango de fechas',mes_cal:'Mes seleccionado'};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
@@ -1430,16 +1450,17 @@ function renderReportes(){
   set('rep-periodo',labels[periodoActual]||'—');
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
   const urg={},esc={},imp={};
-  const catN={infantil6:'Infantil 6f',infantil9:'Infantil 9f',infantil:'Infantil',cred4:'Credencial 4f',cred6:'Credencial 6f',credencial:'Credencial',cartilla:'Cartilla militar',digital:'Imagen digital',visa:'Visa',visaUSA:'Visa USA',otro:'Otro'};
-  ventasFB.forEach(v=>{
+  ventasActivas.forEach(v=>{
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
       const precio=item.precio||0;
-      const n=catN[tipo]||item.nombre||tipo;
+      // Usar nombre exacto del producto para desglose preciso
+      const n=item.nombre||tipo;
       const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
-      if(tipo==='escuela')add(esc,item.nombre||'Escuela');
-      else if(tipo==='impresion')add(imp,n);
-      else add(urg,n);
+      if(tipo==='escuela') add(esc,item.nombre||'Escuela');
+      else if(tipo==='impresion') add(imp,item.nombre||'Impresión');
+      else if(tipo==='extra') {} // extras no se cuentan en reportes
+      else add(urg,n); // nombre exacto: "6 Inf COLOR", "6 Inf BN", etc.
     });
   });
   renderSeccion('rep-urgentes',urg);
@@ -2564,15 +2585,24 @@ function cobrarCalculadora(){
 <!-- MODAL SERVICIO EXTRA -->
 <div class="modal-ov" id="m-extra"><div class="modal-box" style="width:300px;">
   <p class="modal-t"><i class="ti ti-plus"></i> Servicio extra</p>
-  <div class="frow">
-    <label>Concepto</label>
-    <input type="text" id="extra-concepto" placeholder="Ej: Edición de barba, Retoque...">
+  <p style="font-size:11px;color:#888;margin-bottom:12px;">El precio se suma al total pero no aparece en el ticket.</p>
+
+  <!-- Botón rápido barba -->
+  <div id="extra-barba-sec">
+    <p class="slabel" style="margin-bottom:6px;">Acceso rápido</p>
+    <button class="btn bgray" style="width:100%;padding:10px;font-size:13px;margin-bottom:12px;" onclick="selExtraBarba()">
+      <i class="ti ti-scissors"></i> Edición de barba
+    </button>
   </div>
-  <div class="frow">
-    <label>Precio ($)</label>
-    <input type="number" id="extra-precio" min="0" placeholder="0" style="font-size:16px;font-weight:600;">
+
+  <!-- Otro servicio -->
+  <p class="slabel" style="margin-bottom:6px;">Otro servicio</p>
+  <div class="frow" style="margin-bottom:6px;">
+    <input type="text" id="extra-concepto" placeholder="Concepto: Retoque, Edición especial...">
   </div>
-  <p style="font-size:10px;color:#888;margin-top:4px;">El precio se suma al total pero no aparece en el ticket del cliente.</p>
+  <div class="frow" style="margin-bottom:4px;">
+    <input type="number" id="extra-precio" min="0" placeholder="Precio ($)" style="font-size:15px;font-weight:600;">
+  </div>
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-extra')">Cancelar</button>
     <button class="btn bgreen" onclick="agregarExtra()"><i class="ti ti-shopping-cart"></i> Agregar</button>
