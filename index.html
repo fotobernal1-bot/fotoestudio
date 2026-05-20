@@ -721,11 +721,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
 <script>
 const CLAVE='8888';
-let carrito=[],ventas=[],totalDia=0,ultimaVenta=null;
-let cnt={infantil6:0,infantil9:0,infantil6bn:0,infantil9bn:0,cred4:0,cred6:0,cred4bn:0,cred6bn:0,cartilla:0,digital:0,visa:0,impresion:0,escuela:0};
-let turnoAbierto=false;
-// Origen: 'urgentes' u 'ordinarios' — se actualiza al navegar
-let origenActual='urgentes';
+let carrito=[],ventas=[],ultimaVenta=null;
 let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
 let categoriasDinamicas = []; // {id, nombre, productos:[]}
 
@@ -867,8 +863,6 @@ function showPage(id,el){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  if(id==='urgentes') origenActual='urgentes';
-  if(id==='ordinarios') origenActual='ordinarios';
   if(id==='reportes')setTimeout(cargarReportes,300);
 }
 function showT(id,el){
@@ -968,7 +962,6 @@ async function cobrar(){
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   const items=[...carrito];
   const metodo=metodoPagoActual||'efectivo';
-  items.forEach(c=>{if(cnt[c.tipo]!==undefined)cnt[c.tipo]++;});
 
   const tiposOrdinarios=['escuela','impresion'];
   const itemsU=items.filter(c=>!tiposOrdinarios.includes(c.tipo));
@@ -1006,7 +999,6 @@ async function cobrar(){
     tickets.push(ventaO);
   }
 
-  totalDia+=total;
   ultimaVenta=tickets;
   carrito=[];document.getElementById('pago').value='';
   // Resetear método de pago a efectivo
@@ -1109,7 +1101,7 @@ function limpiarTodasVentas(){
   if(clave!==CLAVE){alert('Clave incorrecta');return;}
   if(!confirm('¿Eliminar TODAS las ventas de Firebase y localStorage? Esta acción no se puede deshacer.'))return;
   // Limpiar localStorage
-  ventas=[];totalDia=0;
+  ventas=[];
   guardarLocal();
   // Limpiar Firebase
   if(db){
@@ -1688,7 +1680,6 @@ function setDriveStatus(ok, txt){
   tx.textContent = txt;
 }
 
-function iniciarSesionDrive(){ iniciarFirebase(); }
 
 function iniciarFirebase(){
   if(!DOC_REF){ setDriveStatus(false,'Firebase no disponible'); return; }
