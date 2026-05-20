@@ -501,9 +501,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <span id="drive-status-txt">Toca para sincronizar</span>
     </div>
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
-    <div class="nav" onclick="showPage('escuelas',this)"><i class="ti ti-school"></i> Paquetes escolares</div>
-    <div class="nav" onclick="showPage('impresiones',this)"><i class="ti ti-printer"></i> Impresiones</div>
-    <div id="nav-rep" class="nav"  onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
+    <div class="nav" onclick="showPage('ordinarios',this)"><i class="ti ti-clock"></i> Ordinarios</div>
+    <div id="nav-rep" class="nav" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
 
   <div class="main">
@@ -548,21 +547,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div id="cats-dinamicas"></div>
     </div>
 
-    <!-- ESCUELAS -->
-    <div id="page-escuelas" class="page">
-      <div class="hrow"><div><p class="ptitle">Paquetes escolares</p><p class="psub" style="margin:0;">Toca la imagen para ver especificaciones</p></div><button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button></div>
-      <div style="position:relative;margin-bottom:12px;">
-        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
-        <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+    <!-- ORDINARIOS -->
+    <div id="page-ordinarios" class="page">
+      <p class="ptitle">Ordinarios</p>
+      <p class="psub">Paquetes escolares e impresiones fotográficas</p>
+      <div class="tabs" id="ordinarios-tabs" style="margin-bottom:14px;">
+        <div class="tab active" onclick="showT('ord-escuelas',this)"><i class="ti ti-school" style="font-size:13px;"></i> Paquetes escolares</div>
+        <div class="tab" onclick="showT('ord-impresiones',this)"><i class="ti ti-printer" style="font-size:13px;"></i> Impresiones</div>
       </div>
-      <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
-      <div class="esc-grid" id="esc-grid"></div>
-    </div>
 
-    <!-- IMPRESIONES -->
-    <div id="page-impresiones" class="page">
-      <div class="hrow"><div><p class="ptitle">Impresiones</p><p class="psub" style="margin:0;">Precio editable con el lápiz en cada tarjeta</p></div><button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar tamaño</button></div>
-      <div class="imp-grid" id="imp-grid"></div>
+      <!-- PESTAÑA: Paquetes Escolares -->
+      <div id="t-ord-escuelas" class="tsec active">
+        <div class="hrow">
+          <p class="psub" style="margin:0;">Toca la imagen para ver especificaciones</p>
+          <button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button>
+        </div>
+        <div style="position:relative;margin-bottom:12px;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+          <input type="text" id="esc-buscar" placeholder="Buscar escuela..." oninput="filtrarEscuelas()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+        </div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px;" id="esc-contador"></div>
+        <div class="esc-grid" id="esc-grid"></div>
+      </div>
+
+      <!-- PESTAÑA: Impresiones -->
+      <div id="t-ord-impresiones" class="tsec">
+        <div class="hrow">
+          <p class="psub" style="margin:0;">Precio editable con el lápiz en cada tarjeta</p>
+          <button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar tamaño</button>
+        </div>
+        <div class="imp-grid" id="imp-grid"></div>
+      </div>
     </div>
 
     <!-- REPORTES -->
@@ -1059,9 +1074,10 @@ function rendEsc(){
 }
 
 function renderEscGrid(lista){
+  const grid=document.getElementById('esc-grid');
+  if(!grid)return;
   if(!lista.length){
-    grid.innerHTML = '';
-    grid.insertAdjacentHTML('beforeend','<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">No se encontraron escuelas</div>');
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">No se encontraron escuelas</div>';
     const ac2=document.createElement('div');ac2.className='add-card';ac2.onclick=function(){openM('m-esc');};ac2.innerHTML='<i class="ti ti-plus"></i><span>Agregar escuela</span>';grid.appendChild(ac2);
     return;
   }
