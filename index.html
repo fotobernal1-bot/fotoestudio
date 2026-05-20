@@ -661,7 +661,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgray" id="mp-transferencia" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('transferencia')"><i class="ti ti-transfer"></i> Transfer</button>
         <button class="btn bgray" id="mp-tarjeta" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('tarjeta')"><i class="ti ti-credit-card"></i> Tarjeta</button>
       </div>
-      <button class="bcobrar" id="btn-cobrar" onclick="cobrar()" disabled><i class="ti ti-check"></i> Cobrar</button>
+      <button class="bcobrar" id="btn-cobrar" onclick="iniciarCobro()" disabled><i class="ti ti-check"></i> Cobrar</button>
       <button class="blimpiar" onclick="limpiar()"><i class="ti ti-trash"></i> Limpiar carrito</button>
     </div>
   </div>
@@ -978,6 +978,102 @@ async function generarFolioImp(now){
   }
 }
 
+
+// Variable global para fecha de entrega
+let fechaEntregaSeleccionada = '';
+
+function iniciarCobro(){
+  // Si hay ordinarios en el carrito, pedir fecha de entrega primero
+  const tiposOrdinarios=['escuela','impresion'];
+  const hayOrdinarios=carrito.some(c=>tiposOrdinarios.includes(c.tipo));
+  if(hayOrdinarios){
+    abrirModalEntrega();
+  } else {
+    cobrar();
+  }
+}
+
+function abrirModalEntrega(){
+  fechaEntregaSeleccionada='';
+  // Calcular fechas reales
+  const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES_NOMBRE=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const hoy=new Date();
+  const manana=new Date(hoy);manana.setDate(hoy.getDate()+1);
+  const fmtFecha=function(d){
+    return DIAS[d.getDay()]+' '+d.getDate()+' '+MESES_NOMBRE[d.getMonth()]+' '+d.getFullYear();
+  };
+  document.getElementById('ent-btn-hoy').textContent='Hoy — '+fmtFecha(hoy);
+  document.getElementById('ent-btn-hoy').dataset.fecha=fmtFecha(hoy);
+  document.getElementById('ent-btn-manana').textContent='Mañana — '+fmtFecha(manana);
+  document.getElementById('ent-btn-manana').dataset.fecha=fmtFecha(manana);
+  // Reset botones
+  document.getElementById('ent-btn-hoy').className='btn bgray';
+  document.getElementById('ent-btn-manana').className='btn bgray';
+  document.getElementById('ent-btn-1pm').className='btn bgray';
+  document.getElementById('ent-btn-otra').className='btn bgray';
+  document.getElementById('ent-hora-txt').style.display='none';
+  document.getElementById('ent-hora-txt').value='';
+  document.getElementById('ent-dia-sel').value='';
+  document.getElementById('ent-hora-sel').value='';
+  document.getElementById('btn-confirmar-entrega').disabled=true;
+  openM('m-entrega');
+}
+
+function selDiaEntrega(btn){
+  document.getElementById('ent-btn-hoy').className='btn bgray';
+  document.getElementById('ent-btn-manana').className='btn bgray';
+  btn.className='btn bgreen';
+  document.getElementById('ent-dia-sel').value=btn.dataset.fecha;
+  validarEntrega();
+}
+
+function selHoraEntrega(val, btnId){
+  document.getElementById('ent-btn-1pm').className='btn bgray';
+  document.getElementById('ent-btn-otra').className='btn bgray';
+  document.getElementById(btnId).className='btn bgreen';
+  if(val==='otra'){
+    document.getElementById('ent-hora-txt').style.display='block';
+    document.getElementById('ent-hora-sel').value='';
+  } else {
+    document.getElementById('ent-hora-txt').style.display='none';
+    document.getElementById('ent-hora-txt').value='';
+    document.getElementById('ent-hora-sel').value=val;
+  }
+  validarEntrega();
+}
+
+function syncHoraLibre(){
+  var val=document.getElementById('ent-hora-txt').value.trim();
+  document.getElementById('ent-hora-sel').value=val;
+  validarEntrega();
+}
+
+function validarEntrega(){
+  var dia=document.getElementById('ent-dia-sel').value;
+  var hora=document.getElementById('ent-hora-sel').value.trim();
+  var ok=dia!==''&&hora!=='';
+  document.getElementById('btn-confirmar-entrega').disabled=!ok;
+  var prev=document.getElementById('ent-preview');
+  if(ok){
+    fechaEntregaSeleccionada=dia+' a las '+hora;
+    prev.textContent='📅 '+fechaEntregaSeleccionada;
+    prev.style.fontWeight='600';
+  } else {
+    prev.textContent='Selecciona día y hora';
+    prev.style.fontWeight='400';
+  }
+}
+
+function confirmarEntrega(){
+  var dia=document.getElementById('ent-dia-sel').value;
+  var hora=document.getElementById('ent-hora-sel').value.trim();
+  if(!dia||!hora){alert('Selecciona día y hora de entrega');return;}
+  fechaEntregaSeleccionada=dia+' a las '+hora;
+  closeM('m-entrega');
+  cobrar();
+}
+
 async function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
@@ -1018,7 +1114,7 @@ async function cobrar(){
     const folio=await generarFolioEsc(now);
     const totalEsc=itemsEsc.reduce((s,c)=>s+c.precio,0);
     const ventaEsc={
-      folio,origen:'escuelas',metodoPago:metodo,cancelado:false,
+      folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
       items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
@@ -1033,7 +1129,7 @@ async function cobrar(){
     const folio=await generarFolioImp(now);
     const totalImp=itemsImp.reduce((s,c)=>s+c.precio,0);
     const ventaImp={
-      folio,origen:'impresiones',metodoPago:metodo,cancelado:false,
+      folio,origen:'impresiones',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
       items:itemsImp.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,copias:c.copias||1,descripcion:c.descripcion||''})),
@@ -1104,6 +1200,7 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
     <div class="tkt-row" style="margin-top:2px;">
       <span style="color:#888;">Método</span><span style="text-transform:capitalize;">${v.metodoPago||'efectivo'}</span>
     </div>`:''}
+    ${v.fechaEntrega?`<div style="background:#E1F5EE;border-radius:6px;padding:6px 8px;margin-top:6px;text-align:center;font-size:11px;color:#085041;font-weight:600;">📅 Entrega: ${v.fechaEntrega}</div>`:''}
     <div class="tkt-ftr">Gracias por su preferencia</div>
     <br>`;
   });
@@ -2359,6 +2456,35 @@ function cobrarCalculadora(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-imp-modal')">Cancelar</button>
     <button class="btn bgreen" onclick="agregarImpCarrito()"><i class="ti ti-shopping-cart"></i> Agregar</button>
+  </div>
+</div></div>
+
+<!-- MODAL FECHA DE ENTREGA -->
+<div class="modal-ov" id="m-entrega"><div class="modal-box" style="width:320px;">
+  <p class="modal-t"><i class="ti ti-calendar-event"></i> ¿Cuándo se entrega?</p>
+  <input type="hidden" id="ent-dia-sel">
+  <input type="hidden" id="ent-hora-sel">
+
+  <p class="slabel" style="margin-bottom:8px;">Día de entrega</p>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+    <button id="ent-btn-hoy" class="btn bgray" style="font-size:12px;padding:8px;text-align:left;" onclick="selDiaEntrega(this)" data-fecha="">Hoy</button>
+    <button id="ent-btn-manana" class="btn bgray" style="font-size:12px;padding:8px;text-align:left;" onclick="selDiaEntrega(this)" data-fecha="">Mañana</button>
+  </div>
+
+  <p class="slabel" style="margin-bottom:8px;">Hora de entrega</p>
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <button id="ent-btn-1pm" class="btn bgray" style="font-size:12px;padding:8px 14px;" onclick="selHoraEntrega('1:00 pm','ent-btn-1pm')">1:00 pm</button>
+    <button id="ent-btn-otra" class="btn bgray" style="font-size:12px;padding:8px 14px;" onclick="selHoraEntrega('otra','ent-btn-otra')">Otra hora</button>
+  </div>
+  <input type="text" id="ent-hora-txt" placeholder="Ej: 3:30 pm, 11:00 am..." style="display:none;font-size:13px;margin-bottom:8px;" oninput="syncHoraLibre()">
+
+  <div style="background:#E1F5EE;border-radius:8px;padding:8px 12px;margin:10px 0;font-size:12px;color:#085041;min-height:32px;" id="ent-preview">
+    Selecciona día y hora
+  </div>
+
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-entrega')">Cancelar</button>
+    <button class="btn bgreen" id="btn-confirmar-entrega" onclick="confirmarEntrega()" disabled><i class="ti ti-check"></i> Confirmar y cobrar</button>
   </div>
 </div></div>
 </body>
