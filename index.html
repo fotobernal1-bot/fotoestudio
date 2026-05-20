@@ -1077,11 +1077,19 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
       <span style="background:${color};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">${etiqueta}</span>
     </div>
     <hr class="tkt-div">
-    ${(v.items||[]).map(i=>`
-    <div class="tkt-row">
-      <span>${i.nombre}</span>
-      <span>$${i.precio}</span>
-    </div>`).join('')}
+    ${(v.items||[]).map(i=>{
+      if(i.tipo==='escuela' && window._calcSpecs && window._calcSpecs.nombre && i.nombre.includes(window._calcSpecs.nombre)){
+        var cs=window._calcSpecs;
+        var lineasHtml=cs.lineas.map(function(l){
+          return '<div class="tkt-row"><span style="padding-left:6px;">'+l.nombre+'</span><span>$'+l.precio+'</span></div>';
+        }).join('');
+        var descHtml=cs.descuento>0?'<div class="tkt-row" style="color:#A32D2D;font-size:11px;"><span>Descuento</span><span>-$'+cs.descuento+'</span></div>':'';
+        var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes];
+        var specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
+        return '<div style="font-size:12px;font-weight:600;margin-bottom:2px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
+      }
+      return '<div class="tkt-row"><span>'+i.nombre+'</span><span>$'+i.precio+'</span></div>';
+    }).join('')}
     <hr class="tkt-div">
     <div class="tkt-row tkt-total">
       <span>TOTAL</span><span style="color:${color};">$${v.total}</span>
@@ -1945,7 +1953,7 @@ function abrirCalculadora(){
   });
   // Reset contadores en pantalla
   ['infantil','diploma','titulo','digital'].forEach(k=>{
-    document.getElementById('cant-'+k).textContent='0';
+    document.getElementById('cant-'+k).value='0';
     document.getElementById('sub-'+k).textContent='';
     // Activar color por defecto
     document.getElementById('opt-'+k+'-color').className='btn bgreen';
@@ -1982,12 +1990,21 @@ function abrirCalculadora(){
 }
 
 function ajCant(grupo, delta){
-  var s=calcState[grupo];
-  s.cant=Math.max(0, s.cant+delta);
-  document.getElementById('cant-'+grupo).textContent=s.cant;
+  var el=document.getElementById('cant-'+grupo);
+  var val=Math.max(0,(parseInt(el.value)||0)+delta);
+  el.value=val;
+  syncCant(grupo);
+}
+
+function syncCant(grupo){
+  var el=document.getElementById('cant-'+grupo);
+  var val=Math.max(0,parseInt(el.value)||0);
+  el.value=val;
+  calcState[grupo].cant=val;
   var cfg=CALC_CFG[grupo];
+  var s=calcState[grupo];
   var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
-  var paq=s.cant>0?Math.ceil(s.cant/cfg.xPaq):0;
+  var paq=val>0?Math.ceil(val/cfg.xPaq):0;
   document.getElementById('sub-'+grupo).textContent=paq>0?'$'+(paq*precio):'';
   calcTotal();
 }
@@ -2010,6 +2027,30 @@ function setAdh(grupo, val){
   var paq=s.cant>0?Math.ceil(s.cant/cfg.xPaq):0;
   document.getElementById('sub-'+grupo).textContent=paq>0?'$'+(paq*precio):'';
   calcTotal();
+}
+
+function selSpec(tipo, valor){
+  calcSpecs[tipo]=valor;
+  var mapa={
+    fondo:      [{id:'calc-fondo-blanco',v:'Blanco'},{id:'calc-fondo-libre',v:''}],
+    vestimenta: [{id:'calc-vest-clara',v:'Clara'},{id:'calc-vest-oscura',v:'Oscura'},{id:'calc-vest-libre',v:''}],
+    cabello:    [{id:'calc-cab-recogido',v:'Recogido'},{id:'calc-cab-libre',v:'Libre'}],
+    aretes:     [{id:'calc-ar-si',v:'Permitidos'},{id:'calc-ar-no',v:'No permitidos'}],
+  };
+  mapa[tipo].forEach(function(b){
+    var el=document.getElementById(b.id);
+    if(el){el.className=b.v===valor?'btn bgreen':'btn bgray';el.style.fontSize='11px';el.style.padding='5px 10px';}
+  });
+  if(tipo==='fondo'){
+    var txt=document.getElementById('calc-fondo-txt');
+    txt.style.display=valor===''?'block':'none';
+    if(valor!=='')txt.value='';
+  }
+  if(tipo==='vestimenta'){
+    var txt=document.getElementById('calc-vest-txt');
+    txt.style.display=valor===''?'block':'none';
+    if(valor!=='')txt.value='';
+  }
 }
 
 function calcTotal(){
@@ -2039,6 +2080,9 @@ function cobrarCalculadora(){
   var lineas=[];
   Object.keys(calcState).forEach(function(k){
     var s=calcState[k];
+    // Sync desde input por si acaso
+    var inputEl=document.getElementById('cant-'+k);
+    if(inputEl) s.cant=Math.max(0,parseInt(inputEl.value)||0);
     var cfg=CALC_CFG[k];
     if(s.cant>0){
       var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
@@ -2046,10 +2090,9 @@ function cobrarCalculadora(){
       var colorTxt=s.color==='bn'?'B/N':'Color';
       var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
       var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
-      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt;
+      var linea=cfg.nombre+' '+colorTxt+adhTxt;
       if(especTxt) linea+=' ('+especTxt+')';
-      linea+=' ('+paq+' paq × $'+precio+')';
-      lineas.push(linea);
+      lineas.push({nombre:linea, precio:paq*precio});
     }
   });
   if(!lineas.length){alert('Agrega al menos un producto');return;}
@@ -2064,7 +2107,7 @@ function cobrarCalculadora(){
   var aretes=calcSpecs.aretes||'No especificado';
   var notas=document.getElementById('calc-notas').value.trim();
   var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
-  var descripcionCompleta=lineas.join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
+  var descripcionCompleta=lineas.map(function(l){return l.nombre+' $'+l.precio;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
   var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
   if(guardar){
     var docId='e_'+Date.now();
@@ -2079,7 +2122,7 @@ function cobrarCalculadora(){
     }
   }
   add('Paquete '+nombre, total, 'escuela');
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total};
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes};
   closeM('m-calc');
 }
 </script>
@@ -2135,7 +2178,7 @@ function cobrarCalculadora(){
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="ajCant('infantil',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cant-infantil" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <input id="cant-infantil" type="number" min="0" value="0" oninput="syncCant('infantil')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
         <button onclick="ajCant('infantil',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
       </div>
     </div>
@@ -2157,7 +2200,7 @@ function cobrarCalculadora(){
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="ajCant('diploma',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cant-diploma" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <input id="cant-diploma" type="number" min="0" value="0" oninput="syncCant('diploma')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
         <button onclick="ajCant('diploma',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
       </div>
     </div>
@@ -2179,7 +2222,7 @@ function cobrarCalculadora(){
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="ajCant('titulo',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cant-titulo" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <input id="cant-titulo" type="number" min="0" value="0" oninput="syncCant('titulo')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
         <button onclick="ajCant('titulo',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
       </div>
     </div>
@@ -2201,7 +2244,7 @@ function cobrarCalculadora(){
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="ajCant('digital',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cant-digital" style="font-size:15px;font-weight:700;min-width:24px;text-align:center;">0</span>
+        <input id="cant-digital" type="number" min="0" value="0" oninput="syncCant('digital')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
         <button onclick="ajCant('digital',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
       </div>
     </div>
