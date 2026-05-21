@@ -918,7 +918,7 @@ function addEscuela(i){
   var e=escuelas[i];
   if(!e)return;
   var precio=parseInt((e.p||'$0').replace('$',''))||0;
-  carrito.push({nombre:'Paquete '+e.n, precio:precio, tipo:'escuela', detalle:e.s||''});
+  carrito.push({nombre:'Paquete '+e.n, precio:precio, tipo:'escuela', detalle:e.s||'', personas:[].concat(escuelaPersonas||[])});
   renderCarrito();
 }
 
@@ -1290,11 +1290,22 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
           }
           return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
         }
-        // Desde escuela guardada: usa i.detalle (campo s)
+        // Desde escuela guardada: usa i.detalle (campo s) + personas del carrito
         if(i.detalle){
           var partes=i.detalle.split(' | ');
           var detalleHtml=partes.map(function(p){return '<div style="font-size:10px;color:#555;padding:1px 0;">'+p+'</div>';}).join('');
+          var personasHtml='';
+          if(i.personas&&i.personas.length>0){
+            if(i.personas.length===1){
+              personasHtml='<div style="font-size:10px;color:#333;font-weight:600;margin-top:3px;">Persona: '+i.personas[0]+'</div>';
+            } else {
+              var hc=i.personas.filter(function(s){return s==='H';}).length;
+              var mc=i.personas.filter(function(s){return s==='M';}).length;
+              personasHtml='<div style="font-size:10px;color:#333;font-weight:600;margin-top:3px;">Personas: '+(hc?hc+'H ':'')+( mc?mc+'M':'')+'</div>';
+            }
+          }
           return '<div style="font-size:12px;font-weight:600;margin-bottom:3px;">'+i.nombre+'</div>'
+               + personasHtml
                + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
         }
       }
@@ -2498,7 +2509,7 @@ function cobrarCalculadora(){
       var colorTxt=s.color==='bn'?'B/N':'Color';
       var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
       var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
-      var linea=cfg.nombre+' '+colorTxt+adhTxt;
+      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt;
       if(especTxt) linea+=' ('+especTxt+')';
       lineas.push({nombre:linea, precio:paq*precio});
     }
