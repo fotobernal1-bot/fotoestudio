@@ -502,6 +502,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     </div>
     <div class="nav active" onclick="showPage('urgentes',this)"><i class="ti ti-bolt"></i> Urgentes</div>
     <div class="nav" onclick="showPage('ordinarios',this)"><i class="ti ti-clock"></i> Ordinarios</div>
+    <div class="nav" onclick="showPage('produccion',this)"><i class="ti ti-list-check"></i> Producción</div>
     <div id="nav-rep" class="nav" style="display:none;" onclick="showPage('reportes',this)"><i class="ti ti-chart-bar"></i> Reportes</div>
   </div>
 
@@ -582,6 +583,39 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <button class="btn bgreen" onclick="openM('m-imp')"><i class="ti ti-plus"></i> Agregar tamaño</button>
         </div>
         <div class="imp-grid" id="imp-grid"></div>
+      </div>
+    </div>
+
+
+    <!-- PRODUCCIÓN -->
+    <div id="page-produccion" class="page">
+      <div class="hrow">
+        <div><p class="ptitle">Producción</p><p class="psub" style="margin:0;">Órdenes ordinarias del día</p></div>
+      </div>
+
+      <!-- Buscador -->
+      <div style="position:relative;margin-bottom:14px;">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+        <input type="text" id="prod-buscar" placeholder="Buscar por folio, escuela o fecha..." oninput="buscarOrden()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+      </div>
+
+      <!-- Tabla -->
+      <div style="overflow-x:auto;">
+        <table id="prod-tabla" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#f7f7f5;border-bottom:2px solid #e0e0e0;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#666;font-weight:600;min-width:220px;">INFORMACIÓN</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">PROCESO</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">IMPRESIÓN</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">ACABADO</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">ENTREGA</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="prod-body">
+            <tr><td colspan="6" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -873,6 +907,7 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
   if(id==='reportes')setTimeout(cargarReportes,300);
+  if(id==='produccion')setTimeout(cargarProduccion,300);
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -1164,6 +1199,7 @@ async function cobrar(){
     if(db) db.collection('ventas').doc(folio).set(ventaEsc).catch(e=>console.error(e));
     ventas.push({f:folio,desc:itemsEsc.map(c=>c.nombre).join(', '),total:totalEsc});
     tickets.push(ventaEsc);
+    crearOrdenProduccion(folio,'escuelas',itemsEsc,fechaEntregaSeleccionada||'');
   }
   // Impresiones — folio IMP
   if(hayImp){
@@ -1179,6 +1215,7 @@ async function cobrar(){
     if(db) db.collection('ventas').doc(folio).set(ventaImp).catch(e=>console.error(e));
     ventas.push({f:folio,desc:itemsImp.map(c=>c.nombre).join(', '),total:totalImp});
     tickets.push(ventaImp);
+    crearOrdenProduccion(folio,'impresiones',itemsImp,fechaEntregaSeleccionada||'');
   }
 
   ultimaVenta=tickets;
@@ -2287,6 +2324,143 @@ function cobrarCalculadora(){
   window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes,barba:barba};
   closeM('m-calc');
 }
+// ── SISTEMA DE PRODUCCIÓN ────────────────────────────────
+let ordenesProduccion = [];
+
+function crearOrdenProduccion(folio, origen, items, fechaEntrega){
+  if(!db) return;
+  var info = '';
+  if(origen === 'escuelas'){
+    var esc = items[0];
+    info = esc ? (esc.detalle || esc.nombre || folio) : folio;
+  } else if(origen === 'impresiones'){
+    info = items.map(function(i){ return i.nombre; }).join(', ');
+  }
+  var orden = {
+    folio: folio,
+    origen: origen,
+    info: info,
+    fechaEntrega: fechaEntrega || '',
+    timestamp: new Date().toISOString(),
+    fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
+    archivada: false,
+    proceso:    {hecho:false, quien:'', hora:''},
+    impresion:  {hecho:false, quien:'', hora:''},
+    acabado:    {hecho:false, quien:'', hora:''},
+    entrega:    {hecho:false, quien:'', hora:''},
+  };
+  db.collection('produccion').doc(folio).set(orden)
+    .then(function(){ cargarProduccion(); })
+    .catch(function(e){ console.error('Error crear orden:', e); });
+}
+
+function cargarProduccion(){
+  if(!db) return;
+  var busq = document.getElementById('prod-buscar');
+  var query = busq ? busq.value.trim().toLowerCase() : '';
+  db.collection('produccion').where('archivada','==',false).get()
+    .then(function(snap){
+      var arr = [];
+      snap.forEach(function(d){ arr.push(d.data()); });
+      // Más antigua arriba
+      arr.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
+      ordenesProduccion = arr;
+      renderProduccion(query ? arr.filter(function(o){
+        return o.folio.toLowerCase().includes(query) ||
+               o.info.toLowerCase().includes(query) ||
+               o.fecha.includes(query);
+      }) : arr);
+    })
+    .catch(function(e){ console.error('Error cargar produccion:', e); });
+}
+
+function renderProduccion(lista){
+  var tbody = document.getElementById('prod-body');
+  if(!tbody) return;
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(o){
+    var pasos = ['proceso','impresion','acabado','entrega'];
+    var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado',entrega:'Entrega'};
+    var todosHechos = pasos.every(function(p){ return o[p].hecho; });
+    var celdas = pasos.map(function(p){
+      var paso = o[p];
+      if(paso.hecho){
+        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
+          + '<div style="color:#1D9E75;font-size:16px;">✅</div>'
+          + '<div style="font-size:10px;color:#1D9E75;font-weight:600;">'+paso.quien+'</div>'
+          + '<div style="font-size:9px;color:#aaa;">'+paso.hora+'</div>'
+          + '</td>';
+      } else {
+        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
+          + '<button onclick="marcarPaso(\x27'+o.folio+'\x27,\x27'+p+'\x27)" '
+          + 'style="width:32px;height:32px;border:2px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;color:#ccc;">○</button>'
+          + '</td>';
+      }
+    }).join('');
+    var archivarBtn = todosHechos
+      ? '<td style="text-align:center;padding:8px;"><button onclick="archivarOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
+      : '<td></td>';
+    var origenColor = o.origen==='escuelas' ? '#0C447C' : '#555';
+    var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;">📅 '+o.fechaEntrega+'</div>' : '';
+    return '<tr style="border-bottom:1px solid #f0f0f0;">'
+      + '<td style="padding:10px 12px;vertical-align:top;">'
+      + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
+      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:220px;">'+o.info+'</div>'
+      + fechaEnt
+      + '<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+'</div>'
+      + '</td>'
+      + celdas
+      + archivarBtn
+      + '</tr>';
+  }).join('');
+}
+
+function marcarPaso(folio, paso){
+  var quien = prompt('¿Quién autoriza este paso?');
+  if(!quien || !quien.trim()) return;
+  var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  if(!db) return;
+  var update = {};
+  update[paso] = {hecho:true, quien:quien.trim(), hora:hora};
+  db.collection('produccion').doc(folio).update(update)
+    .then(function(){ cargarProduccion(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+function archivarOrden(folio){
+  if(!confirm('¿Archivar la orden '+folio+'? Ya no aparecerá en el tablero.')) return;
+  if(!db) return;
+  db.collection('produccion').doc(folio).update({archivada:true})
+    .then(function(){ cargarProduccion(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+function buscarOrden(){
+  var query = document.getElementById('prod-buscar').value.trim().toLowerCase();
+  if(!query){
+    renderProduccion(ordenesProduccion);
+    return;
+  }
+  // Buscar también en archivadas
+  if(!db) return;
+  db.collection('produccion').get()
+    .then(function(snap){
+      var arr = [];
+      snap.forEach(function(d){ arr.push(d.data()); });
+      var filtradas = arr.filter(function(o){
+        return o.folio.toLowerCase().includes(query) ||
+               (o.info||'').toLowerCase().includes(query) ||
+               (o.fecha||'').includes(query);
+      });
+      filtradas.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
+      renderProduccion(filtradas);
+    });
+}
+
+
 </script>
 <div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
   <div class="frow"><label>Nombre / tamaño</label><input type="text" id="ei-nombre" placeholder="ej: 6x8"></div>
