@@ -2136,11 +2136,11 @@ window.addEventListener('load',function(){
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
 let calcState = {
-  infantil:   {cant:0, color:'color', adherible:false},
-  credencial: {cant:0, color:'color', adherible:false},
-  diploma:    {cant:0, color:'color', adherible:false},
-  titulo:     {cant:0, color:'color', adherible:false},
-  digital:    {cant:0, color:'color', espec:'', vestimenta:''},
+  infantil:   {cant:0, color:'bn', adherible:false},
+  credencial: {cant:0, color:'bn', adherible:false},
+  diploma:    {cant:0, color:'bn', adherible:false},
+  titulo:     {cant:0, color:'bn', adherible:false},
+  digital:    {cant:0, color:'bn', espec:'', vestimenta:''},
 };
 const CALC_CFG = {
   infantil:   {nombre:'Infantil',   xPaq:8, precioBase:80,  precioAdh:100, tieneAdh:true},
@@ -2149,7 +2149,7 @@ const CALC_CFG = {
   titulo:     {nombre:'Título',     xPaq:3, precioBase:150, precioAdh:200, tieneAdh:true},
   digital:    {nombre:'Digital',    xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false},
 };
-let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:'',barba:''};
+let calcSpecs={fondo:'',vestimenta_h:'',vestimenta_m:'',cabello:'',aretes:'',barba:'',dig_vest_h:'',dig_vest_m:''};
 
 function abrirCalculadora(){
   escuelaActual = null;
@@ -2185,7 +2185,7 @@ function abrirCalculadora(){
   document.getElementById('calc-barba-si').className='btn bgray';document.getElementById('calc-barba-si').style.cssText='font-size:11px;padding:5px 10px;';
   document.getElementById('calc-barba-no').className='btn bgray';document.getElementById('calc-barba-no').style.cssText='font-size:11px;padding:5px 10px;';
   // Reset specs
-  calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:'',barba:''};
+  calcSpecs={fondo:'',vestimenta_h:'',vestimenta_m:'',cabello:'',aretes:'',barba:'',dig_vest_h:'',dig_vest_m:''};
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
   document.getElementById('calc-desc-pct').value='';
@@ -2193,9 +2193,13 @@ function abrirCalculadora(){
   document.getElementById('calc-fondo-txt').style.display='none';
   document.getElementById('calc-vest-txt').style.display='none';
   ['calc-fondo-blanco','calc-fondo-libre',
-   'calc-vest-clara','calc-vest-oscura','calc-vest-libre',
-   'calc-cab-recogido','calc-cab-libre',
-   'calc-ar-si','calc-ar-no'].forEach(function(id){
+   'calc-vest-h-saco-c','calc-vest-h-saco-o','calc-vest-h-camisa','calc-vest-h-libre',
+   'calc-vest-m-saco-c','calc-vest-m-saco-o','calc-vest-m-camisa','calc-vest-m-libre',
+   'calc-dig-vest-h-saco-c','calc-dig-vest-h-saco-o','calc-dig-vest-h-camisa','calc-dig-vest-h-libre',
+   'calc-dig-vest-m-saco-c','calc-dig-vest-m-saco-o','calc-dig-vest-m-camisa','calc-dig-vest-m-libre',
+   'calc-cab-recogido','calc-cab-orejas','calc-cab-libre',
+   'calc-ar-no','calc-ar-sin-rec','calc-ar-si',
+   'calc-barba-si','calc-barba-no'].forEach(function(id){
     var b=document.getElementById(id);
     if(b){b.className='btn bgray';b.style.fontSize='11px';b.style.padding='5px 10px';}
   });
@@ -2247,10 +2251,13 @@ function selSpec(tipo, valor){
   calcSpecs[tipo]=valor;
   var mapa={
     fondo:      [{id:'calc-fondo-blanco',v:'Blanco'},{id:'calc-fondo-libre',v:''}],
-    vestimenta: [{id:'calc-vest-clara',v:'Clara'},{id:'calc-vest-oscura',v:'Oscura'},{id:'calc-vest-libre',v:''}],
-    cabello:    [{id:'calc-cab-recogido',v:'Recogido'},{id:'calc-cab-libre',v:'Libre'}],
-    aretes:     [{id:'calc-ar-si',v:'Permitidos'},{id:'calc-ar-no',v:'No permitidos'}],
-    barba:      [{id:'calc-barba-si',v:'Sí'},{id:'calc-barba-no',v:'No'}],
+    vestimenta_h:[{id:'calc-vest-h-saco-c',v:'Saco claro'},{id:'calc-vest-h-saco-o',v:'Saco oscuro'},{id:'calc-vest-h-camisa',v:'Camisa blanca'},{id:'calc-vest-h-libre',v:''}],
+    vestimenta_m:[{id:'calc-vest-m-saco-c',v:'Saco claro'},{id:'calc-vest-m-saco-o',v:'Saco oscuro'},{id:'calc-vest-m-camisa',v:'Camisa blanca'},{id:'calc-vest-m-libre',v:''}],
+    dig_vest_h: [{id:'calc-dig-vest-h-saco-c',v:'Saco claro'},{id:'calc-dig-vest-h-saco-o',v:'Saco oscuro'},{id:'calc-dig-vest-h-camisa',v:'Camisa blanca'},{id:'calc-dig-vest-h-libre',v:''}],
+    dig_vest_m: [{id:'calc-dig-vest-m-saco-c',v:'Saco claro'},{id:'calc-dig-vest-m-saco-o',v:'Saco oscuro'},{id:'calc-dig-vest-m-camisa',v:'Camisa blanca'},{id:'calc-dig-vest-m-libre',v:''}],
+    cabello:    [{id:'calc-cab-recogido',v:'Recogido'},{id:'calc-cab-orejas',v:'Orejas descubiertas'},{id:'calc-cab-libre',v:'Libre'}],
+    aretes:     [{id:'calc-ar-no',v:'No permitidos'},{id:'calc-ar-sin-rec',v:'Sin recomendacion'},{id:'calc-ar-si',v:'Permitidos'}],
+    barba:      [{id:'calc-barba-si',v:'Si'},{id:'calc-barba-no',v:'No'}],
   };
   mapa[tipo].forEach(function(b){
     var el=document.getElementById(b.id);
@@ -2261,10 +2268,21 @@ function selSpec(tipo, valor){
     txt.style.display=valor===''?'block':'none';
     if(valor!=='')txt.value='';
   }
-  if(tipo==='vestimenta'){
-    var txt=document.getElementById('calc-vest-txt');
-    txt.style.display=valor===''?'block':'none';
-    if(valor!=='')txt.value='';
+  if(tipo==='vestimenta_h'){
+    var th=document.getElementById('calc-vest-h-txt');
+    if(th){th.style.display=valor===''?'block':'none';if(valor!=='')th.value='';}
+  }
+  if(tipo==='vestimenta_m'){
+    var tm=document.getElementById('calc-vest-m-txt');
+    if(tm){tm.style.display=valor===''?'block':'none';if(valor!=='')tm.value='';}
+  }
+  if(tipo==='dig_vest_h'){
+    var dh=document.getElementById('calc-dig-vest-h-txt');
+    if(dh){dh.style.display=valor===''?'block':'none';if(valor!=='')dh.value='';}
+  }
+  if(tipo==='dig_vest_m'){
+    var dm=document.getElementById('calc-dig-vest-m-txt');
+    if(dm){dm.style.display=valor===''?'block':'none';if(valor!=='')dm.value='';}
   }
 }
 
@@ -2367,11 +2385,24 @@ function precargarCalculadora(e){
     });
     if(cd.specs){
       if(cd.specs.fondo) selSpec('fondo', cd.specs.fondo);
-      if(cd.specs.vestimenta) selSpec('vestimenta', cd.specs.vestimenta);
+      if(cd.specs.vestimenta_h) selSpec('vestimenta_h', cd.specs.vestimenta_h);
+      if(cd.specs.vestimenta_m) selSpec('vestimenta_m', cd.specs.vestimenta_m);
+      if(cd.specs.dig_vest_h) selSpec('dig_vest_h', cd.specs.dig_vest_h);
+      if(cd.specs.dig_vest_m) selSpec('dig_vest_m', cd.specs.dig_vest_m);
       if(cd.specs.cabello) selSpec('cabello', cd.specs.cabello);
       if(cd.specs.aretes) selSpec('aretes', cd.specs.aretes);
       if(cd.specs.barba) selSpec('barba', cd.specs.barba);
     }
+    // Precargar descuento
+    if(cd.descuento_pesos){
+      var dp=document.getElementById('calc-desc-pesos');
+      if(dp) dp.value=cd.descuento_pesos;
+    }
+    if(cd.descuento_pct){
+      var dpc=document.getElementById('calc-desc-pct');
+      if(dpc) dpc.value=cd.descuento_pct;
+    }
+    calcTotal();
   } else {
     // Fallback: parsear campo s (escuelas antiguas sin calcData)
     var s = (e.s || '').toLowerCase();
@@ -2524,7 +2555,9 @@ function cobrarCalculadora(){
     if(guardar){
       var docId='e_'+Date.now();
       // Build calcData for reliable precarga
-      var calcData={specs:{fondo:fondo,vestimenta:vest,cabello:cab,aretes:aretes,barba:barba||''}};
+      var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
+      var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
+      var calcData={specs:{fondo:fondo,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',cabello:cab,aretes:aretes,barba:barba||''},descuento_pesos:descPesos,descuento_pct:descPct};
       Object.keys(calcState).forEach(function(k){
         calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false};
         if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
@@ -2765,8 +2798,8 @@ function buscarOrden(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-infantil-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','color')">Color</button>
-      <button id="opt-infantil-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','bn')">B/N</button>
+      <button id="opt-infantil-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','color')">Color</button>
+      <button id="opt-infantil-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','bn')">B/N</button>
       <button id="opt-infantil-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',false)">Sin adherible</button>
       <button id="opt-infantil-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',true)">Con adherible</button>
     </div>
@@ -2788,8 +2821,8 @@ function buscarOrden(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-credencial-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','color')">Color</button>
-      <button id="opt-credencial-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','bn')">B/N</button>
+      <button id="opt-credencial-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','color')">Color</button>
+      <button id="opt-credencial-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','bn')">B/N</button>
       <button id="opt-credencial-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',false)">Sin adherible</button>
       <button id="opt-credencial-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',true)">Con adherible</button>
     </div>
@@ -2809,8 +2842,8 @@ function buscarOrden(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-diploma-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','color')">Color</button>
-      <button id="opt-diploma-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','bn')">B/N</button>
+      <button id="opt-diploma-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','color')">Color</button>
+      <button id="opt-diploma-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','bn')">B/N</button>
       <button id="opt-diploma-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',false)">Sin adherible</button>
       <button id="opt-diploma-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',true)">Con adherible</button>
     </div>
@@ -2831,8 +2864,8 @@ function buscarOrden(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-titulo-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','color')">Color</button>
-      <button id="opt-titulo-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','bn')">B/N</button>
+      <button id="opt-titulo-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','color')">Color</button>
+      <button id="opt-titulo-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','bn')">B/N</button>
       <button id="opt-titulo-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',false)">Sin adherible</button>
       <button id="opt-titulo-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',true)">Con adherible</button>
     </div>
@@ -2853,11 +2886,26 @@ function buscarOrden(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
-      <button id="opt-digital-color" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
-      <button id="opt-digital-bn" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
+      <button id="opt-digital-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
+      <button id="opt-digital-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
     </div>
     <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;margin-bottom:5px;">
-    <input type="text" id="calc-dig-vest-txt" placeholder="Vestimenta digital: Ej: Saco negro..." style="font-size:11px;width:100%;">
+    <div style="font-size:11px;color:#555;margin-top:4px;margin-bottom:3px;font-weight:500;">Vestimenta digital Hombre</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-dig-vest-h-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco claro')">Saco claro</button>
+      <button id="calc-dig-vest-h-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-dig-vest-h-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-dig-vest-h-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','')">Otra</button>
+    </div>
+    <input type="text" id="calc-dig-vest-h-txt" placeholder="Vestimenta digital hombre..." style="display:none;font-size:11px;margin-bottom:5px;">
+    <div style="font-size:11px;color:#555;margin-bottom:3px;font-weight:500;">Vestimenta digital Mujer</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-dig-vest-m-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco claro')">Saco claro</button>
+      <button id="calc-dig-vest-m-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-dig-vest-m-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-dig-vest-m-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','')">Otra</button>
+    </div>
+    <input type="text" id="calc-dig-vest-m-txt" placeholder="Vestimenta digital mujer..." style="display:none;font-size:11px;">
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-digital"></div>
   </div>
 
@@ -2874,22 +2922,34 @@ function buscarOrden(){
     <input type="text" id="calc-fondo-txt" placeholder="Escribe el fondo..." style="display:none;font-size:12px;">
   </div>
 
-  <!-- Vestimenta -->
+  <!-- Vestimenta por sexo -->
   <div class="frow">
-    <label>Vestimenta</label>
-    <div style="display:flex;gap:6px;margin-bottom:5px;flex-wrap:wrap;">
-      <button id="calc-vest-clara" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('vestimenta','Clara')">Clara</button>
-      <button id="calc-vest-oscura" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('vestimenta','Oscura')">Oscura</button>
-      <button id="calc-vest-libre" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('vestimenta','')">Otra</button>
+    <label>Vestimenta Hombre</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-vest-h-saco-c" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_h','Saco claro')">Saco claro</button>
+      <button id="calc-vest-h-saco-o" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_h','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-vest-h-camisa" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_h','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-vest-h-libre" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_h','')">Otra</button>
     </div>
-    <input type="text" id="calc-vest-txt" placeholder="Escribe la vestimenta..." style="display:none;font-size:12px;">
+    <input type="text" id="calc-vest-h-txt" placeholder="Vestimenta hombre..." style="display:none;font-size:12px;margin-bottom:5px;">
+  </div>
+  <div class="frow">
+    <label>Vestimenta Mujer</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-vest-m-saco-c" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_m','Saco claro')">Saco claro</button>
+      <button id="calc-vest-m-saco-o" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_m','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-vest-m-camisa" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_m','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-vest-m-libre" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="selSpec('vestimenta_m','')">Otra</button>
+    </div>
+    <input type="text" id="calc-vest-m-txt" placeholder="Vestimenta mujer..." style="display:none;font-size:12px;">
   </div>
 
   <!-- Cabello -->
   <div class="frow">
     <label>Cabello</label>
-    <div style="display:flex;gap:6px;">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
       <button id="calc-cab-recogido" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('cabello','Recogido')">Recogido</button>
+      <button id="calc-cab-orejas" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('cabello','Orejas descubiertas')">Orejas descubiertas</button>
       <button id="calc-cab-libre" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('cabello','Libre')">Libre</button>
     </div>
   </div>
@@ -2897,9 +2957,10 @@ function buscarOrden(){
   <!-- Aretes -->
   <div class="frow">
     <label>Aretes</label>
-    <div style="display:flex;gap:6px;">
-      <button id="calc-ar-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('aretes','Permitidos')">Permitidos</button>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
       <button id="calc-ar-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('aretes','No permitidos')">No permitidos</button>
+      <button id="calc-ar-sin-rec" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('aretes','Sin recomendacion')">Sin recomendacion</button>
+      <button id="calc-ar-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('aretes','Permitidos')">Permitidos</button>
     </div>
   </div>
 
