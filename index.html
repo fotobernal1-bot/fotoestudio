@@ -2346,40 +2346,56 @@ function continuarConPersonas(){
 }
 
 function precargarCalculadora(e){
-  // Primero abrir la calculadora normal (reset)
   abrirCalculadora();
-  // Precargar nombre
   document.getElementById('calc-nombre').value = e.n || '';
-  // Precargar precio base — extraer número del campo p
-  var precioBase = parseInt((e.p||'$0').replace(/[^0-9]/g,'')) || 0;
-  // Parsear campo s para precargar cantidades y specs
-  var s = (e.s || '').toLowerCase();
-  // Intentar parsear cantidades de fotos del campo s
-  // Buscar patrones: "6 credencial", "2 diploma", "3 titulo", "1 digital", "8 infantil"
-  var patrones = [
-    {key:'infantil',   regex:/(\d+)\s*infantil/i},
-    {key:'credencial', regex:/(\d+)\s*cred/i},
-    {key:'diploma',    regex:/(\d+)\s*diploma/i},
-    {key:'titulo',     regex:/(\d+)\s*(titulo|título)/i},
-    {key:'digital',    regex:/(\d+)\s*digital/i},
-  ];
-  patrones.forEach(function(pat){
-    var m = s.match(pat.regex);
-    if(m){
-      var cant = parseInt(m[1]);
-      var el = document.getElementById('cant-'+pat.key);
-      if(el){ el.value = cant; syncCant(pat.key); }
+
+  if(e.calcData){
+    // Precarga estructurada desde calcData
+    var cd = e.calcData;
+    Object.keys(calcState).forEach(function(k){
+      if(cd[k]){
+        var cant = cd[k].cant || 0;
+        var el = document.getElementById('cant-'+k);
+        if(el){ el.value = cant; syncCant(k); }
+        if(cd[k].color) setColor(k, cd[k].color);
+        if(k!=='digital' && cd[k].adherible !== undefined) setAdh(k, cd[k].adherible);
+        if(k==='digital' && cd[k].espec){
+          var especEl = document.getElementById('calc-dig-espec');
+          if(especEl) especEl.value = cd[k].espec;
+        }
+      }
+    });
+    if(cd.specs){
+      if(cd.specs.fondo) selSpec('fondo', cd.specs.fondo);
+      if(cd.specs.vestimenta) selSpec('vestimenta', cd.specs.vestimenta);
+      if(cd.specs.cabello) selSpec('cabello', cd.specs.cabello);
+      if(cd.specs.aretes) selSpec('aretes', cd.specs.aretes);
+      if(cd.specs.barba) selSpec('barba', cd.specs.barba);
     }
-  });
-  // Precargar especificaciones si están en el campo s
-  if(s.includes('blanco')) selSpec('fondo','Blanco');
-  if(s.includes('clara') || s.includes('claro')) selSpec('vestimenta','Clara');
-  if(s.includes('oscura') || s.includes('oscuro')) selSpec('vestimenta','Oscura');
-  if(s.includes('recogido')) selSpec('cabello','Recogido');
-  if(s.includes('libre')) selSpec('cabello','Libre');
-  if(s.includes('sin aretes') || s.includes('aretes: no')) selSpec('aretes','No permitidos');
-  if(s.includes('con aretes') || s.includes('aretes: si') || s.includes('aretes: sí') || s.includes('permitidos')) selSpec('aretes','Permitidos');
-  // Renderizar sección de personas dentro de la calculadora
+  } else {
+    // Fallback: parsear campo s (escuelas antiguas sin calcData)
+    var s = (e.s || '').toLowerCase();
+    var patrones = [
+      {key:'infantil',   regex:/(\d+)\s*infantil/i},
+      {key:'credencial', regex:/(\d+)\s*cred/i},
+      {key:'diploma',    regex:/(\d+)\s*diploma/i},
+      {key:'titulo',     regex:/(\d+)\s*(titulo|título)/i},
+      {key:'digital',    regex:/(\d+)\s*digital/i},
+    ];
+    patrones.forEach(function(pat){
+      var m = s.match(pat.regex);
+      if(m){
+        var el = document.getElementById('cant-'+pat.key);
+        if(el){ el.value = parseInt(m[1]); syncCant(pat.key); }
+      }
+    });
+    if(s.includes('blanco')) selSpec('fondo','Blanco');
+    if(s.includes('clara')||s.includes('claro')) selSpec('vestimenta','Clara');
+    if(s.includes('oscura')||s.includes('oscuro')) selSpec('vestimenta','Oscura');
+    if(s.includes('recogido')) selSpec('cabello','Recogido');
+    if(s.includes('aretes: no')||s.includes('no permitidos')) selSpec('aretes','No permitidos');
+    if(s.includes('permitidos')&&!s.includes('no permitidos')) selSpec('aretes','Permitidos');
+  }
   renderPersonasEnCalc();
 }
 
@@ -2487,7 +2503,7 @@ function cobrarCalculadora(){
   var digVest=document.getElementById('calc-dig-vest-txt').value.trim();
   if(!digVest) digVest=calcState.digital&&calcState.digital.vestimenta?calcState.digital.vestimenta:'';
   var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,'Barba: '+barba,digVest?'Vestimenta digital: '+digVest:'',notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
-  var descripcionCompleta=lineas.map(function(l){return l.nombre+' $'+l.precio;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
+  var descripcionCompleta=lineas.map(function(l){return l.nombre;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
   // Recopilar specs por persona si existen
   var specsPersonas = [];
   if(escuelaPersonas && escuelaPersonas.length > 0){
@@ -2507,7 +2523,13 @@ function cobrarCalculadora(){
     var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
     if(guardar){
       var docId='e_'+Date.now();
-      var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId};
+      // Build calcData for reliable precarga
+      var calcData={specs:{fondo:fondo,vestimenta:vest,cabello:cab,aretes:aretes,barba:barba||''}};
+      Object.keys(calcState).forEach(function(k){
+        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false};
+        if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
+      });
+      var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId,calcData:calcData};
       escuelas.push(escData);
       rendEsc();
       guardarLocal();
