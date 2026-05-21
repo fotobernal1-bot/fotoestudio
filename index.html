@@ -1265,7 +1265,23 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
               }).join('')
               + '</div>';
           } else {
-            var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
+            // Build vestimenta display
+            var vestH=cs.vestimenta_h||'';
+            var vestM=cs.vestimenta_m||'';
+            var digVH=cs.dig_vest_h||'';
+            var digVM=cs.dig_vest_m||'';
+            var vestLine = vestH&&vestM ? 'Vest H: '+vestH+' / M: '+vestM : (vestH||vestM ? 'Vestimenta: '+(vestH||vestM) : '');
+            var digVestLine = digVH&&digVM ? 'Vest digital H: '+digVH+' / M: '+digVM : (digVH||digVM ? 'Vest digital: '+(digVH||digVM) : '');
+            // Personas summary
+            var personasLine = '';
+            if(cs.personas && cs.personas.length===1){
+              personasLine = 'Persona: '+cs.personas[0].sexo;
+            } else if(cs.personas && cs.personas.length>1){
+              var hCount=cs.personas.filter(function(p){return p.sexo==='H';}).length;
+              var mCount=cs.personas.filter(function(p){return p.sexo==='M';}).length;
+              personasLine = 'Personas: '+(hCount?hCount+'H ':'')+( mCount?mCount+'M':'');
+            }
+            var specsArr=[personasLine,'Fondo: '+cs.fondo,vestLine,digVestLine,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
             specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
           }
           return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
@@ -2576,16 +2592,40 @@ let ordenesProduccion = [];
 function crearOrdenProduccion(folio, origen, items, fechaEntrega){
   if(!db) return;
   var info = '';
+  var specs = {};
   if(origen === 'escuelas'){
     var esc = items[0];
-    info = esc ? (esc.detalle || esc.nombre || folio) : folio;
+    info = esc ? (esc.nombre || folio) : folio;
+    // Grab specs from _calcSpecs if available
+    if(window._calcSpecs){
+      var cs = window._calcSpecs;
+      specs = {
+        lineas: cs.lineas ? cs.lineas.map(function(l){return l.nombre;}) : [],
+        fondo: cs.fondo||'',
+        vestimenta_h: cs.vestimenta_h||'',
+        vestimenta_m: cs.vestimenta_m||'',
+        dig_vest_h: cs.dig_vest_h||'',
+        dig_vest_m: cs.dig_vest_m||'',
+        cabello: cs.cabello||'',
+        aretes: cs.aretes||'',
+        barba: cs.barba||'',
+        personas: cs.personas||[],
+        descuento: cs.descuento||0
+      };
+    } else if(esc && esc.detalle){
+      specs = {lineas: esc.detalle.split(' | ')};
+    }
   } else if(origen === 'impresiones'){
     info = items.map(function(i){ return i.nombre; }).join(', ');
+    specs = {lineas: items.map(function(i){
+      return i.nombre + (i.descripcion ? ' — '+i.descripcion : '');
+    })};
   }
   var orden = {
     folio: folio,
     origen: origen,
     info: info,
+    specs: specs,
     fechaEntrega: fechaEntrega || '',
     timestamp: new Date().toISOString(),
     fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
@@ -2650,11 +2690,30 @@ function renderProduccion(lista){
       ? '<td style="text-align:center;padding:8px;"><button onclick="archivarOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
       : '<td></td>';
     var origenColor = o.origen==='escuelas' ? '#0C447C' : '#555';
-    var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;">📅 '+o.fechaEntrega+'</div>' : '';
+    var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;font-weight:600;">📅 '+o.fechaEntrega+'</div>' : '';
+    var specsDetail = '';
+    if(o.specs){
+      var sp=o.specs;
+      var lineasHtml=sp.lineas&&sp.lineas.length?sp.lineas.map(function(l){return '<div>• '+l+'</div>';}).join(''):'';
+      var vestH=sp.vestimenta_h||'';var vestM=sp.vestimenta_m||'';
+      var digVH=sp.dig_vest_h||'';var digVM=sp.dig_vest_m||'';
+      var vestLine=vestH&&vestM?'Vest H: '+vestH+' / M: '+vestM:(vestH||vestM?'Vest: '+(vestH||vestM):'');
+      var digVLine=digVH&&digVM?'Vest dig H: '+digVH+' / M: '+digVM:(digVH||digVM?'Vest dig: '+(digVH||digVM):'');
+      var personasLine='';
+      if(sp.personas&&sp.personas.length===1){personasLine='Persona: '+sp.personas[0].sexo;}
+      else if(sp.personas&&sp.personas.length>1){
+        var hc=sp.personas.filter(function(p){return p.sexo==='H';}).length;
+        var mc=sp.personas.filter(function(p){return p.sexo==='M';}).length;
+        personasLine='Personas: '+(hc?hc+'H ':'')+( mc?mc+'M':'');
+      }
+      var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:''].filter(Boolean);
+      specsDetail=lineasHtml+(specLines.length?'<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'+specLines.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>':'');
+    }
     return '<tr style="border-bottom:1px solid #f0f0f0;">'
       + '<td style="padding:10px 12px;vertical-align:top;">'
       + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
-      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:220px;">'+o.info+'</div>'
+      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:240px;">'+o.info+'</div>'
+      + (specsDetail?'<div style="font-size:10px;color:#555;margin-top:4px;max-width:240px;">'+specsDetail+'</div>':'')
       + fechaEnt
       + '<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+'</div>'
       + '</td>'
