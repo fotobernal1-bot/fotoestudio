@@ -2557,7 +2557,7 @@ function cobrarCalculadora(){
     }
   }
 
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes,barba:barba,personas:specsPersonas};
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,personas:specsPersonas};
   closeM('m-calc');
 
   // Decidir ticket único o separados
