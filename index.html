@@ -1252,13 +1252,17 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
           var descHtml=cs.descuento>0?'<div style="font-size:11px;color:#A32D2D;padding:2px 0;">Descuento aplicado: -$'+cs.descuento+'</div>':'';
           var specsHtml = '';
           if(cs.personas && cs.personas.length > 0){
-            // Specs por persona
+            // Specs por persona - usar vestimenta general según sexo si no hay individual
             specsHtml = '<div style="margin-top:6px;padding-top:5px;border-top:1px dashed #ddd;">'
               + cs.personas.map(function(p, idx){
+                var vestP = p.vestimenta || (p.sexo==='H' ? (cs.vestimenta_h||cs.vestimenta||'') : (cs.vestimenta_m||cs.vestimenta||''));
+                var digP  = p.sexo==='H' ? (cs.dig_vest_h||'') : (cs.dig_vest_m||'');
                 var linP = '<div style="font-size:11px;font-weight:600;color:#333;margin-top:4px;">Persona '+(idx+1)+' — '+p.sexo+'</div>'
                   + '<div style="font-size:10px;color:#555;padding-left:8px;">'
-                  + 'Fondo: '+p.fondo+' · Vest: '+p.vestimenta+'<br>'
-                  + 'Cabello: '+p.cabello+' · Aretes: '+p.aretes
+                  + 'Fondo: '+(p.fondo||cs.fondo||'')+' · Vest: '+vestP
+                  + (digP ? ' · Vest digital: '+digP : '')+'<br>'
+                  + 'Cabello: '+(p.cabello||cs.cabello||'')+' · Aretes: '+(p.aretes||cs.aretes||'')
+                  + (cs.barba ? ' · Barba: '+cs.barba : '')
                   + (p.notas ? '<br><span style="color:#888;">'+p.notas+'</span>' : '')
                   + '</div>';
                 return linP;
