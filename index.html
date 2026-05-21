@@ -563,10 +563,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div id="t-ord-escuelas" class="tsec active">
         <div class="hrow">
           <p class="psub" style="margin:0;">Toca la imagen para ver especificaciones</p>
-          <div style="display:flex;gap:6px;">
-            <button class="btn bgray" onclick="abrirCalculadora()"><i class="ti ti-calculator"></i> Calcular paquete</button>
-            <button class="btn bgreen" onclick="openM('m-esc')"><i class="ti ti-plus"></i> Nueva escuela</button>
-          </div>
+          <button class="btn bgray" onclick="abrirCalculadora()"><i class="ti ti-calculator"></i> Calcular paquete</button>
         </div>
         <div style="position:relative;margin-bottom:12px;">
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
@@ -733,13 +730,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-visa')">Cancelar</button><button class="btn bgreen" onclick="guardarVisa()">Guardar</button></div>
 </div></div>
 
-<div class="modal-ov" id="m-esc"><div class="modal-box"><p class="modal-t">Nueva escuela</p>
-  <div class="frow"><label>Nombre de la escuela</label><input type="text" id="e-n" placeholder="Primaria Benito Juárez"></div>
-  <div class="frow"><label>Especificaciones del paquete</label><textarea id="e-s" style="height:60px;resize:none;" placeholder="Ej: 2 fotos 5x7, 4 credencial B&N, 1 grupal..."></textarea></div>
-  <div class="frow"><label>Precio del paquete</label><input type="text" id="e-p" placeholder="$350"></div>
-  <div class="frow"><label>Imagen de portada</label><input type="file" accept="image/*" id="e-img" style="font-size:11px;"></div>
-  <div class="modal-btns"><button class="btn bgray" onclick="closeM('m-esc')">Cancelar</button><button class="btn bgreen" onclick="guardarEsc()">Guardar</button></div>
-</div></div>
 
 <div class="modal-ov" id="m-esc-edit"><div class="modal-box"><p class="modal-t">Editar escuela</p>
   <div class="frow"><label>Nombre</label><input type="text" id="ee-n"></div>
@@ -1623,7 +1613,7 @@ function renderEscGrid(lista){
   if(!grid)return;
   if(!lista.length){
     grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">No se encontraron escuelas</div>';
-    const ac2=document.createElement('div');ac2.className='add-card';ac2.onclick=function(){openM('m-esc');};ac2.innerHTML='<i class="ti ti-plus"></i><span>Agregar escuela</span>';grid.appendChild(ac2);
+
     return;
   }
   document.getElementById('esc-grid').innerHTML=lista.map((e)=>`
@@ -1642,7 +1632,7 @@ function renderEscGrid(lista){
             <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
         </div>
       </div>
-    </div>`).join('')+`<div class="add-card" onclick="openM('m-esc')"><i class="ti ti-plus"></i><span>Agregar escuela</span></div>`;
+    </div>`).join('')`;
 }
 function closeLb(){document.getElementById('lb').classList.remove('open');}
 function abrirLb(i,tipo){
@@ -1765,33 +1755,7 @@ function guardarVisa(){
   const s=()=>{visas.push(v);rendVisas();closeM('m-visa');autoGuardar();document.getElementById('v-n').value='';document.getElementById('v-p').value='';};
   if(imgI.files[0]){const r=new FileReader();r.onload=e=>{v.img=e.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
 }
-function guardarEsc(){
-  const n=document.getElementById('e-n').value.trim();
-  const sp=document.getElementById('e-s').value.trim();
-  const p=document.getElementById('e-p').value.trim();
-  if(!n)return;
-  const docId='e_'+Date.now();
-  const e={n,s:sp||'Sin especificaciones',p:p||'$0',img:null,_id:docId};
-  const imgI=document.getElementById('e-img');
-  const guardar=(escData)=>{
-    escuelas.push(escData);
-    rendEsc();
-    closeM('m-esc');
-    ['e-n','e-s','e-p'].forEach(id2=>document.getElementById(id2).value='');
-    guardarLocal();
-    if(db){
-      db.collection('escuelas').doc(docId).set(escData)
-        .then(()=>setDriveStatus(true,'Guardado ✓'))
-        .catch(err=>{setDriveStatus(false,'Error: '+err.code);console.error(err);});
-    }
-  };
-  if(imgI.files[0]){
-    setDriveStatus(true,'Subiendo imagen...');
-    subirImagenCloudinary(imgI.files[0])
-      .then(url=>{e.img=url;guardar(e);})
-      .catch(()=>guardar(e));
-  } else guardar(e);
-}
+
 function guardarImp(){
   const sz=document.getElementById('im-s').value.trim();const p=parseInt(document.getElementById('im-p').value.replace('$',''))||0;if(!sz)return;
   impresiones.push({sz,p});rendImp();closeM('m-imp');autoGuardar();document.getElementById('im-s').value='';document.getElementById('im-p').value='';
