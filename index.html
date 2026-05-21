@@ -1260,8 +1260,24 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
             return '<div style="font-size:11px;padding:2px 0 2px 8px;color:#333;">• '+l.nombre+'</div>';
           }).join('');
           var descHtml=cs.descuento>0?'<div style="font-size:11px;color:#A32D2D;padding:2px 0;">Descuento aplicado: -$'+cs.descuento+'</div>':'';
-          var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
-          var specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
+          var specsHtml = '';
+          if(cs.personas && cs.personas.length > 0){
+            // Specs por persona
+            specsHtml = '<div style="margin-top:6px;padding-top:5px;border-top:1px dashed #ddd;">'
+              + cs.personas.map(function(p, idx){
+                var linP = '<div style="font-size:11px;font-weight:600;color:#333;margin-top:4px;">Persona '+(idx+1)+' — '+p.sexo+'</div>'
+                  + '<div style="font-size:10px;color:#555;padding-left:8px;">'
+                  + 'Fondo: '+p.fondo+' · Vest: '+p.vestimenta+'<br>'
+                  + 'Cabello: '+p.cabello+' · Aretes: '+p.aretes
+                  + (p.notas ? '<br><span style="color:#888;">'+p.notas+'</span>' : '')
+                  + '</div>';
+                return linP;
+              }).join('')
+              + '</div>';
+          } else {
+            var specsArr=['Fondo: '+cs.fondo,'Vestimenta: '+cs.vestimenta,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
+            specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
+          }
           return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
         }
         // Desde escuela guardada: usa i.detalle (campo s)
@@ -1621,7 +1637,7 @@ function renderEscGrid(lista){
         </div>
         <p class="esc-s">${e.s}</p>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-          <button class="bsm" onclick="addEscuela(${e.idx})"><i class="ti ti-shopping-cart"></i> Agregar</button>
+          <button class="bsm" onclick="iniciarPaqueteEscuela(${e.idx})"><i class="ti ti-shopping-cart"></i> Agregar</button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#bbb;padding:3px;" onclick="editarEsc(${e.idx})" title="Editar esta escuela"><i class="ti ti-pencil"></i></button>
             <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;padding:3px;" onclick="eliminarEsc(${e.idx})" title="Eliminar escuela"><i class="ti ti-trash"></i></button>
         </div>
@@ -1638,7 +1654,7 @@ function abrirLb(i,tipo){
   if(tipo==='esc'){
     document.getElementById('lb-add-btn').style.display='';
     document.getElementById('lb-add-btn').textContent='🛒 Agregar al carrito';
-    var escIdx=i;document.getElementById('lb-add-btn').onclick=()=>{addEscuela(escIdx);closeLb();};
+    var escIdx=i;document.getElementById('lb-add-btn').onclick=()=>{iniciarPaqueteEscuela(escIdx);closeLb();};
   } else {
     document.getElementById('lb-add-btn').style.display='none';
   }
@@ -2136,6 +2152,9 @@ const CALC_CFG = {
 let calcSpecs={fondo:'',vestimenta:'',cabello:'',aretes:'',barba:''};
 
 function abrirCalculadora(){
+  escuelaActual = null;
+  personaSpecs = {};
+  escuelaPersonas = [];
   // Reset estado
   Object.keys(calcState).forEach(k=>{
     calcState[k].cant=0;
@@ -2270,6 +2289,168 @@ function calcTotal(){
   document.getElementById('calc-total').textContent='$'+total;
 }
 
+
+// ── FLUJO DE PAQUETE ESCUELA CON PERSONAS ───────────────
+let escuelaActual = null;       // escuela seleccionada
+let escuelaPersonas = [];       // [{sexo:'H'}, {sexo:'M'}...]
+let escuelaNumPersonas = 0;
+
+function iniciarPaqueteEscuela(i){
+  var e = escuelas[i];
+  if(!e) return;
+  escuelaActual = {idx:i, escuela:e};
+  escuelaPersonas = [];
+  escuelaNumPersonas = 0;
+  // Abrir modal de cuántas personas
+  document.getElementById('pers-num').value = '';
+  document.getElementById('pers-sexos').innerHTML = '';
+  document.getElementById('pers-continuar').disabled = true;
+  openM('m-personas');
+}
+
+function actualizarPersonas(){
+  var n = parseInt(document.getElementById('pers-num').value) || 0;
+  if(n < 1) n = 0;
+  escuelaNumPersonas = n;
+  var cont = document.getElementById('pers-sexos');
+  if(n < 1){ cont.innerHTML = ''; document.getElementById('pers-continuar').disabled = true; return; }
+  var html = '';
+  for(var i=0; i<n; i++){
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+      + '<span style="font-size:12px;color:#555;min-width:70px;">Persona '+(i+1)+'</span>'
+      + '<button id="ps-h-'+i+'" class="btn bgray" style="font-size:11px;padding:5px 14px;" onclick="selSexo('+i+',\x27H\x27)">H</button>'
+      + '<button id="ps-m-'+i+'" class="btn bgray" style="font-size:11px;padding:5px 14px;" onclick="selSexo('+i+',\x27M\x27)">M</button>'
+      + '</div>';
+  }
+  cont.innerHTML = html;
+  escuelaPersonas = Array(n).fill(null);
+  document.getElementById('pers-continuar').disabled = true;
+}
+
+function selSexo(idx, sexo){
+  escuelaPersonas[idx] = sexo;
+  var btnH = document.getElementById('ps-h-'+idx);
+  var btnM = document.getElementById('ps-m-'+idx);
+  if(btnH){ btnH.className = sexo==='H' ? 'btn bgreen' : 'btn bgray'; btnH.style.cssText='font-size:11px;padding:5px 14px;'; }
+  if(btnM){ btnM.className = sexo==='M' ? 'btn bgreen' : 'btn bgray'; btnM.style.cssText='font-size:11px;padding:5px 14px;'; }
+  // Habilitar continuar solo si todos tienen sexo
+  var todos = escuelaPersonas.every(function(s){ return s !== null; });
+  document.getElementById('pers-continuar').disabled = !todos;
+}
+
+function continuarConPersonas(){
+  closeM('m-personas');
+  // Precargar calculadora con datos de la escuela
+  var e = escuelaActual.escuela;
+  precargarCalculadora(e);
+}
+
+function precargarCalculadora(e){
+  // Primero abrir la calculadora normal (reset)
+  abrirCalculadora();
+  // Precargar nombre
+  document.getElementById('calc-nombre').value = e.n || '';
+  // Precargar precio base — extraer número del campo p
+  var precioBase = parseInt((e.p||'$0').replace(/[^0-9]/g,'')) || 0;
+  // Parsear campo s para precargar cantidades y specs
+  var s = (e.s || '').toLowerCase();
+  // Intentar parsear cantidades de fotos del campo s
+  // Buscar patrones: "6 credencial", "2 diploma", "3 titulo", "1 digital", "8 infantil"
+  var patrones = [
+    {key:'infantil',   regex:/(\d+)\s*infantil/i},
+    {key:'credencial', regex:/(\d+)\s*cred/i},
+    {key:'diploma',    regex:/(\d+)\s*diploma/i},
+    {key:'titulo',     regex:/(\d+)\s*(titulo|título)/i},
+    {key:'digital',    regex:/(\d+)\s*digital/i},
+  ];
+  patrones.forEach(function(pat){
+    var m = s.match(pat.regex);
+    if(m){
+      var cant = parseInt(m[1]);
+      var el = document.getElementById('cant-'+pat.key);
+      if(el){ el.value = cant; syncCant(pat.key); }
+    }
+  });
+  // Precargar especificaciones si están en el campo s
+  if(s.includes('blanco')) selSpec('fondo','Blanco');
+  if(s.includes('clara') || s.includes('claro')) selSpec('vestimenta','Clara');
+  if(s.includes('oscura') || s.includes('oscuro')) selSpec('vestimenta','Oscura');
+  if(s.includes('recogido')) selSpec('cabello','Recogido');
+  if(s.includes('libre')) selSpec('cabello','Libre');
+  if(s.includes('sin aretes') || s.includes('aretes: no')) selSpec('aretes','No permitidos');
+  if(s.includes('con aretes') || s.includes('aretes: si') || s.includes('aretes: sí') || s.includes('permitidos')) selSpec('aretes','Permitidos');
+  // Renderizar sección de personas dentro de la calculadora
+  renderPersonasEnCalc();
+}
+
+function renderPersonasEnCalc(){
+  var cont = document.getElementById('calc-personas-sec');
+  if(!cont || !escuelaPersonas.length) return;
+  cont.style.display = 'block';
+  var html = '<p class="slabel" style="margin-bottom:8px;">Especificaciones por persona</p>';
+  escuelaPersonas.forEach(function(sexo, idx){
+    html += '<div style="border:1px solid #e8e8e8;border-radius:8px;padding:10px;margin-bottom:8px;">'
+      + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Persona '+(idx+1)+' — '+sexo+'</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+      + '<button id="cp-fondo-b-'+idx+'" class="btn bgreen" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27fondo\x27,\x27Blanco\x27)">Fondo blanco</button>'
+      + '<button id="cp-fondo-o-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27fondo\x27,\x27\x27)">Otro fondo</button>'
+      + '</div>'
+      + '<input type="text" id="cp-fondo-txt-'+idx+'" placeholder="Fondo..." style="display:none;font-size:11px;margin-bottom:5px;">'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+      + '<button id="cp-vest-c-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27vestimenta\x27,\x27Clara\x27)">Vest. Clara</button>'
+      + '<button id="cp-vest-o-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27vestimenta\x27,\x27Oscura\x27)">Vest. Oscura</button>'
+      + '<button id="cp-vest-l-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27vestimenta\x27,\x27\x27)">Otra</button>'
+      + '</div>'
+      + '<input type="text" id="cp-vest-txt-'+idx+'" placeholder="Vestimenta..." style="display:none;font-size:11px;margin-bottom:5px;">'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+      + '<button id="cp-cab-r-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27cabello\x27,\x27Recogido\x27)">Cab. Recogido</button>'
+      + '<button id="cp-cab-l-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27cabello\x27,\x27Libre\x27)">Cab. Libre</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
+      + '<button id="cp-ar-s-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27aretes\x27,\x27Permitidos\x27)">Aretes: Sí</button>'
+      + '<button id="cp-ar-n-'+idx+'" class="btn bgray" style="font-size:10px;padding:3px 8px;" onclick="selSpecP('+idx+',\x27aretes\x27,\x27No permitidos\x27)">Aretes: No</button>'
+      + '</div>'
+      + '<input type="text" id="cp-notas-'+idx+'" placeholder="Notas individuales..." style="font-size:11px;">'
+      + '</div>';
+  });
+  cont.innerHTML = html;
+  // Precargar specs del paquete a cada persona
+  escuelaPersonas.forEach(function(sexo, idx){
+    if(calcSpecs.fondo) selSpecP(idx,'fondo',calcSpecs.fondo);
+    if(calcSpecs.vestimenta) selSpecP(idx,'vestimenta',calcSpecs.vestimenta);
+    if(calcSpecs.cabello) selSpecP(idx,'cabello',calcSpecs.cabello);
+    if(calcSpecs.aretes) selSpecP(idx,'aretes',calcSpecs.aretes);
+  });
+}
+
+// Estado de specs por persona
+var personaSpecs = {};
+function selSpecP(idx, tipo, valor){
+  if(!personaSpecs[idx]) personaSpecs[idx] = {};
+  personaSpecs[idx][tipo] = valor;
+  // Map de botones por tipo y persona
+  var maps = {
+    fondo:     [{id:'cp-fondo-b-'+idx,v:'Blanco'},{id:'cp-fondo-o-'+idx,v:''}],
+    vestimenta:[{id:'cp-vest-c-'+idx,v:'Clara'},{id:'cp-vest-o-'+idx,v:'Oscura'},{id:'cp-vest-l-'+idx,v:''}],
+    cabello:   [{id:'cp-cab-r-'+idx,v:'Recogido'},{id:'cp-cab-l-'+idx,v:'Libre'}],
+    aretes:    [{id:'cp-ar-s-'+idx,v:'Permitidos'},{id:'cp-ar-n-'+idx,v:'No permitidos'}],
+  };
+  if(maps[tipo]){
+    maps[tipo].forEach(function(b){
+      var el=document.getElementById(b.id);
+      if(el){el.className=b.v===valor?'btn bgreen':'btn bgray';el.style.cssText='font-size:10px;padding:3px 8px;';}
+    });
+  }
+  if(tipo==='fondo'){
+    var txt=document.getElementById('cp-fondo-txt-'+idx);
+    if(txt){txt.style.display=valor===''?'block':'none';}
+  }
+  if(tipo==='vestimenta'){
+    var txt=document.getElementById('cp-vest-txt-'+idx);
+    if(txt){txt.style.display=valor===''?'block':'none';}
+  }
+}
+
 function cobrarCalculadora(){
   var nombre=document.getElementById('calc-nombre').value.trim();
   if(!nombre){alert('Escribe el nombre de la escuela');return;}
@@ -2307,22 +2488,65 @@ function cobrarCalculadora(){
   if(!digVest) digVest=calcState.digital&&calcState.digital.vestimenta?calcState.digital.vestimenta:'';
   var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,'Barba: '+barba,digVest?'Vestimenta digital: '+digVest:'',notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
   var descripcionCompleta=lineas.map(function(l){return l.nombre+' $'+l.precio;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
-  var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
-  if(guardar){
-    var docId='e_'+Date.now();
-    var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId};
-    escuelas.push(escData);
-    rendEsc();
-    guardarLocal();
-    if(db){
-      db.collection('escuelas').doc(docId).set(escData)
-        .then(function(){setDriveStatus(true,'Escuela guardada ✓');})
-        .catch(function(e){setDriveStatus(false,'Error: '+e.code);});
+  // Recopilar specs por persona si existen
+  var specsPersonas = [];
+  if(escuelaPersonas && escuelaPersonas.length > 0){
+    escuelaPersonas.forEach(function(sexo, idx){
+      var sp = personaSpecs[idx] || {};
+      var fondoP = sp.fondo !== undefined ? (sp.fondo || document.getElementById('cp-fondo-txt-'+idx)&&document.getElementById('cp-fondo-txt-'+idx).value || 'No esp.') : fondo;
+      var vestP  = sp.vestimenta !== undefined ? (sp.vestimenta || document.getElementById('cp-vest-txt-'+idx)&&document.getElementById('cp-vest-txt-'+idx).value || 'No esp.') : vest;
+      var cabP   = sp.cabello || cab;
+      var aretesP= sp.aretes || aretes;
+      var notasP = document.getElementById('cp-notas-'+idx) ? document.getElementById('cp-notas-'+idx).value.trim() : '';
+      specsPersonas.push({sexo:sexo||'?', fondo:fondoP, vestimenta:vestP, cabello:cabP, aretes:aretesP, notas:notasP});
+    });
+  }
+
+  // Guardar escuela si viene de calculadora nueva
+  if(!escuelaActual){
+    var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
+    if(guardar){
+      var docId='e_'+Date.now();
+      var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId};
+      escuelas.push(escData);
+      rendEsc();
+      guardarLocal();
+      if(db){
+        db.collection('escuelas').doc(docId).set(escData)
+          .then(function(){setDriveStatus(true,'Escuela guardada ✓');})
+          .catch(function(e){setDriveStatus(false,'Error: '+e.code);});
+      }
     }
   }
-  add('Paquete '+nombre, total, 'escuela');
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes,barba:barba};
+
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,fondo:fondo,cabello:cab,aretes:aretes,barba:barba,personas:specsPersonas};
   closeM('m-calc');
+
+  // Decidir ticket único o separados
+  if(specsPersonas.length > 1){
+    var separados = confirm('¿Generar tickets separados por persona?\n\nAceptar = ticket por persona\nCancelar = un solo ticket');
+    if(separados){
+      // Un ticket por persona — mismo precio, specs individuales
+      specsPersonas.forEach(function(p, idx){
+        var specsCopia = Object.assign({}, window._calcSpecs, {
+          nombre: nombre + ' — P'+(idx+1)+' '+p.sexo,
+          personas: [p],
+          specs: 'Fondo: '+p.fondo+' | Vestimenta: '+p.vestimenta+' | Cabello: '+p.cabello+' | Aretes: '+p.aretes+(p.notas?' | '+p.notas:'')
+        });
+        window._calcSpecs = specsCopia;
+        add('Paquete '+nombre+' P'+(idx+1)+' '+p.sexo, total, 'escuela');
+      });
+      window._calcSpecs.personas = specsPersonas; // restaurar para el ticket
+    } else {
+      add('Paquete '+nombre, total, 'escuela');
+    }
+  } else {
+    add('Paquete '+nombre, total, 'escuela');
+  }
+
+  // Reset flujo de personas
+  escuelaActual = null;
+  personaSpecs = {};
 }
 // ── SISTEMA DE PRODUCCIÓN ────────────────────────────────
 let ordenesProduccion = [];
@@ -2698,6 +2922,9 @@ function buscarOrden(){
     </div>
   </div>
 
+  <!-- Sección specs por persona (se llena dinámicamente) -->
+  <div id="calc-personas-sec" style="display:none;"></div>
+
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-calc')">Cancelar</button>
     <button class="btn bgreen" onclick="cobrarCalculadora()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
@@ -2797,6 +3024,20 @@ function buscarOrden(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-barba');openM('m-extra')">← Regresar</button>
     <button class="btn bgreen" onclick="agregarBarba()"><i class="ti ti-shopping-cart"></i> Agregar</button>
+  </div>
+</div></div>
+
+<!-- MODAL PERSONAS -->
+<div class="modal-ov" id="m-personas"><div class="modal-box" style="width:300px;">
+  <p class="modal-t"><i class="ti ti-users"></i> ¿Cuántas personas?</p>
+  <div class="frow" style="margin-bottom:12px;">
+    <label>Número de personas</label>
+    <input type="number" id="pers-num" min="1" max="10" placeholder="1, 2, 3..." style="font-size:20px;font-weight:700;text-align:center;" oninput="actualizarPersonas()">
+  </div>
+  <div id="pers-sexos" style="margin-bottom:12px;"></div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-personas')">Cancelar</button>
+    <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
 </body>
