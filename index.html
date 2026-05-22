@@ -2915,43 +2915,6 @@ function buscarOrden(){
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-titulo"></div>
   </div>
 
-  <!-- DIGITAL -->
-  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div>
-        <div style="font-size:13px;font-weight:600;">Digital</div>
-        <div style="font-size:10px;color:#888;">$250 c/u</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCant('digital',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <input id="cant-digital" type="number" min="0" value="0" oninput="syncCant('digital')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
-        <button onclick="ajCant('digital',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
-      <button id="opt-digital-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
-      <button id="opt-digital-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
-    </div>
-    <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;margin-bottom:5px;">
-    <div style="font-size:11px;color:#555;margin-top:4px;margin-bottom:3px;font-weight:500;">Vestimenta digital Hombre</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
-      <button id="calc-dig-vest-h-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco claro')">Saco claro</button>
-      <button id="calc-dig-vest-h-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco oscuro')">Saco oscuro</button>
-      <button id="calc-dig-vest-h-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Camisa blanca')">Camisa blanca</button>
-      <button id="calc-dig-vest-h-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','')">Otra</button>
-    </div>
-    <input type="text" id="calc-dig-vest-h-txt" placeholder="Vestimenta digital hombre..." style="display:none;font-size:11px;margin-bottom:5px;">
-    <div style="font-size:11px;color:#555;margin-bottom:3px;font-weight:500;">Vestimenta digital Mujer</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
-      <button id="calc-dig-vest-m-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco claro')">Saco claro</button>
-      <button id="calc-dig-vest-m-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco oscuro')">Saco oscuro</button>
-      <button id="calc-dig-vest-m-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Camisa blanca')">Camisa blanca</button>
-      <button id="calc-dig-vest-m-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','')">Otra</button>
-    </div>
-    <input type="text" id="calc-dig-vest-m-txt" placeholder="Vestimenta digital mujer..." style="display:none;font-size:11px;">
-    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-digital"></div>
-  </div>
-
   <!-- Especificaciones del cliente -->
   <p class="slabel" style="margin:12px 0 8px;">Especificaciones confirmadas con el cliente</p>
 
@@ -3007,7 +2970,6 @@ function buscarOrden(){
     </div>
   </div>
 
-
   <!-- Barba -->
   <div class="frow">
     <label>Barba</label>
@@ -3016,10 +2978,48 @@ function buscarOrden(){
       <button id="calc-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="selSpec('barba','No')">No</button>
     </div>
   </div>
+
   <!-- Notas adicionales -->
   <div class="frow">
     <label>Notas adicionales</label>
     <input type="text" id="calc-notas" placeholder="Ej: traer peine, sin maquillaje...">
+  </div>
+
+  <!-- DIGITAL -->
+  <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">Digital</div>
+        <div style="font-size:10px;color:#888;">$250 c/u</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="ajCant('digital',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <input id="cant-digital" type="number" min="0" value="0" oninput="syncCant('digital')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
+        <button onclick="ajCant('digital',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+      <button id="opt-digital-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
+      <button id="opt-digital-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
+    </div>
+    <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;margin-bottom:5px;">
+    <div style="font-size:11px;color:#555;margin-top:4px;margin-bottom:3px;font-weight:500;">Vestimenta digital Hombre</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-dig-vest-h-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco claro')">Saco claro</button>
+      <button id="calc-dig-vest-h-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-dig-vest-h-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-dig-vest-h-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_h','')">Otra</button>
+    </div>
+    <input type="text" id="calc-dig-vest-h-txt" placeholder="Vestimenta digital hombre..." style="display:none;font-size:11px;margin-bottom:5px;">
+    <div style="font-size:11px;color:#555;margin-bottom:3px;font-weight:500;">Vestimenta digital Mujer</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="calc-dig-vest-m-saco-c" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco claro')">Saco claro</button>
+      <button id="calc-dig-vest-m-saco-o" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Saco oscuro')">Saco oscuro</button>
+      <button id="calc-dig-vest-m-camisa" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','Camisa blanca')">Camisa blanca</button>
+      <button id="calc-dig-vest-m-libre" class="btn bgray" style="font-size:10px;padding:3px 7px;" onclick="selSpec('dig_vest_m','')">Otra</button>
+    </div>
+    <input type="text" id="calc-dig-vest-m-txt" placeholder="Vestimenta digital mujer..." style="display:none;font-size:11px;">
+    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-digital"></div>
   </div>
 
   <!-- Descuento -->
