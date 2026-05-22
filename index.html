@@ -1268,7 +1268,26 @@ function renderCarrito(){
   document.getElementById('cart-cnt').textContent=carrito.length+' producto'+(carrito.length!==1?'s':'');
   document.getElementById('cart-total').textContent='$'+total;
   if(!carrito.length){el.innerHTML='<div class="cart-empty">Sin productos.<br>Toca cualquier servicio para agregar.</div>';document.getElementById('btn-cobrar').disabled=true;calcCambio();return;}
-  el.innerHTML=carrito.map((c,i)=>`<div class="ci"><div class="ci-inf"><div class="ci-n">${c.nombre}</div><div class="ci-p">$${c.precio}</div></div><span class="ci-x" onclick="delItem(${i})"><i class="ti ti-x"></i></span></div>`).join('');
+  el.innerHTML=carrito.map((c,i)=>{
+    var extras=[];
+    if(c.clienteData){
+      var cd=c.clienteData;
+      if(cd.adherible) extras.push('Adherible');
+      if(cd.camisa_blanca) extras.push('Camisa blanca');
+      if(cd.barba_edicion>0) extras.push('Editar barba');
+      var f=cd.fotografiados;
+      if(f){
+        var nH=f.nino_h||0,nM=f.nino_m||0,jH=f.joven_h||0,jM=f.joven_m||0,aH=f.adulto_h||0,aM=f.adulto_m||0;
+        if(nH||nM) extras.push('Niño'+(nH?' H:'+nH:'')+(nM?' M:'+nM:''));
+        if(jH||jM) extras.push('Joven'+(jH?' H:'+jH:'')+(jM?' M:'+jM:''));
+        if(aH||aM) extras.push('Adulto'+(aH?' H:'+aH:'')+(aM?' M:'+aM:''));
+      }
+    }
+    return '<div class="ci"><div class="ci-inf"><div class="ci-n">'+c.nombre+'</div>'
+      +(extras.length?'<div style="font-size:10px;color:#888;">'+extras.join(' · ')+'</div>':'')
+      +'<div class="ci-p">$'+c.precio+'</div></div>'
+      +'<span class="ci-x" onclick="delItem('+i+')"><i class="ti ti-x"></i></span></div>';
+  }).join('');
   calcCambio();
 }
 function calcCambio(){
@@ -1682,6 +1701,14 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
         if(aH||aM) fLinea.push('Adulto'+(aH?' H:'+aH:'')+(aM?' M:'+aM:''));
         if(fLinea.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+fLinea.join(' · ')+'</div>';
       }
+      if(i.clienteData){
+        var cd=i.clienteData;
+        var extras=[];
+        if(cd.adherible) extras.push('Adherible');
+        if(cd.camisa_blanca) extras.push('Camisa blanca');
+        if(cd.barba_edicion>0) extras.push('Editar barba (incluido)');
+        if(extras.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+extras.join(' · ')+'</div>';
+      }
       return lineaHtml;
     }).join('')}
     <hr class="tkt-div">
@@ -2043,14 +2070,19 @@ function renderDesgloseSpecs(ventas){
   sec.style.display='block';
 
   // --- Análisis de quien paga (clienteData) ---
-  var cSexo={H:0,M:0}, cEdad={Niño:0,Joven:0,Adulto:0};
+  var cSexo={H:0,M:0};
+  var cEdad={'18-30':0,'30-50':0,'50+':0};
   var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Personal':0,'Otro':0};
   var fotoNino=0, fotoJoven=0, fotoAdulto=0;
   var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0;
+  var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
   clientesData.forEach(function(c){
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
+    if(c.adherible) cAdherible++;
+    if(c.camisa_blanca) cCamisa++;
+    if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
     if(c.fotografiados){
       fotoNino+=(c.fotografiados.nino_h||0)+(c.fotografiados.nino_m||0);
       fotoJoven+=(c.fotografiados.joven_h||0)+(c.fotografiados.joven_m||0);
@@ -2098,9 +2130,9 @@ function renderDesgloseSpecs(ventas){
 
     html += '<div style="background:white;border-radius:8px;padding:10px;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'
-      +barra('Niño', cEdad.Niño||0, totalClientes, '#1D9E75')
-      +barra('Joven', cEdad.Joven||0, totalClientes, '#0C7ED6')
-      +barra('Adulto', cEdad.Adulto||0, totalClientes, '#BA7517')
+      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')
+      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')
+      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')
       +'</div>';
 
     html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
@@ -2120,6 +2152,18 @@ function renderDesgloseSpecs(ventas){
         +(fotoJoven?'<div style="font-size:11px;"><span style="color:#555;">Joven:</span> <span style="color:#0C447C;font-weight:600;">H:'+fotoJovenH+'</span> <span style="color:#7C0C44;font-weight:600;">M:'+fotoJovenM+'</span></div>':'')
         +(fotoAdulto?'<div style="font-size:11px;"><span style="color:#555;">Adulto:</span> <span style="color:#0C447C;font-weight:600;">H:'+fotoAdultoH+'</span> <span style="color:#7C0C44;font-weight:600;">M:'+fotoAdultoM+'</span></div>':'')
         +'<div style="font-size:11px;color:#888;">Total: <strong>'+totalFotosReal+'</strong></div>'
+        +'</div></div>';
+    }
+
+    // Adherible, camisa, barba desde clienteData
+    if(cAdherible>0||cCamisa>0||cBarbaEdicion>0){
+      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Servicios adicionales</p>'
+        +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+        +(cAdherible?'<div style="font-size:12px;">Adherible: <strong style="color:#BA7517;">'+cAdherible+'</strong></div>':'')
+        +(cCamisa?'<div style="font-size:12px;">Camisa blanca: <strong style="color:#0C7ED6;">'+cCamisa+'</strong></div>':'')
+        +(cBarbaEdicion?'<div style="font-size:12px;">Edición barba: <strong style="color:#555;">'+cBarbaEdicion+'</strong></div>':'')
+        +(cBarbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+cBarbaTotal+'</div>':'')
         +'</div></div>';
     }
   }
