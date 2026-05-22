@@ -995,11 +995,11 @@ function abrirClienteRapido(nombre, precio, tipo){
   document.getElementById('cr-titulo').textContent = nombre;
   document.getElementById('cr-precio').textContent = '$'+precio;
   // Reset todos los botones
-  ['cr-h1','cr-h2','cr-h3'].forEach(function(id){
+  ['cr-h1','cr-h2','cr-h3','cr-h4'].forEach(function(id){
     var b=document.getElementById(id);
     if(b){b.style.background='#EBF3FF';b.style.borderColor='#90BEFF';b.style.color='#0C447C';b.style.opacity='1';}
   });
-  ['cr-m1','cr-m2','cr-m3'].forEach(function(id){
+  ['cr-m1','cr-m2','cr-m3','cr-m4'].forEach(function(id){
     var b=document.getElementById(id);
     if(b){b.style.background='#FFEEF5';b.style.borderColor='#FFB3D4';b.style.color='#7C0C44';b.style.opacity='1';}
   });
@@ -1019,7 +1019,7 @@ function abrirClienteRapido(nombre, precio, tipo){
 function crSetSexoEdad(sexo, edad, btnIds){
   _clienteRapido.sexo = sexo;
   _clienteRapido.edad = edad;
-  var mapaBtn = {H:{Niño:'cr-h1',Joven:'cr-h2',Adulto:'cr-h3'}, M:{Niño:'cr-m1',Joven:'cr-m2',Adulto:'cr-m3'}};
+  var mapaBtn = {H:{'18-24':'cr-h1','25-34':'cr-h2','35-49':'cr-h3','50+':'cr-h4'}, M:{'18-24':'cr-m1','25-34':'cr-m2','35-49':'cr-m3','50+':'cr-m4'}};
   btnIds.forEach(function(id){ 
     var b = document.getElementById(id);
     if(b){
@@ -1614,7 +1614,7 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
         }
       }
       if(i.tipo==='extra') return '<div style="font-size:11px;padding:2px 0;">• '+i.nombre+' <span style="color:#888;font-size:10px;">(incluido)</span></div>';
-      // Urgentes — mostrar specs y clienteData si existen
+      // Urgentes — mostrar specs y desglose fotografiados (sin propósito/escuela — dato interno)
       var lineaHtml = '<div style="font-size:11px;padding:2px 0;font-weight:600;">• '+i.nombre+'</div>';
       if(i.specs){
         var s=i.specs;
@@ -1629,12 +1629,13 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
         if(s.barba_edicion>0) detalles.push('Editar barba (incluido)');
         if(detalles.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+detalles.join(' · ')+'</div>';
       }
-      if(i.clienteData){
-        var cd=i.clienteData;
-        var cdLinea=[];
-        if(cd.proposito) cdLinea.push(cd.proposito);
-        if(cd.escuela) cdLinea.push(cd.escuela);
-        if(cdLinea.length) lineaHtml+='<div style="font-size:10px;color:#888;padding-left:8px;">'+cdLinea.join(' · ')+'</div>';
+      if(i.clienteData && i.clienteData.fotografiados){
+        var f=i.clienteData.fotografiados;
+        var fLinea=[];
+        if(f.nino>0) fLinea.push('Niños: '+f.nino);
+        if(f.joven>0) fLinea.push('Jóvenes: '+f.joven);
+        if(f.adulto>0) fLinea.push('Adultos: '+f.adulto);
+        if(fLinea.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+fLinea.join(' · ')+'</div>';
       }
       return lineaHtml;
     }).join('')}
@@ -4050,20 +4051,24 @@ function buscarOrden(){
   <!-- Quien paga: sexo + edad en cuadrícula 2x3 -->
   <p class="slabel" style="margin-bottom:8px;">Quien paga</p>
   <div class="frow">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-      <button id="cr-h1" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','Niño',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
-      <button id="cr-h2" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','Joven',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
-      <button id="cr-h3" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','Adulto',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
-      <button id="cr-m1" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','Niño',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
-      <button id="cr-m2" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','Joven',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
-      <button id="cr-m3" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','Adulto',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <button id="cr-h1" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','18-24',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">1</button>
+      <button id="cr-h2" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','25-34',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">2</button>
+      <button id="cr-h3" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','35-49',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">3</button>
+      <button id="cr-h4" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','50+',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">4</button>
+      <button id="cr-m1" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','18-24',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">1</button>
+      <button id="cr-m2" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','25-34',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">2</button>
+      <button id="cr-m3" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','35-49',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">3</button>
+      <button id="cr-m4" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','50+',['cr-h1','cr-h2','cr-h3','cr-h4','cr-m1','cr-m2','cr-m3','cr-m4'])">4</button>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:4px;padding:0 2px;">
       <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
       <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
       <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
+      <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:2px;padding:0 2px;">
+      <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
