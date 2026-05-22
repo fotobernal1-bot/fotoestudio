@@ -1276,9 +1276,11 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
             var digVM=cs.dig_vest_m||'';
             var vestLine = vestH&&vestM ? 'Vest H: '+vestH+' / M: '+vestM : (vestH||vestM ? 'Vestimenta: '+(vestH||vestM) : '');
             var digVestLine = digVH&&digVM ? 'Vest digital H: '+digVH+' / M: '+digVM : (digVH||digVM ? 'Vest digital: '+(digVH||digVM) : '');
-            // Personas summary
+            // Personas summary — ahora viene de calcSexo directo
             var personasLine = '';
-            if(cs.personas && cs.personas.length===1){
+            if(cs.sexo){
+              personasLine = 'Persona: '+(cs.sexo==='H' ? 'Hombre' : 'Mujer');
+            } else if(cs.personas && cs.personas.length===1){
               personasLine = 'Persona: '+cs.personas[0].sexo;
             } else if(cs.personas && cs.personas.length>1){
               var hCount=cs.personas.filter(function(p){return p.sexo==='H';}).length;
@@ -2145,6 +2147,15 @@ const CALC_CFG = {
   digital:    {nombre:'Digital',    xPaq:1, precioBase:250, precioAdh:null,tieneAdh:false},
 };
 let calcSpecs={fondo:'',vestimenta_h:'',vestimenta_m:'',cabello:'',aretes:'',barba:'',dig_vest_h:'',dig_vest_m:''};
+let calcSexo = ''; // 'H' o 'M'
+
+function selCalcSexo(sexo){
+  calcSexo = sexo;
+  var bh = document.getElementById('calc-sexo-h');
+  var bm = document.getElementById('calc-sexo-m');
+  if(bh){ bh.className = sexo==='H' ? 'btn bgreen' : 'btn bgray'; }
+  if(bm){ bm.className = sexo==='M' ? 'btn bgreen' : 'btn bgray'; }
+}
 
 function abrirCalculadora(){
   escuelaActual = null;
@@ -2180,6 +2191,9 @@ function abrirCalculadora(){
   document.getElementById('calc-barba-no').className='btn bgray';document.getElementById('calc-barba-no').style.cssText='font-size:11px;padding:5px 10px;';
   // Reset specs
   calcSpecs={fondo:'',vestimenta_h:'',vestimenta_m:'',cabello:'',aretes:'',barba:'',dig_vest_h:'',dig_vest_m:''};
+  calcSexo = '';
+  var csh=document.getElementById('calc-sexo-h'); if(csh) csh.className='btn bgray';
+  var csm=document.getElementById('calc-sexo-m'); if(csm) csm.className='btn bgray';
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
   document.getElementById('calc-desc-pct').value='';
@@ -2314,11 +2328,8 @@ function iniciarPaqueteEscuela(i){
   escuelaActual = {idx:i, escuela:e};
   escuelaPersonas = [];
   escuelaNumPersonas = 0;
-  // Abrir modal de cuántas personas
-  document.getElementById('pers-num').value = '';
-  document.getElementById('pers-sexos').innerHTML = '';
-  document.getElementById('pers-continuar').disabled = true;
-  openM('m-personas');
+  // Abrir calculadora directo con datos de la escuela precargados
+  precargarCalculadora(e);
 }
 
 function actualizarPersonas(){
@@ -2572,30 +2583,12 @@ function cobrarCalculadora(){
     }
   }
 
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,personas:specsPersonas};
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,sexo:calcSexo,personas:specsPersonas};
   closeM('m-calc');
 
-  // Decidir ticket único o separados
-  if(specsPersonas.length > 1){
-    var separados = confirm('¿Generar tickets separados por persona?\n\nAceptar = ticket por persona\nCancelar = un solo ticket');
-    if(separados){
-      // Un ticket por persona — mismo precio, specs individuales
-      specsPersonas.forEach(function(p, idx){
-        var specsCopia = Object.assign({}, window._calcSpecs, {
-          nombre: nombre + ' — P'+(idx+1)+' '+p.sexo,
-          personas: [p],
-          specs: 'Fondo: '+p.fondo+' | Vestimenta: '+p.vestimenta+' | Cabello: '+p.cabello+' | Aretes: '+p.aretes+(p.notas?' | '+p.notas:'')
-        });
-        window._calcSpecs = specsCopia;
-        add('Paquete '+nombre+' P'+(idx+1)+' '+p.sexo, total, 'escuela');
-      });
-      window._calcSpecs.personas = specsPersonas; // restaurar para el ticket
-    } else {
-      add('Paquete '+nombre, total, 'escuela');
-    }
-  } else {
-    add('Paquete '+nombre, total, 'escuela');
-  }
+  // Ticket individual — 1 calculadora = 1 persona
+  var sexoLabel = calcSexo ? ' — '+calcSexo : '';
+  add('Paquete '+nombre+sexoLabel, total, 'escuela');
 
   // Reset flujo de personas
   escuelaActual = null;
@@ -2822,6 +2815,15 @@ function buscarOrden(){
   <div class="frow">
     <label>Nombre de la escuela</label>
     <input type="text" id="calc-nombre" placeholder="Ej: Primaria Benito Juárez">
+  </div>
+
+  <!-- Sexo de la persona -->
+  <div class="frow">
+    <label>Sexo de la persona</label>
+    <div style="display:flex;gap:8px;">
+      <button id="calc-sexo-h" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="selCalcSexo('H')"><i class="ti ti-user"></i> Hombre</button>
+      <button id="calc-sexo-m" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="selCalcSexo('M')"><i class="ti ti-user"></i> Mujer</button>
+    </div>
   </div>
 
   <!-- INFANTIL -->
