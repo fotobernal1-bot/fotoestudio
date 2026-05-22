@@ -596,12 +596,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead>
             <tr style="background:#FAEEDA;border-bottom:2px solid #e0e0e0;">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#633806;font-weight:600;min-width:220px;">INFORMACIÓN</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">PROCESO</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">IMPRESIÓN</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">ACABADO</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">ENTREGA</th>
-              <th style="padding:10px 8px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:60px;"></th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#633806;font-weight:600;">INFORMACIÓN</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:120px;">ESTADO</th>
             </tr>
           </thead>
           <tbody id="urg-prod-body">
@@ -693,7 +689,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
       </div>
       <p class="slabel">Urgentes</p>
-      <div id="rep-urgentes" style="margin-bottom:14px;"></div>
+      <div id="rep-urgentes" style="margin-bottom:8px;"></div>
+      <!-- Desglose specs urgentes -->
+      <div id="rep-urgentes-specs" style="margin-bottom:14px;display:none;">
+        <div style="background:#FAEEDA;border:1px solid #e8d0a0;border-radius:10px;padding:12px;">
+          <p style="font-size:11px;font-weight:600;color:#633806;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-chart-bar"></i> Desglose con especificaciones</p>
+          <div id="rep-specs-grid"></div>
+        </div>
+      </div>
       <p class="slabel">Paquetes escolares</p>
       <div id="rep-escuelas" style="margin-bottom:14px;"></div>
       <p class="slabel">Impresiones</p>
@@ -1007,6 +1010,11 @@ function abrirSpecsUrgente(cat, i){
   if(colorBtn){ colorBtn.className='btn bgreen'; }
   document.getElementById('su-vest-txt').style.display='none';
   document.getElementById('su-vest-txt').value='';
+  var barbaPrecioEl = document.getElementById('su-barba-precio');
+  if(barbaPrecioEl){ barbaPrecioEl.style.display='none'; barbaPrecioEl.value=''; }
+  var barbaBtnEl = document.getElementById('su-barba-editar-btn');
+  if(barbaBtnEl) barbaBtnEl.className='btn bgray';
+  _specUrg.barba_edicion = 0;
   openM('m-specs-urgente');
 }
 
@@ -1040,18 +1048,46 @@ function suSet(campo, val, btnIds){
   }
 }
 
+function suToggleEditarBarba(){
+  var btn = document.getElementById('su-barba-editar-btn');
+  var inp = document.getElementById('su-barba-precio');
+  var activo = inp.style.display === 'block';
+  if(activo){
+    inp.style.display = 'none';
+    inp.value = '';
+    _specUrg.barba_edicion = 0;
+    _specUrg.precio = _specUrg.precioBase + (_specUrg.adherible ? 20 : 0);
+    btn.className = 'btn bgray';
+  } else {
+    inp.style.display = 'block';
+    btn.className = 'btn bgreen';
+    inp.focus();
+  }
+  document.getElementById('su-precio').textContent = '$'+_specUrg.precio;
+}
+
+function suActualizarBarba(){
+  var p = parseInt(document.getElementById('su-barba-precio').value) || 0;
+  _specUrg.barba_edicion = p;
+  var tieneAdh = _specUrg.adherible;
+  _specUrg.precio = _specUrg.precioBase + (tieneAdh ? 20 : 0) + p;
+  document.getElementById('su-precio').textContent = '$'+_specUrg.precio;
+}
+
 function cobrarSpecsUrgente(){
   var s = _specUrg;
   var vestFinal = s.vestimenta || document.getElementById('su-vest-txt').value.trim();
+  var barbaPrecio = parseInt(document.getElementById('su-barba-precio').value) || 0;
   var specs = {
     sexo: s.sexo, color: s.color, adherible: s.adherible,
     fondo: s.fondo, vestimenta: vestFinal,
-    cabello: s.cabello, aretes: s.aretes, barba: s.barba
+    cabello: s.cabello, aretes: s.aretes, barba: s.barba,
+    barba_edicion: barbaPrecio > 0 ? barbaPrecio : 0
   };
-  // Build display name with key specs
   var extras = [];
   if(s.adherible) extras.push('adh');
   if(s.sexo) extras.push(s.sexo);
+  if(barbaPrecio > 0) extras.push('barba $'+barbaPrecio);
   var nombreDisplay = s.nombre + (extras.length ? ' ('+extras.join(', ')+')' : '');
   carrito.push({nombre:nombreDisplay, precio:s.precio, tipo:s.tipo, specs:specs});
   renderCarrito();
@@ -1791,9 +1827,97 @@ function renderReportes(){
   renderSeccion('rep-urgentes',urg);
   renderSeccion('rep-escuelas',esc);
   renderSeccion('rep-impresiones',imp);
+  renderDesgloseSpecs(ventasActivas);
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
   if(elH) renderHistorialRows(sorted, elH);
+}
+
+function renderDesgloseSpecs(ventas){
+  var sec = document.getElementById('rep-urgentes-specs');
+  var grid = document.getElementById('rep-specs-grid');
+  if(!sec || !grid) return;
+
+  // Recopilar todos los items urgentes con specs
+  var itemsConSpecs = [];
+  ventas.forEach(function(v){
+    if(v.origen !== 'urgentes') return;
+    (v.items||[]).forEach(function(it){
+      if(it.specs) itemsConSpecs.push(it.specs);
+    });
+  });
+
+  if(!itemsConSpecs.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+
+  var total = itemsConSpecs.length;
+
+  // Contadores
+  var color=0, bn=0, adh=0, sinAdh=0;
+  var vest={}, sexo={H:0,M:0,otro:0};
+  var barbaSi=0, barbaNota=0, barbaTotal=0;
+
+  itemsConSpecs.forEach(function(s){
+    if(s.color==='bn') bn++; else color++;
+    if(s.adherible) adh++; else sinAdh++;
+    if(s.sexo==='H') sexo.H++; else if(s.sexo==='M') sexo.M++; else sexo.otro++;
+    var v = s.vestimenta||'Sin especificar';
+    vest[v] = (vest[v]||0)+1;
+    if(s.barba==='Sí') barbaSi++;
+    if(s.barba_edicion > 0){ barbaNota++; barbaTotal+=s.barba_edicion; }
+  });
+
+  function barra(label, val, max, color){
+    var pct = Math.round(val/max*100);
+    return '<div style="margin-bottom:6px;">'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
+      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'
+      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'
+      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
+  }
+
+  var html = '<div class="g2" style="gap:10px;">';
+
+  // Sexo
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'
+    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo</p>'
+    +barra('Hombre', sexo.H, total, '#0C447C')
+    +barra('Mujer', sexo.M, total, '#7C0C44')
+    +'</div>';
+
+  // Color
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'
+    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
+    +barra('Color', color, total, '#1D9E75')
+    +barra('B/N', bn, total, '#555')
+    +'</div>';
+
+  // Adherible
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'
+    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Adherible</p>'
+    +barra('Con adherible', adh, total, '#BA7517')
+    +barra('Sin adherible', sinAdh, total, '#aaa')
+    +'</div>';
+
+  // Vestimenta
+  var vestEntries = Object.entries(vest).sort(function(a,b){return b[1]-a[1];});
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'
+    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Vestimenta</p>'
+    +vestEntries.map(function(e){ return barra(e[0], e[1], total, '#0C7ED6'); }).join('')
+    +'</div>';
+
+  // Barba
+  html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Barba</p>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+    +'<div style="font-size:12px;">Barba permitida: <strong>'+barbaSi+'</strong></div>'
+    +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
+    +(barbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+barbaTotal+'</div>':'')
+    +'</div></div>';
+
+  html += '</div>';
+  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'+total+' urgente'+(total!==1?'s':'')+' con especificaciones en este período</div>';
+  grid.innerHTML = html;
 }
 
 function renderHistorialRows(sorted, elH){
@@ -2980,28 +3104,11 @@ function renderProduccionUrgentes(lista){
   var tbody = document.getElementById('urg-prod-body');
   if(!tbody) return;
   if(!lista.length){
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(o){
-    var pasos = ['proceso','impresion','acabado','entrega'];
-    var todosHechos = pasos.every(function(p){ return o[p].hecho; });
-    var celdas = pasos.map(function(p){
-      var paso = o[p];
-      if(paso.hecho){
-        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
-          +'<div style="color:#1D9E75;font-size:16px;">✅</div>'
-          +'<div style="font-size:10px;color:#1D9E75;font-weight:600;">'+paso.quien+'</div>'
-          +'<div style="font-size:9px;color:#aaa;">'+paso.hora+'</div></td>';
-      } else {
-        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
-          +'<button onclick="marcarPasoUrgente(\x27'+o.folio+'\x27,\x27'+p+'\x27)" '
-          +'style="width:32px;height:32px;border:2px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;color:#ccc;">○</button></td>';
-      }
-    }).join('');
-    var archivarBtn = todosHechos
-      ? '<td style="text-align:center;padding:8px;"><button onclick="archivarUrgenteOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
-      : '<td></td>';
+    var listo = o.listo || false;
     var itemsHtml = '';
     if(o.specs && o.specs.items){
       itemsHtml = o.specs.items.map(function(it){
@@ -3009,24 +3116,31 @@ function renderProduccionUrgentes(lista){
           +(it.detalle?'<div style="font-size:10px;color:#555;">'+it.detalle+'</div>':'')+'</div>';
       }).join('');
     }
-    return '<tr style="border-bottom:1px solid #f0f0f0;">'
+    var listoBtn = listo
+      ? '<td style="text-align:center;padding:8px;vertical-align:top;">'
+        +'<div style="color:#1D9E75;font-size:16px;">✅</div>'
+        +'<div style="font-size:10px;color:#1D9E75;font-weight:600;">Listo</div>'
+        +'<button onclick="archivarUrgenteOrden(\x27'+o.folio+'\x27)" style="margin-top:6px;font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button>'
+        +'</td>'
+      : '<td style="text-align:center;padding:8px;vertical-align:top;">'
+        +'<button onclick="marcarListoUrgente(\x27'+o.folio+'\x27)" '
+        +'style="width:80px;height:36px;border:2px solid #1D9E75;border-radius:8px;background:white;cursor:pointer;font-size:12px;color:#1D9E75;font-weight:600;">✓ Listo</button>'
+        +'</td>';
+    return '<tr style="border-bottom:1px solid #f0f0f0;'+(listo?'opacity:0.6;':'')+'}">'
       +'<td style="padding:10px 12px;vertical-align:top;">'
       +'<div style="font-weight:700;color:#0C7ED6;font-size:12px;">'+o.folio+'</div>'
       +(itemsHtml?'<div style="margin-top:4px;max-width:240px;">'+itemsHtml+'</div>':'')
       +'<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+' '+o.hora+'</div>'
       +'</td>'
-      +celdas+archivarBtn+'</tr>';
+      +listoBtn+'</tr>';
   }).join('');
 }
 
-function marcarPasoUrgente(folio, paso){
-  var quien = prompt('¿Quién autoriza este paso?');
+function marcarListoUrgente(folio){
+  var quien = prompt('¿Quién marca como listo?');
   if(!quien || !quien.trim()) return;
-  var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   if(!db) return;
-  var update = {};
-  update[paso] = {hecho:true, quien:quien.trim(), hora:hora};
-  db.collection('produccion_urgentes').doc(folio).update(update)
+  db.collection('produccion_urgentes').doc(folio).update({listo:true, quien:quien.trim(), horaListo: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})})
     .then(function(){ cargarProduccionUrgentes(); })
     .catch(function(e){ alert('Error: '+e.message); });
 }
@@ -3686,9 +3800,13 @@ function buscarOrden(){
   <!-- Barba -->
   <div class="frow">
     <label>Barba</label>
-    <div style="display:flex;gap:6px;">
+    <div style="display:flex;gap:6px;margin-bottom:6px;">
       <button id="su-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('barba','Sí',[{id:'su-barba-si',v:'Sí'},{id:'su-barba-no',v:'No'}])">Sí</button>
       <button id="su-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('barba','No',[{id:'su-barba-si',v:'Sí'},{id:'su-barba-no',v:'No'}])">No</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="su-barba-editar-btn" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suToggleEditarBarba()"><i class="ti ti-scissors"></i> Editar barba</button>
+      <input type="number" id="su-barba-precio" min="0" placeholder="$precio" style="width:90px;font-size:13px;display:none;" oninput="suActualizarBarba()">
     </div>
   </div>
 
