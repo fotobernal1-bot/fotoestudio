@@ -1904,10 +1904,32 @@ function exportarMeta(){
     });
   });
 
-  if(!filas.length){ alert('No hay datos de clientes en este período. Asegúrate de haber registrado información al vender.'); return; }
+  // Agregar filas de escuelas ordinarias
+  var MESES_N = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  ventasActivas.forEach(function(v){
+    if(v.origen !== 'escuelas') return;
+    var mes = v.month ? MESES_N[(v.month-1)] : '';
+    (v.items||[]).forEach(function(i){
+      if(i.tipo !== 'escuela') return;
+      var nombre = i.nombre.replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim();
+      filas.push({
+        fecha: v.fecha||'',
+        sexo: i.clienteData&&i.clienteData.sexo==='H'?'Male':i.clienteData&&i.clienteData.sexo==='M'?'Female':'',
+        edad: i.clienteData&&i.clienteData.edad||'',
+        proposito: 'Escolar',
+        escuela: nombre,
+        mes_activo: mes,
+        adherible: '', camisa_blanca: '', barba_edicion: 0,
+        nino_h:0, nino_m:0, joven_h:0, joven_m:0, adulto_h:0, adulto_m:0,
+        total: i.precio||0
+      });
+    });
+  });
+
+  if(!filas.length){ alert('No hay datos de clientes en este período.'); return; }
 
   var periodo = document.getElementById('rep-periodo') ? document.getElementById('rep-periodo').textContent : '';
-  var cols = ['fecha','sexo','edad','proposito','escuela','adherible','camisa_blanca','barba_edicion','nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','total','ciudad','estado','pais','codigo_postal'];
+  var cols = ['fecha','mes_activo','sexo','edad','proposito','escuela','adherible','camisa_blanca','barba_edicion','nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','total','ciudad','estado','pais','codigo_postal'];
   var csv = cols.join(',') + '\n'
     + filas.map(function(r){
         r.ciudad = 'Chihuahua';
@@ -2195,11 +2217,29 @@ function renderDesgloseSpecs(ventas){
   // Recopilar datos de cliente (venta rápida) y specs (mini calculadora)
   var itemsConSpecs = [];
   var clientesData = [];
+  // Análisis temporal escuelas ordinarias
+  var escuelasTemporales = {}; // {nombre: {ventas:0, meses:{}, total:0}}
+  var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   ventas.forEach(function(v){
     if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
     (v.items||[]).forEach(function(it){
       if(it.specs) itemsConSpecs.push(it.specs);
       if(it.clienteData) clientesData.push(it.clienteData);
+    });
+  });
+  // Escuelas ordinarias con fecha
+  ventas.forEach(function(v){
+    if(v.origen !== 'escuelas') return;
+    var mes = v.month ? MESES_NOMBRE[(v.month-1)] : (v.fecha||'').split('/')[1];
+    (v.items||[]).forEach(function(it){
+      if(it.tipo !== 'escuela') return;
+      // Extraer nombre base de la escuela (sin " — H" o " — M")
+      var nombre = it.nombre.replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim();
+      if(!nombre) return;
+      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0};
+      escuelasTemporales[nombre].ventas++;
+      escuelasTemporales[nombre].total+=(it.precio||0);
+      if(mes) escuelasTemporales[nombre].meses[mes]=(escuelasTemporales[nombre].meses[mes]||0)+1;
     });
   });
 
@@ -2350,6 +2390,33 @@ function renderDesgloseSpecs(ventas){
       +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
       +(barbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+barbaTotal+'</div>':'')
       +'</div></div>';
+  }
+
+  // Tabla temporal escuelas ordinarias
+  var escTemp = Object.entries(escuelasTemporales).sort(function(a,b){return b[1].ventas-a[1].ventas;});
+  if(escTemp.length){
+    sec.style.display='block';
+    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;margin-top:4px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">📅 Escuelas ordinarias — actividad por mes</p>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11px;">'
+      +'<thead><tr style="border-bottom:1px solid #e0e0e0;">'
+      +'<th style="padding:5px 8px;text-align:left;color:#888;font-size:10px;">Escuela</th>'
+      +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Ventas</th>'
+      +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Total</th>'
+      +'<th style="padding:5px 8px;text-align:left;color:#888;font-size:10px;">Meses activos</th>'
+      +'</tr></thead><tbody>'
+      +escTemp.map(function(e){
+        var mesesStr = Object.entries(e[1].meses)
+          .sort(function(a,b){return MESES_NOMBRE.indexOf(a[0])-MESES_NOMBRE.indexOf(b[0]);})
+          .map(function(m){ return '<span style="background:#E1F5EE;color:#085041;padding:1px 5px;border-radius:4px;margin-right:3px;font-size:10px;">'+m[0]+(m[1]>1?' x'+m[1]:'')+'</span>'; }).join('');
+        return '<tr style="border-bottom:1px solid #f5f5f5;">'
+          +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+e[0]+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;">'+e[1].ventas+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;color:#1D9E75;font-weight:600;">$'+e[1].total+'</td>'
+          +'<td style="padding:6px 8px;">'+mesesStr+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table></div>';
   }
 
   html += '</div>';
