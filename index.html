@@ -676,6 +676,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <p class="slabel">Impresiones</p>
       <div id="rep-impresiones" style="margin-bottom:14px;"></div>
       <p class="slabel">Historial de ventas</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="text" id="rep-buscar-folio" placeholder="Buscar por folio (ej: ESC-0017-MAY-2026)..." style="flex:1;font-size:12px;" oninput="filtrarHistorial()">
+        <button class="btn bgray" style="font-size:11px;padding:6px 12px;" onclick="document.getElementById('rep-buscar-folio').value='';filtrarHistorial()"><i class="ti ti-x"></i></button>
+      </div>
       <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
     </div>
 
@@ -1082,6 +1086,8 @@ function abrirModalEntrega(){
   document.getElementById('ent-btn-manana').className='btn bgray';
   document.getElementById('ent-btn-1pm').className='btn bgray';
   document.getElementById('ent-btn-otra').className='btn bgray';
+  var otraF=document.getElementById('ent-btn-otra-fecha'); if(otraF){otraF.className='btn bgray';otraF.innerHTML='<i class="ti ti-calendar"></i> Otra fecha...';}
+  var calF=document.getElementById('ent-cal-fecha'); if(calF){calF.style.display='none';calF.value='';}
   document.getElementById('ent-hora-txt').style.display='none';
   document.getElementById('ent-hora-txt').value='';
   document.getElementById('ent-dia-sel').value='';
@@ -1091,10 +1097,33 @@ function abrirModalEntrega(){
 }
 
 function selDiaEntrega(btn){
-  document.getElementById('ent-btn-hoy').className='btn bgray';
-  document.getElementById('ent-btn-manana').className='btn bgray';
+  ['ent-btn-hoy','ent-btn-manana','ent-btn-otra-fecha'].forEach(function(id){
+    var b=document.getElementById(id); if(b) b.className='btn bgray';
+  });
   btn.className='btn bgreen';
   document.getElementById('ent-dia-sel').value=btn.dataset.fecha;
+  document.getElementById('ent-cal-fecha').style.display='none';
+  validarEntrega();
+}
+
+function selOtraFecha(){
+  ['ent-btn-hoy','ent-btn-manana','ent-btn-otra-fecha'].forEach(function(id){
+    var b=document.getElementById(id); if(b) b.className='btn bgray';
+  });
+  document.getElementById('ent-btn-otra-fecha').className='btn bgreen';
+  document.getElementById('ent-cal-fecha').style.display='block';
+  document.getElementById('ent-cal-fecha').focus();
+}
+
+function confirmarOtraFecha(){
+  var val = document.getElementById('ent-cal-fecha').value;
+  if(!val) return;
+  var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var d = new Date(val+'T12:00:00');
+  var fechaStr = DIAS[d.getDay()]+' '+d.getDate()+' '+MESES[d.getMonth()]+' '+d.getFullYear();
+  document.getElementById('ent-btn-otra-fecha').textContent = '📅 '+fechaStr;
+  document.getElementById('ent-dia-sel').value = fechaStr;
   validarEntrega();
 }
 
@@ -1104,6 +1133,7 @@ function selHoraEntrega(val, btnId){
   document.getElementById(btnId).className='btn bgreen';
   if(val==='otra'){
     document.getElementById('ent-hora-txt').style.display='block';
+    document.getElementById('ent-hora-txt').focus();
     document.getElementById('ent-hora-sel').value='';
   } else {
     document.getElementById('ent-hora-txt').style.display='none';
@@ -1114,8 +1144,16 @@ function selHoraEntrega(val, btnId){
 }
 
 function syncHoraLibre(){
-  var val=document.getElementById('ent-hora-txt').value.trim();
-  document.getElementById('ent-hora-sel').value=val;
+  var val = document.getElementById('ent-hora-txt').value; // "HH:MM" del input type=time
+  if(!val){ document.getElementById('ent-hora-sel').value=''; validarEntrega(); return; }
+  // Convertir 24h a 12h am/pm
+  var parts = val.split(':');
+  var h = parseInt(parts[0]);
+  var m = parts[1];
+  var ampm = h >= 12 ? 'pm' : 'am';
+  var h12 = h % 12 || 12;
+  var horaLegible = h12+':'+m+' '+ampm;
+  document.getElementById('ent-hora-sel').value = horaLegible;
   validarEntrega();
 }
 
@@ -1653,8 +1691,12 @@ function renderReportes(){
   renderSeccion('rep-impresiones',imp);
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
-  if(elH)elH.innerHTML=sorted.length?
-    '<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead><tbody>'+
+  if(elH) renderHistorialRows(sorted, elH);
+}
+
+function renderHistorialRows(sorted, elH){
+  if(!sorted.length){ elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
+  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead><tbody>'+
     sorted.map(v=>{
       const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
       const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
@@ -1665,8 +1707,16 @@ function renderReportes(){
       const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:2px 7px;cursor:pointer;">✕ Cancelar</button>`;
       const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:2px 7px;cursor:pointer;margin-top:3px;">🖨 Reimprimir</button>`;
       return `<tr style="${v.cancelado?'opacity:0.5;text-decoration:line-through;':''}"><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'} ${cancelBadge}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}<br><span style="font-size:9px;">${iconMetodo} ${metodo}</span></td><td style="font-size:11px;">${detalle}</td><td style="color:${color};font-weight:600;">$${v.total}<br>${cancelBtn}<br>${reimpBtn}</td></tr>`;
-    }).join('')+'</tbody></table>':
-    '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>';
+    }).join('')+'</tbody></table>';
+}
+
+function filtrarHistorial(){
+  var q = (document.getElementById('rep-buscar-folio').value||'').trim().toLowerCase();
+  var lista = q ? ventasFB.filter(function(v){ return (v.folio||'').toLowerCase().includes(q); }) : ventasFB;
+  var sorted = [...lista].sort(function(a,b){ return (b.timestamp||'').localeCompare(a.timestamp||''); });
+  var elH = document.getElementById('rep-historial');
+  if(!elH) return;
+  renderHistorialRows(sorted, elH);
 }
 
 function rendVisas(){
@@ -2724,9 +2774,8 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
   var info = '';
   var specs = {};
   if(origen === 'escuelas'){
-    var esc = items[0];
-    info = esc ? (esc.nombre || folio) : folio;
-    // Grab specs from _calcSpecs if available
+    // Mostrar TODOS los paquetes del ticket, no solo el primero
+    info = items.map(function(i){ return i.nombre; }).join(' + ');
     if(window._calcSpecs){
       var cs = window._calcSpecs;
       specs = {
@@ -2739,11 +2788,17 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
         cabello: cs.cabello||'',
         aretes: cs.aretes||'',
         barba: cs.barba||'',
+        sexo: cs.sexo||'',
         personas: cs.personas||[],
-        descuento: cs.descuento||0
+        descuento: cs.descuento||0,
+        // Guardar specs individuales por ítem para mostrar en producción
+        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||''}; })
       };
-    } else if(esc && esc.detalle){
-      specs = {lineas: esc.detalle.split(' | ')};
+    } else {
+      specs = {
+        lineas: items.map(function(it){ return it.nombre+(it.detalle?' — '+it.detalle:''); }),
+        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||''}; })
+      };
     }
   } else if(origen === 'impresiones'){
     info = items.map(function(i){ return i.nombre; }).join(', ');
@@ -2770,6 +2825,30 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     .catch(function(e){ console.error('Error crear orden:', e); });
 }
 
+function esOrdenUrgente(o){
+  var pasos = ['proceso','impresion','acabado','entrega'];
+  var todosHechos = pasos.every(function(p){ return o[p] && o[p].hecho; });
+  if(todosHechos || !o.fechaEntrega) return false;
+  try{
+    var ahora = new Date();
+    var horaMatch = o.fechaEntrega.match(/(\d+):(\d+)\s*(am|pm)/i);
+    if(!horaMatch) return false;
+    var h = parseInt(horaMatch[1]);
+    var min = parseInt(horaMatch[2]);
+    var ampm = horaMatch[3].toLowerCase();
+    if(ampm==='pm' && h!==12) h+=12;
+    if(ampm==='am' && h===12) h=0;
+    var entrega = new Date(ahora);
+    if(/mañana/i.test(o.fechaEntrega)) entrega.setDate(entrega.getDate()+1);
+    // Fecha específica (ej: "Lunes 25 Mayo 2026 a las 3:00 pm")
+    var fechaMatch = o.fechaEntrega.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(fechaMatch){ entrega = new Date(parseInt(fechaMatch[3]), parseInt(fechaMatch[2])-1, parseInt(fechaMatch[1])); }
+    entrega.setHours(h, min, 0, 0);
+    var diffMs = entrega - ahora;
+    return diffMs > 0 && diffMs < 2*60*60*1000;
+  }catch(e){ return false; }
+}
+
 function cargarProduccion(){
   if(!db) return;
   var busq = document.getElementById('prod-buscar');
@@ -2778,8 +2857,14 @@ function cargarProduccion(){
     .then(function(snap){
       var arr = [];
       snap.forEach(function(d){ arr.push(d.data()); });
-      // Más antigua arriba
-      arr.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
+      // Urgentes (menos de 2 hrs) al tope, luego más antigua arriba
+      arr.sort(function(a,b){
+        var aUrg = esOrdenUrgente(a);
+        var bUrg = esOrdenUrgente(b);
+        if(aUrg && !bUrg) return -1;
+        if(!aUrg && bUrg) return 1;
+        return a.timestamp < b.timestamp ? -1 : 1;
+      });
       ordenesProduccion = arr;
       renderProduccion(query ? arr.filter(function(o){
         return o.folio.toLowerCase().includes(query) ||
@@ -2803,26 +2888,7 @@ function renderProduccion(lista){
     var todosHechos = pasos.every(function(p){ return o[p].hecho; });
 
     // Alerta roja: faltan menos de 2 horas para entrega y no está completa
-    var esUrgente = false;
-    if(!todosHechos && o.fechaEntrega){
-      try{
-        // fechaEntrega formato: "Hoy 1:00 pm" o "Mañana 3:30 pm"
-        var ahora = new Date();
-        var horaMatch = o.fechaEntrega.match(/(\d+):(\d+)\s*(am|pm)/i);
-        if(horaMatch){
-          var h = parseInt(horaMatch[1]);
-          var min = parseInt(horaMatch[2]);
-          var ampm = horaMatch[3].toLowerCase();
-          if(ampm==='pm' && h!==12) h+=12;
-          if(ampm==='am' && h===12) h=0;
-          var entrega = new Date(ahora);
-          if(/mañana/i.test(o.fechaEntrega)) entrega.setDate(entrega.getDate()+1);
-          entrega.setHours(h, min, 0, 0);
-          var diffMs = entrega - ahora;
-          esUrgente = diffMs > 0 && diffMs < 2*60*60*1000;
-        }
-      }catch(e){}
-    }
+    var esUrgente = esOrdenUrgente(o);
 
     var rowStyle = esUrgente
       ? 'border-bottom:1px solid #f5c0c0;background:#FFF5F5;'
@@ -3256,14 +3322,16 @@ function buscarOrden(){
   <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
     <button id="ent-btn-hoy" class="btn bgray" style="font-size:12px;padding:8px;text-align:left;" onclick="selDiaEntrega(this)" data-fecha="">Hoy</button>
     <button id="ent-btn-manana" class="btn bgray" style="font-size:12px;padding:8px;text-align:left;" onclick="selDiaEntrega(this)" data-fecha="">Mañana</button>
+    <button id="ent-btn-otra-fecha" class="btn bgray" style="font-size:12px;padding:8px;text-align:left;" onclick="selOtraFecha()"><i class="ti ti-calendar"></i> Otra fecha...</button>
+    <input type="date" id="ent-cal-fecha" style="display:none;font-size:13px;" onchange="confirmarOtraFecha()">
   </div>
 
   <p class="slabel" style="margin-bottom:8px;">Hora de entrega</p>
   <div style="display:flex;gap:6px;margin-bottom:8px;">
     <button id="ent-btn-1pm" class="btn bgray" style="font-size:12px;padding:8px 14px;" onclick="selHoraEntrega('1:00 pm','ent-btn-1pm')">1:00 pm</button>
-    <button id="ent-btn-otra" class="btn bgray" style="font-size:12px;padding:8px 14px;" onclick="selHoraEntrega('otra','ent-btn-otra')">Otra hora</button>
+    <button id="ent-btn-otra" class="btn bgray" style="font-size:12px;padding:8px 14px;" onclick="selHoraEntrega('otra','ent-btn-otra')"><i class="ti ti-clock"></i> Otra hora</button>
   </div>
-  <input type="text" id="ent-hora-txt" placeholder="Ej: 3:30 pm, 11:00 am..." style="display:none;font-size:13px;margin-bottom:8px;" oninput="syncHoraLibre()">
+  <input type="time" id="ent-hora-txt" style="display:none;font-size:15px;margin-bottom:8px;width:100%;" onchange="syncHoraLibre()">
 
   <div style="background:#E1F5EE;border-radius:8px;padding:8px 12px;margin:10px 0;font-size:12px;color:#085041;min-height:32px;" id="ent-preview">
     Selecciona día y hora
