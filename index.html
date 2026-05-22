@@ -2392,6 +2392,7 @@ function precargarCalculadora(e){
         if(el){ el.value = cant; syncCant(k); }
         if(cd[k].color) setColor(k, cd[k].color);
         if(k!=='digital' && cd[k].adherible !== undefined) setAdh(k, cd[k].adherible);
+        if(k!=='digital' && cd[k].tb) setTB(k, cd[k].tb);
         if(k==='digital' && cd[k].espec){
           var especEl = document.getElementById('calc-dig-espec');
           if(especEl) especEl.value = cd[k].espec;
@@ -2578,7 +2579,7 @@ function cobrarCalculadora(){
       var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
       var calcData={specs:{fondo:fondo,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',cabello:cab,aretes:aretes,barba:barba||''},descuento_pesos:descPesos,descuento_pct:descPct};
       Object.keys(calcState).forEach(function(k){
-        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false};
+        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false};
         if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
       });
       var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId,calcData:calcData};
