@@ -1009,6 +1009,14 @@ function abrirClienteRapido(nombre, precio, tipo){
   var escTxt=document.getElementById('cr-escuela-txt'); if(escTxt) escTxt.value='';
   var escSugs=document.getElementById('cr-escuela-sugs'); if(escSugs) escSugs.style.display='none';
   _clienteRapido.escuela='';
+  // Reset camisa y barba
+  var camisa=document.getElementById('cr-camisa'); if(camisa) camisa.className='btn bgray';
+  _clienteRapido.camisa_blanca=false;
+  document.getElementById('cr-barba-si').className='btn bgray';
+  document.getElementById('cr-barba-no').className='btn bgray';
+  document.getElementById('cr-barba-editar-btn').className='btn bgray';
+  var barbaPrecioEl=document.getElementById('cr-barba-precio'); if(barbaPrecioEl){barbaPrecioEl.style.display='none';barbaPrecioEl.value='';}
+  _clienteRapido.barba=''; _clienteRapido.barba_edicion=0;
   // Reset contadores foto
   ['nino','joven','adulto'].forEach(function(k){
     var el=document.getElementById('cr-foto-'+k); if(el) el.textContent='0';
@@ -1094,12 +1102,51 @@ function crSelEscuelaSug(nombre){
   _clienteRapido.escuela = nombre;
 }
 
+function crToggleCamisa(){
+  _clienteRapido.camisa_blanca = !_clienteRapido.camisa_blanca;
+  document.getElementById('cr-camisa').className = _clienteRapido.camisa_blanca ? 'btn bgreen' : 'btn bgray';
+}
+
+function crSetBarba(val){
+  _clienteRapido.barba = val;
+  document.getElementById('cr-barba-si').className = val==='Sí' ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('cr-barba-no').className = val==='No' ? 'btn bgreen' : 'btn bgray';
+}
+
+function crToggleEditarBarba(){
+  var btn = document.getElementById('cr-barba-editar-btn');
+  var inp = document.getElementById('cr-barba-precio');
+  var activo = inp.style.display === 'block';
+  if(activo){
+    inp.style.display='none'; inp.value='';
+    _clienteRapido.barba_edicion=0;
+    _clienteRapido.precio = _clienteRapido.precioBase * ((_clienteRapido.foto_nino||0)+(_clienteRapido.foto_joven||0)+(_clienteRapido.foto_adulto||0)||1);
+    btn.className='btn bgray';
+  } else {
+    inp.style.display='block'; inp.focus();
+    btn.className='btn bgreen';
+  }
+  document.getElementById('cr-precio').textContent='$'+_clienteRapido.precio;
+}
+
+function crActualizarBarba(){
+  var p = parseInt(document.getElementById('cr-barba-precio').value)||0;
+  _clienteRapido.barba_edicion = p;
+  var total = _clienteRapido.precioBase*((_clienteRapido.foto_nino||0)+(_clienteRapido.foto_joven||0)+(_clienteRapido.foto_adulto||0)||1)+p;
+  _clienteRapido.precio = total;
+  document.getElementById('cr-precio').textContent='$'+total;
+}
+
 function confirmarClienteRapido(){
   var c = _clienteRapido;
   var escuela = c.proposito==='Escolar' ? (document.getElementById('cr-escuela-txt').value.trim()||'') : '';
+  var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
   var clienteData = {
     sexo: c.sexo, edad: c.edad, proposito: c.proposito,
     escuela: escuela,
+    camisa_blanca: c.camisa_blanca||false,
+    barba: c.barba||'',
+    barba_edicion: barbaPrecio,
     fotografiados: {nino:c.foto_nino||0, joven:c.foto_joven||0, adulto:c.foto_adulto||0}
   };
   carrito.push({nombre:c.nombre, precio:c.precio, tipo:c.tipo, clienteData:clienteData});
@@ -2718,6 +2765,7 @@ window.addEventListener('load',function(){
 
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
+var _calcPendiente = {}; // pagador ordinarios
 let calcState = {
   infantil:   {cant:0, color:'bn', adherible:false, tb:false},
   credencial: {cant:0, color:'bn', adherible:false, tb:false},
@@ -3205,16 +3253,14 @@ function cobrarCalculadora(){
   window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
   closeM('m-calc');
 
-  // Abrir mini popup sexo+edad antes de agregar al carrito
-  _calcPendiente = {nombre:'Paquete '+nombre+sexoLabel, total:total};
+  // Guardar pendiente y abrir popup sexo+edad
+  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total};
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
-    var b=document.getElementById(id);
-    if(b){
-      var esH=id.startsWith('esc-h');
-      b.style.background=esH?'#EBF3FF':'#FFEEF5';
-      b.style.borderColor=esH?'#90BEFF':'#FFB3D4';
-      b.style.color=esH?'#0C447C':'#7C0C44';
-    }
+    var b=document.getElementById(id); if(!b) return;
+    var esH=id.startsWith('esc-h');
+    b.style.background=esH?'#EBF3FF':'#FFEEF5';
+    b.style.borderColor=esH?'#90BEFF':'#FFB3D4';
+    b.style.color=esH?'#0C447C':'#7C0C44';
   });
   _calcPendiente.sexo=''; _calcPendiente.edad='';
   openM('m-calc-pagador');
@@ -3224,7 +3270,6 @@ function cobrarCalculadora(){
   personaSpecs = {};
 }
 // ── PAGADOR ORDINARIOS ───────────────────────────────────────
-var _calcPendiente = {};
 
 function escSetSexoEdad(sexo, edad, btnIds){
   _calcPendiente.sexo = sexo;
@@ -3244,14 +3289,17 @@ function escSetSexoEdad(sexo, edad, btnIds){
 }
 
 function confirmarCalcPagador(){
+  var sexoLabel = _calcPendiente.sexo ? ' — '+_calcPendiente.sexo : '';
+  var nombreFinal = (_calcPendiente.nombreBase||'Paquete') + sexoLabel;
   var clienteData = {sexo:_calcPendiente.sexo||'', edad:_calcPendiente.edad||''};
-  carrito.push({nombre:_calcPendiente.nombre, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData});
+  carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData});
   renderCarrito();
   closeM('m-calc-pagador');
 }
 
 function omitirCalcPagador(){
-  carrito.push({nombre:_calcPendiente.nombre, precio:_calcPendiente.total, tipo:'escuela'});
+  var nombreFinal = _calcPendiente.nombreBase||'Paquete';
+  carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela'});
   renderCarrito();
   closeM('m-calc-pagador');
 }
@@ -4127,6 +4175,17 @@ function buscarOrden(){
     <div id="cr-escuela-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-escuela-txt" placeholder="Nombre de la escuela..." style="font-size:12px;" oninput="crFiltrarEscuelas()" autocomplete="off">
       <div id="cr-escuela-sugs" style="background:white;border:1px solid #e0e0e0;border-radius:8px;margin-top:4px;max-height:120px;overflow-y:auto;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Camisa blanca + Barba -->
+  <div class="frow">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button id="cr-camisa" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleCamisa()"><i class="ti ti-shirt"></i> Camisa blanca</button>
+      <button id="cr-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('Sí')">Barba Sí</button>
+      <button id="cr-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('No')">Barba No</button>
+      <button id="cr-barba-editar-btn" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crToggleEditarBarba()"><i class="ti ti-scissors"></i> Editar barba</button>
+      <input type="number" id="cr-barba-precio" min="0" placeholder="$precio" style="width:80px;font-size:12px;display:none;" oninput="crActualizarBarba()">
     </div>
   </div>
 
