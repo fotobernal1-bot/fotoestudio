@@ -2702,7 +2702,7 @@ function rendProds(cat,gridId){
   const isDigital=cat==='digital';
   if(isDigital){
     el.innerHTML=productos[cat].map((p,i)=>`
-      <div class="dig-card" style="position:relative;" onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+      <div class="dig-card" style="position:relative;" onclick="abrirClienteRapido('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
         <i class="ti ti-device-floppy"></i><div class="dn">${p.nombre}</div><div class="dp">$${p.precio}</div>
         <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
