@@ -985,6 +985,63 @@ function agregarExtra(){
 
 function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
 
+// ── POPUP CLIENTE RÁPIDO ─────────────────────────────────────
+var _clienteRapido = {};
+
+function abrirClienteRapido(nombre, precio, tipo){
+  _clienteRapido = {nombre:nombre, precio:precio, tipo:tipo,
+    sexo:'', edad:'', proposito:'',
+    foto_nino:0, foto_joven:0, foto_adulto:0};
+  document.getElementById('cr-titulo').textContent = nombre;
+  document.getElementById('cr-precio').textContent = '$'+precio;
+  // Reset todos los botones
+  ['cr-h','cr-m',
+   'cr-nino','cr-joven','cr-adulto',
+   'cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'
+  ].forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; });
+  // Reset contadores foto
+  ['nino','joven','adulto'].forEach(function(k){
+    var el=document.getElementById('cr-foto-'+k); if(el) el.textContent='0';
+  });
+  openM('m-cliente-rapido');
+}
+
+function crSet(campo, val, btnIds){
+  _clienteRapido[campo] = val;
+  btnIds.forEach(function(id){
+    var b=document.getElementById(id);
+    if(b) b.className = (id==='cr-'+val||id==='cr-'+val.toLowerCase().replace('/','').replace(' ','-')) ? 'btn bgreen':'btn bgray';
+  });
+  // Activar el correcto
+  document.getElementById('cr-'+val.toLowerCase()
+    .replace('imss/issste','imss')
+    .replace('trámite gobierno','tramite')
+    .replace('personal','personal')
+    .replace('escolar','escolar')
+    .replace('inapam','inapam')
+    .replace('otro','otro')
+    .replace('h','h').replace('m','m')
+    .replace('niño','nino').replace('joven','joven').replace('adulto','adulto')
+  ).className='btn bgreen';
+}
+
+function crAjFoto(tipo, delta){
+  var key = 'foto_'+tipo;
+  _clienteRapido[key] = Math.max(0, (_clienteRapido[key]||0) + delta);
+  document.getElementById('cr-foto-'+tipo).textContent = _clienteRapido[key];
+}
+
+function confirmarClienteRapido(){
+  var c = _clienteRapido;
+  var clienteData = {
+    sexo: c.sexo, edad: c.edad, proposito: c.proposito,
+    fotografiados: {nino:c.foto_nino, joven:c.foto_joven, adulto:c.foto_adulto}
+  };
+  carrito.push({nombre:c.nombre, precio:c.precio, tipo:c.tipo, clienteData:clienteData});
+  renderCarrito();
+  closeM('m-cliente-rapido');
+}
+
 // ── SPECS URGENTES ───────────────────────────────────────────
 var _specUrg = {}; // estado temporal de la mini calculadora
 
@@ -1340,7 +1397,7 @@ async function cobrar(){
       folio,origen:'urgentes',metodoPago:metodo,cancelado:false,
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,specs:c.specs||null})),
+      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,specs:c.specs||null,clienteData:c.clienteData||null})),
       total:totalU,pago:hayO?totalU:pago,cambio:hayO?0:pago-total
     };
     if(db) db.collection('ventas').doc(folio).set(ventaU).catch(e=>console.error(e));
@@ -1838,37 +1895,54 @@ function renderDesgloseSpecs(ventas){
   var grid = document.getElementById('rep-specs-grid');
   if(!sec || !grid) return;
 
-  // Recopilar todos los items urgentes con specs
+  // Recopilar datos de cliente (venta rápida) y specs (mini calculadora)
   var itemsConSpecs = [];
+  var clientesData = [];
   ventas.forEach(function(v){
     if(v.origen !== 'urgentes') return;
     (v.items||[]).forEach(function(it){
       if(it.specs) itemsConSpecs.push(it.specs);
+      if(it.clienteData) clientesData.push(it.clienteData);
     });
   });
 
-  if(!itemsConSpecs.length){ sec.style.display='none'; return; }
+  var totalDatos = itemsConSpecs.length + clientesData.length;
+  if(!totalDatos){ sec.style.display='none'; return; }
   sec.style.display='block';
 
-  var total = itemsConSpecs.length;
+  // --- Análisis de quien paga (clienteData) ---
+  var cSexo={H:0,M:0}, cEdad={Niño:0,Joven:0,Adulto:0};
+  var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Personal':0,'Otro':0};
+  var fotoNino=0, fotoJoven=0, fotoAdulto=0;
+  clientesData.forEach(function(c){
+    if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
+    if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
+    if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
+    if(c.fotografiados){
+      fotoNino+=(c.fotografiados.nino||0);
+      fotoJoven+=(c.fotografiados.joven||0);
+      fotoAdulto+=(c.fotografiados.adulto||0);
+    }
+  });
+  var totalClientes = clientesData.length || 1;
+  var totalFotos = fotoNino+fotoJoven+fotoAdulto || 1;
 
-  // Contadores
+  // --- Análisis specs (mini calculadora) ---
   var color=0, bn=0, adh=0, sinAdh=0;
-  var vest={}, sexo={H:0,M:0,otro:0};
+  var vest={}, sSexo={H:0,M:0};
   var barbaSi=0, barbaNota=0, barbaTotal=0;
-
   itemsConSpecs.forEach(function(s){
     if(s.color==='bn') bn++; else color++;
     if(s.adherible) adh++; else sinAdh++;
-    if(s.sexo==='H') sexo.H++; else if(s.sexo==='M') sexo.M++; else sexo.otro++;
-    var v = s.vestimenta||'Sin especificar';
-    vest[v] = (vest[v]||0)+1;
+    if(s.sexo==='H') sSexo.H++; else if(s.sexo==='M') sSexo.M++;
+    var v=s.vestimenta||'Sin especificar'; vest[v]=(vest[v]||0)+1;
     if(s.barba==='Sí') barbaSi++;
-    if(s.barba_edicion > 0){ barbaNota++; barbaTotal+=s.barba_edicion; }
+    if(s.barba_edicion>0){barbaNota++;barbaTotal+=s.barba_edicion;}
   });
+  var totalSpecs = itemsConSpecs.length || 1;
 
   function barra(label, val, max, color){
-    var pct = Math.round(val/max*100);
+    var pct = max>0 ? Math.round(val/max*100) : 0;
     return '<div style="margin-bottom:6px;">'
       +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
       +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'
@@ -1878,45 +1952,82 @@ function renderDesgloseSpecs(ventas){
 
   var html = '<div class="g2" style="gap:10px;">';
 
-  // Sexo
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'
-    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo</p>'
-    +barra('Hombre', sexo.H, total, '#0C447C')
-    +barra('Mujer', sexo.M, total, '#7C0C44')
-    +'</div>';
+  // Sexo pagador
+  if(clientesData.length){
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (quien paga)</p>'
+      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')
+      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')
+      +'</div>';
 
-  // Color
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'
-    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
-    +barra('Color', color, total, '#1D9E75')
-    +barra('B/N', bn, total, '#555')
-    +'</div>';
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'
+      +barra('Niño', cEdad.Niño||0, totalClientes, '#1D9E75')
+      +barra('Joven', cEdad.Joven||0, totalClientes, '#0C7ED6')
+      +barra('Adulto', cEdad.Adulto||0, totalClientes, '#BA7517')
+      +'</div>';
 
-  // Adherible
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'
-    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Adherible</p>'
-    +barra('Con adherible', adh, total, '#BA7517')
-    +barra('Sin adherible', sinAdh, total, '#aaa')
-    +'</div>';
+    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
+      +'<div class="g2" style="gap:6px;">'
+      +Object.entries(cProp).map(function(e){
+        return e[1]>0 ? barra(e[0], e[1], totalClientes, '#555') : '';
+      }).join('')
+      +'</div></div>';
 
-  // Vestimenta
-  var vestEntries = Object.entries(vest).sort(function(a,b){return b[1]-a[1];});
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'
-    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Vestimenta</p>'
-    +vestEntries.map(function(e){ return barra(e[0], e[1], total, '#0C7ED6'); }).join('')
-    +'</div>';
+    var totalFotosReal = fotoNino+fotoJoven+fotoAdulto;
+    if(totalFotosReal > 0){
+      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Personas fotografiadas</p>'
+        +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+        +(fotoNino?'<div style="font-size:12px;">Niños: <strong>'+fotoNino+'</strong></div>':'')
+        +(fotoJoven?'<div style="font-size:12px;">Jóvenes: <strong>'+fotoJoven+'</strong></div>':'')
+        +(fotoAdulto?'<div style="font-size:12px;">Adultos: <strong>'+fotoAdulto+'</strong></div>':'')
+        +'<div style="font-size:12px;color:#888;">Total: <strong>'+totalFotosReal+'</strong></div>'
+        +'</div></div>';
+    }
+  }
 
-  // Barba
-  html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
-    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Barba</p>'
-    +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-    +'<div style="font-size:12px;">Barba permitida: <strong>'+barbaSi+'</strong></div>'
-    +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
-    +(barbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+barbaTotal+'</div>':'')
-    +'</div></div>';
+  // Specs (mini calculadora)
+  if(itemsConSpecs.length){
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (con specs)</p>'
+      +barra('Hombre', sSexo.H, totalSpecs, '#0C447C')
+      +barra('Mujer', sSexo.M, totalSpecs, '#7C0C44')
+      +'</div>';
+
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
+      +barra('Color', color, totalSpecs, '#1D9E75')
+      +barra('B/N', bn, totalSpecs, '#555')
+      +'</div>';
+
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Adherible</p>'
+      +barra('Con adherible', adh, totalSpecs, '#BA7517')
+      +barra('Sin adherible', sinAdh, totalSpecs, '#aaa')
+      +'</div>';
+
+    var vestEntries = Object.entries(vest).sort(function(a,b){return b[1]-a[1];});
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Vestimenta</p>'
+      +vestEntries.map(function(e){ return barra(e[0], e[1], totalSpecs, '#0C7ED6'); }).join('')
+      +'</div>';
+
+    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Barba</p>'
+      +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+      +'<div style="font-size:12px;">Barba permitida: <strong>'+barbaSi+'</strong></div>'
+      +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
+      +(barbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+barbaTotal+'</div>':'')
+      +'</div></div>';
+  }
 
   html += '</div>';
-  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'+total+' urgente'+(total!==1?'s':'')+' con especificaciones en este período</div>';
+  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'
+    +(clientesData.length?clientesData.length+' venta'+(clientesData.length!==1?'s':'')+' rápida'+(clientesData.length!==1?'s':'')+' con datos':'')
+    +(itemsConSpecs.length?' · '+itemsConSpecs.length+' con especificaciones':'')
+    +'</div>';
   grid.innerHTML = html;
 }
 
@@ -2205,15 +2316,15 @@ function rendProds(cat,gridId){
   } else {
     el.innerHTML=productos[cat].map((p,i)=>`
       <div class="foto-card" style="position:relative;">
-        <div onclick="add('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
+        <div onclick="abrirClienteRapido('${p.nombre}',productos['${cat}'][${i}].precio,'${p.tipo}')">
           <div class="fc-n">${p.nombre.replace(/.*?(\d+\s*fotos?)/i,'$1')}</div>
           <div class="fc-l">${p.desc}</div>
           <div class="fc-p">$${p.precio}</div>
         </div>
         <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
           <button style="background:#1D9E75;border:none;cursor:pointer;font-size:11px;color:white;border-radius:6px;padding:3px 7px;font-weight:600;" onclick="event.stopPropagation();abrirSpecsUrgente('${cat}',${i})" title="Con especificaciones">+</button>
-          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
-          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="event.stopPropagation();editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+          <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="event.stopPropagation();eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
         </div>
       </div>`).join('');
   }
@@ -3819,6 +3930,83 @@ function buscarOrden(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-specs-urgente')">Cancelar</button>
     <button class="btn bgreen" onclick="cobrarSpecsUrgente()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+  </div>
+</div></div>
+
+<!-- MODAL CLIENTE RÁPIDO -->
+<div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
+  <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
+
+  <!-- Quien paga -->
+  <p class="slabel" style="margin-bottom:8px;">Quien paga</p>
+
+  <div class="frow">
+    <label>Sexo</label>
+    <div style="display:flex;gap:8px;">
+      <button id="cr-h" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="crSet('sexo','H',['cr-h','cr-m'])">Hombre</button>
+      <button id="cr-m" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="crSet('sexo','M',['cr-h','cr-m'])">Mujer</button>
+    </div>
+  </div>
+
+  <div class="frow">
+    <label>Edad</label>
+    <div style="display:flex;gap:6px;">
+      <button id="cr-nino" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="crSet('edad','Niño',['cr-nino','cr-joven','cr-adulto'])">Niño</button>
+      <button id="cr-joven" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="crSet('edad','Joven',['cr-nino','cr-joven','cr-adulto'])">Joven</button>
+      <button id="cr-adulto" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="crSet('edad','Adulto',['cr-nino','cr-joven','cr-adulto'])">Adulto</button>
+    </div>
+  </div>
+
+  <div class="frow">
+    <label>Propósito</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">IMSS/ISSSTE</button>
+      <button id="cr-escolar" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Escolar</button>
+      <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trámite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Trámite gov.</button>
+      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">INAPAM</button>
+      <button id="cr-personal" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Personal',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Personal</button>
+      <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Otro</button>
+    </div>
+  </div>
+
+  <!-- Quien se fotografía -->
+  <p class="slabel" style="margin:10px 0 8px;">Quien se fotografía</p>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;color:#555;">Niño</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="crAjFoto('nino',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cr-foto-nino" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
+        <button onclick="crAjFoto('nino',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;color:#555;">Joven</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="crAjFoto('joven',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cr-foto-joven" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
+        <button onclick="crAjFoto('joven',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;color:#555;">Adulto</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="crAjFoto('adulto',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <span id="cr-foto-adulto" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
+        <button onclick="crAjFoto('adulto',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#f7f7f5;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:4px;">
+    <span style="font-size:11px;color:#888;">Total </span>
+    <span id="cr-precio" style="font-size:18px;font-weight:700;color:#1D9E75;"></span>
+  </div>
+  <p style="font-size:10px;color:#aaa;text-align:center;margin-bottom:10px;">Todos los campos son opcionales</p>
+
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-cliente-rapido')">Cancelar</button>
+    <button class="btn bgreen" onclick="confirmarClienteRapido()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
   </div>
 </div></div>
 
