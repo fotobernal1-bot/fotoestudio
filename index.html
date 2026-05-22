@@ -998,8 +998,6 @@ function abrirClienteRapido(nombre, precio, tipo){
   _clienteRapido.camisa_blanca=false;
   var adh=document.getElementById('cr-adherible'); if(adh) adh.className='btn bgray';
   _clienteRapido.adherible=false;
-  document.getElementById('cr-barba-si').className='btn bgray';
-  document.getElementById('cr-barba-no').className='btn bgray';
   document.getElementById('cr-barba-editar-btn').className='btn bgray';
   var barbaPrecioEl=document.getElementById('cr-barba-precio'); if(barbaPrecioEl){barbaPrecioEl.style.display='none';barbaPrecioEl.value='';}
   _clienteRapido.barba=''; _clienteRapido.barba_edicion=0;
@@ -1106,12 +1104,6 @@ function crToggleAdherible(){
 function crToggleCamisa(){
   _clienteRapido.camisa_blanca = !_clienteRapido.camisa_blanca;
   document.getElementById('cr-camisa').className = _clienteRapido.camisa_blanca ? 'btn bgreen' : 'btn bgray';
-}
-
-function crSetBarba(val){
-  _clienteRapido.barba = val;
-  document.getElementById('cr-barba-si').className = val==='Sí' ? 'btn bgreen' : 'btn bgray';
-  document.getElementById('cr-barba-no').className = val==='No' ? 'btn bgreen' : 'btn bgray';
 }
 
 function crToggleEditarBarba(){
@@ -4091,8 +4083,6 @@ function buscarOrden(){
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button id="cr-adherible" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleAdherible()">Adherible +$20</button>
       <button id="cr-camisa" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleCamisa()"><i class="ti ti-shirt"></i> Camisa blanca</button>
-      <button id="cr-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('Sí')">Barba Sí</button>
-      <button id="cr-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('No')">Barba No</button>
       <button id="cr-barba-editar-btn" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crToggleEditarBarba()"><i class="ti ti-scissors"></i> Editar barba</button>
       <input type="number" id="cr-barba-precio" min="0" placeholder="$precio" style="width:80px;font-size:12px;display:none;" oninput="crActualizarBarba()">
     </div>
