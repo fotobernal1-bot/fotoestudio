@@ -991,7 +991,7 @@ var _clienteRapido = {};
 function abrirClienteRapido(nombre, precio, tipo){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     sexo:'', edad:'', proposito:'',
-    foto_nino:0, foto_joven:0, foto_adulto:0};
+    foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0};
   document.getElementById('cr-titulo').textContent = nombre;
   document.getElementById('cr-precio').textContent = '$'+precio;
   // Reset todos los botones
@@ -1017,8 +1017,7 @@ function abrirClienteRapido(nombre, precio, tipo){
   document.getElementById('cr-barba-editar-btn').className='btn bgray';
   var barbaPrecioEl=document.getElementById('cr-barba-precio'); if(barbaPrecioEl){barbaPrecioEl.style.display='none';barbaPrecioEl.value='';}
   _clienteRapido.barba=''; _clienteRapido.barba_edicion=0;
-  // Reset contadores foto
-  ['nino','joven','adulto'].forEach(function(k){
+  ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
     var el=document.getElementById('cr-foto-'+k); if(el) el.textContent='0';
   });
   openM('m-cliente-rapido');
@@ -1069,9 +1068,12 @@ function crAjFoto(tipo, delta){
   var key = 'foto_'+tipo;
   _clienteRapido[key] = Math.max(0, (_clienteRapido[key]||0) + delta);
   document.getElementById('cr-foto-'+tipo).textContent = _clienteRapido[key];
-  // Actualizar precio según total de fotografiados
-  var total = (_clienteRapido.foto_nino||0)+(_clienteRapido.foto_joven||0)+(_clienteRapido.foto_adulto||0);
+  // Precio = precioBase × total fotografiados
+  var total = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m']
+    .reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0);
   var precioFinal = total > 0 ? _clienteRapido.precioBase * total : _clienteRapido.precioBase;
+  var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
+  precioFinal += barbaPrecio;
   _clienteRapido.precio = precioFinal;
   document.getElementById('cr-precio').textContent = '$'+precioFinal;
 }
@@ -1147,7 +1149,11 @@ function confirmarClienteRapido(){
     camisa_blanca: c.camisa_blanca||false,
     barba: c.barba||'',
     barba_edicion: barbaPrecio,
-    fotografiados: {nino:c.foto_nino||0, joven:c.foto_joven||0, adulto:c.foto_adulto||0}
+    fotografiados: {
+      nino_h: c.foto_nino_h||0, nino_m: c.foto_nino_m||0,
+      joven_h: c.foto_joven_h||0, joven_m: c.foto_joven_m||0,
+      adulto_h: c.foto_adulto_h||0, adulto_m: c.foto_adulto_m||0
+    }
   };
   carrito.push({nombre:c.nombre, precio:c.precio, tipo:c.tipo, clienteData:clienteData});
   renderCarrito();
@@ -1679,9 +1685,12 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral){
       if(i.clienteData && i.clienteData.fotografiados){
         var f=i.clienteData.fotografiados;
         var fLinea=[];
-        if(f.nino>0) fLinea.push('Niños: '+f.nino);
-        if(f.joven>0) fLinea.push('Jóvenes: '+f.joven);
-        if(f.adulto>0) fLinea.push('Adultos: '+f.adulto);
+        var nH=f.nino_h||0, nM=f.nino_m||0;
+        var jH=f.joven_h||0, jM=f.joven_m||0;
+        var aH=f.adulto_h||0, aM=f.adulto_m||0;
+        if(nH||nM) fLinea.push('Niño'+(nH?' H:'+nH:'')+(nM?' M:'+nM:''));
+        if(jH||jM) fLinea.push('Joven'+(jH?' H:'+jH:'')+(jM?' M:'+jM:''));
+        if(aH||aM) fLinea.push('Adulto'+(aH?' H:'+aH:'')+(aM?' M:'+aM:''));
         if(fLinea.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+fLinea.join(' · ')+'</div>';
       }
       return lineaHtml;
@@ -2048,14 +2057,18 @@ function renderDesgloseSpecs(ventas){
   var cSexo={H:0,M:0}, cEdad={Niño:0,Joven:0,Adulto:0};
   var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Personal':0,'Otro':0};
   var fotoNino=0, fotoJoven=0, fotoAdulto=0;
+  var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0;
   clientesData.forEach(function(c){
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
     if(c.fotografiados){
-      fotoNino+=(c.fotografiados.nino||0);
-      fotoJoven+=(c.fotografiados.joven||0);
-      fotoAdulto+=(c.fotografiados.adulto||0);
+      fotoNino+=(c.fotografiados.nino_h||0)+(c.fotografiados.nino_m||0);
+      fotoJoven+=(c.fotografiados.joven_h||0)+(c.fotografiados.joven_m||0);
+      fotoAdulto+=(c.fotografiados.adulto_h||0)+(c.fotografiados.adulto_m||0);
+      fotoNinoH+=(c.fotografiados.nino_h||0); fotoNinoM+=(c.fotografiados.nino_m||0);
+      fotoJovenH+=(c.fotografiados.joven_h||0); fotoJovenM+=(c.fotografiados.joven_m||0);
+      fotoAdultoH+=(c.fotografiados.adulto_h||0); fotoAdultoM+=(c.fotografiados.adulto_m||0);
     }
   });
   var totalClientes = clientesData.length || 1;
@@ -2113,11 +2126,11 @@ function renderDesgloseSpecs(ventas){
     if(totalFotosReal > 0){
       html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
         +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Personas fotografiadas</p>'
-        +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-        +(fotoNino?'<div style="font-size:12px;">Niños: <strong>'+fotoNino+'</strong></div>':'')
-        +(fotoJoven?'<div style="font-size:12px;">Jóvenes: <strong>'+fotoJoven+'</strong></div>':'')
-        +(fotoAdulto?'<div style="font-size:12px;">Adultos: <strong>'+fotoAdulto+'</strong></div>':'')
-        +'<div style="font-size:12px;color:#888;">Total: <strong>'+totalFotosReal+'</strong></div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+        +(fotoNino?'<div style="font-size:11px;"><span style="color:#555;">Niño:</span> <span style="color:#0C447C;font-weight:600;">H:'+fotoNinoH+'</span> <span style="color:#7C0C44;font-weight:600;">M:'+fotoNinoM+'</span></div>':'')
+        +(fotoJoven?'<div style="font-size:11px;"><span style="color:#555;">Joven:</span> <span style="color:#0C447C;font-weight:600;">H:'+fotoJovenH+'</span> <span style="color:#7C0C44;font-weight:600;">M:'+fotoJovenM+'</span></div>':'')
+        +(fotoAdulto?'<div style="font-size:11px;"><span style="color:#555;">Adulto:</span> <span style="color:#0C447C;font-weight:600;">H:'+fotoAdultoH+'</span> <span style="color:#7C0C44;font-weight:600;">M:'+fotoAdultoM+'</span></div>':'')
+        +'<div style="font-size:11px;color:#888;">Total: <strong>'+totalFotosReal+'</strong></div>'
         +'</div></div>';
     }
   }
@@ -4190,31 +4203,62 @@ function buscarOrden(){
 
   <!-- Quien se fotografía -->
   <p class="slabel" style="margin:10px 0 8px;">Quien se fotografía</p>
-  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:12px;color:#555;">Niño</span>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="crAjFoto('nino',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cr-foto-nino" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
-        <button onclick="crAjFoto('nino',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('nino_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
+        <span id="cr-foto-nino_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="crAjFoto('nino_h',1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">+</button>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:12px;color:#555;">Joven</span>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="crAjFoto('joven',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cr-foto-joven" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
-        <button onclick="crAjFoto('joven',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('nino_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
+        <span id="cr-foto-nino_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="crAjFoto('nino_m',1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">+</button>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:12px;color:#555;">Adulto</span>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="crAjFoto('adulto',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <span id="cr-foto-adulto" style="font-size:16px;font-weight:700;min-width:20px;text-align:center;">0</span>
-        <button onclick="crAjFoto('adulto',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('joven_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
+        <span id="cr-foto-joven_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="crAjFoto('joven_h',1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">+</button>
       </div>
     </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('joven_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
+        <span id="cr-foto-joven_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="crAjFoto('joven_m',1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('adulto_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
+        <span id="cr-foto-adulto_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="crAjFoto('adulto_h',1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">+</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('adulto_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
+        <span id="cr-foto-adulto_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="crAjFoto('adulto_m',1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+
   </div>
 
   <div style="background:#f7f7f5;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:4px;">
