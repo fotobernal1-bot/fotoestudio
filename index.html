@@ -989,7 +989,7 @@ function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrit
 var _clienteRapido = {};
 
 function abrirClienteRapido(nombre, precio, tipo){
-  _clienteRapido = {nombre:nombre, precio:precio, tipo:tipo,
+  _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     sexo:'', edad:'', proposito:'',
     foto_nino:0, foto_joven:0, foto_adulto:0};
   document.getElementById('cr-titulo').textContent = nombre;
@@ -1029,6 +1029,11 @@ function crAjFoto(tipo, delta){
   var key = 'foto_'+tipo;
   _clienteRapido[key] = Math.max(0, (_clienteRapido[key]||0) + delta);
   document.getElementById('cr-foto-'+tipo).textContent = _clienteRapido[key];
+  // Actualizar precio según total de fotografiados
+  var total = (_clienteRapido.foto_nino||0)+(_clienteRapido.foto_joven||0)+(_clienteRapido.foto_adulto||0);
+  var precioFinal = total > 0 ? _clienteRapido.precioBase * total : _clienteRapido.precioBase;
+  _clienteRapido.precio = precioFinal;
+  document.getElementById('cr-precio').textContent = '$'+precioFinal;
 }
 
 function confirmarClienteRapido(){
