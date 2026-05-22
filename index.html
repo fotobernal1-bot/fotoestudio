@@ -1485,7 +1485,7 @@ async function cobrar(){
       folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||''})),
+      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null})),
       total:totalEsc,pago:(hayU||hayImp)?totalEsc:pago,cambio:(hayU||hayImp)?0:pago-total
     };
     if(db) db.collection('ventas').doc(folio).set(ventaEsc).catch(e=>console.error(e));
@@ -3205,14 +3205,57 @@ function cobrarCalculadora(){
   window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
   closeM('m-calc');
 
-  // Ticket individual — 1 calculadora = 1 persona
-  var sexoLabel = calcSexo ? ' — '+calcSexo : '';
-  add('Paquete '+nombre+sexoLabel, total, 'escuela');
+  // Abrir mini popup sexo+edad antes de agregar al carrito
+  _calcPendiente = {nombre:'Paquete '+nombre+sexoLabel, total:total};
+  ['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'].forEach(function(id){
+    var b=document.getElementById(id);
+    if(b){
+      var esH=id.startsWith('esc-h');
+      b.style.background=esH?'#EBF3FF':'#FFEEF5';
+      b.style.borderColor=esH?'#90BEFF':'#FFB3D4';
+      b.style.color=esH?'#0C447C':'#7C0C44';
+    }
+  });
+  _calcPendiente.sexo=''; _calcPendiente.edad='';
+  openM('m-calc-pagador');
 
   // Reset flujo de personas
   escuelaActual = null;
   personaSpecs = {};
 }
+// ── PAGADOR ORDINARIOS ───────────────────────────────────────
+var _calcPendiente = {};
+
+function escSetSexoEdad(sexo, edad, btnIds){
+  _calcPendiente.sexo = sexo;
+  _calcPendiente.edad = edad;
+  var mapa = {H:{'18-24':'esc-h1','25-34':'esc-h2','35-49':'esc-h3','50+':'esc-h4'},
+               M:{'18-24':'esc-m1','25-34':'esc-m2','35-49':'esc-m3','50+':'esc-m4'}};
+  btnIds.forEach(function(id){
+    var b=document.getElementById(id); if(!b) return;
+    var esH=id.startsWith('esc-h');
+    b.style.background=esH?'#EBF3FF':'#FFEEF5';
+    b.style.borderColor=esH?'#90BEFF':'#FFB3D4';
+    b.style.color=esH?'#0C447C':'#7C0C44';
+  });
+  var selId = mapa[sexo][edad];
+  var sel = document.getElementById(selId);
+  if(sel){ sel.style.background=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.borderColor=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.color='white'; }
+}
+
+function confirmarCalcPagador(){
+  var clienteData = {sexo:_calcPendiente.sexo||'', edad:_calcPendiente.edad||''};
+  carrito.push({nombre:_calcPendiente.nombre, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData});
+  renderCarrito();
+  closeM('m-calc-pagador');
+}
+
+function omitirCalcPagador(){
+  carrito.push({nombre:_calcPendiente.nombre, precio:_calcPendiente.total, tipo:'escuela'});
+  renderCarrito();
+  closeM('m-calc-pagador');
+}
+
 // ── SISTEMA DE PRODUCCIÓN ────────────────────────────────
 let ordenesProduccion = [];
 
@@ -4129,6 +4172,36 @@ function buscarOrden(){
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-cliente-rapido')">Cancelar</button>
     <button class="btn bgreen" onclick="confirmarClienteRapido()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+  </div>
+</div></div>
+
+<!-- MODAL PAGADOR ORDINARIOS -->
+<div class="modal-ov" id="m-calc-pagador"><div class="modal-box" style="width:300px;">
+  <p class="modal-t"><i class="ti ti-user-circle"></i> ¿Quién paga?</p>
+  <p style="font-size:11px;color:#888;margin-bottom:12px;">Opcional — toca un botón o presiona Omitir</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">
+    <button id="esc-h1" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','18-24',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">1</button>
+    <button id="esc-h2" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','25-34',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">2</button>
+    <button id="esc-h3" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','35-49',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">3</button>
+    <button id="esc-h4" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','50+',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">4</button>
+    <button id="esc-m1" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','18-24',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">1</button>
+    <button id="esc-m2" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','25-34',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">2</button>
+    <button id="esc-m3" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','35-49',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">3</button>
+    <button id="esc-m4" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','50+',['esc-h1','esc-h2','esc-h3','esc-h4','esc-m1','esc-m2','esc-m3','esc-m4'])">4</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-bottom:14px;">
+    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
+    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
+    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
+    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
+    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+  </div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="omitirCalcPagador()">Omitir</button>
+    <button class="btn bgreen" onclick="confirmarCalcPagador()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
   </div>
 </div></div>
 
