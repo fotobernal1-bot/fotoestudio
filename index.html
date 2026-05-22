@@ -590,22 +590,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div><p class="ptitle">Producción</p><p class="psub" style="margin:0;">Órdenes del día</p></div>
       </div>
 
-      <!-- URGENTES CON SPECS -->
-      <p class="slabel" style="margin-bottom:8px;"><i class="ti ti-bolt" style="color:#BA7517;"></i> Urgentes con especificaciones</p>
-      <div style="overflow-x:auto;margin-bottom:20px;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead>
-            <tr style="background:#FAEEDA;border-bottom:2px solid #e0e0e0;">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#633806;font-weight:600;">INFORMACIÓN</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:120px;">ESTADO</th>
-            </tr>
-          </thead>
-          <tbody id="urg-prod-body">
-            <tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>
-          </tbody>
-        </table>
-      </div>
-
       <!-- ORDINARIOS -->
       <p class="slabel" style="margin-bottom:8px;"><i class="ti ti-school" style="color:#0C447C;"></i> Ordinarios</p>
 
@@ -931,7 +915,7 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
   if(id==='reportes')setTimeout(cargarReportes,300);
-  if(id==='produccion'){setTimeout(cargarProduccion,300);setTimeout(cargarProduccionUrgentes,300);}
+  if(id==='produccion'){setTimeout(cargarProduccion,300);}
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -1012,6 +996,8 @@ function abrirClienteRapido(nombre, precio, tipo){
   // Reset camisa y barba
   var camisa=document.getElementById('cr-camisa'); if(camisa) camisa.className='btn bgray';
   _clienteRapido.camisa_blanca=false;
+  var adh=document.getElementById('cr-adherible'); if(adh) adh.className='btn bgray';
+  _clienteRapido.adherible=false;
   document.getElementById('cr-barba-si').className='btn bgray';
   document.getElementById('cr-barba-no').className='btn bgray';
   document.getElementById('cr-barba-editar-btn').className='btn bgray';
@@ -1071,7 +1057,8 @@ function crAjFoto(tipo, delta){
   // Precio = precioBase × total fotografiados
   var total = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m']
     .reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0);
-  var precioFinal = total > 0 ? _clienteRapido.precioBase * total : _clienteRapido.precioBase;
+  var adhExtra = _clienteRapido.adherible ? 20 : 0;
+  var precioFinal = total > 0 ? (_clienteRapido.precioBase + adhExtra) * total : _clienteRapido.precioBase + adhExtra;
   var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
   precioFinal += barbaPrecio;
   _clienteRapido.precio = precioFinal;
@@ -1102,6 +1089,18 @@ function crSelEscuelaSug(nombre){
   document.getElementById('cr-escuela-txt').value = nombre;
   document.getElementById('cr-escuela-sugs').style.display='none';
   _clienteRapido.escuela = nombre;
+}
+
+function crToggleAdherible(){
+  _clienteRapido.adherible = !_clienteRapido.adherible;
+  document.getElementById('cr-adherible').className = _clienteRapido.adherible ? 'btn bgreen' : 'btn bgray';
+  // Recalcular precio
+  var total = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m']
+    .reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0) || 1;
+  var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
+  var adhExtra = _clienteRapido.adherible ? 20 : 0;
+  _clienteRapido.precio = (_clienteRapido.precioBase + adhExtra) * total + barbaPrecio;
+  document.getElementById('cr-precio').textContent = '$'+_clienteRapido.precio;
 }
 
 function crToggleCamisa(){
@@ -1147,6 +1146,7 @@ function confirmarClienteRapido(){
     sexo: c.sexo, edad: c.edad, proposito: c.proposito,
     escuela: escuela,
     camisa_blanca: c.camisa_blanca||false,
+    adherible: c.adherible||false,
     barba: c.barba||'',
     barba_edicion: barbaPrecio,
     fotografiados: {
@@ -1521,9 +1521,6 @@ async function cobrar(){
     if(db) db.collection('ventas').doc(folio).set(ventaU).catch(e=>console.error(e));
     ventas.push({f:folio,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
     tickets.push(ventaU);
-    // Crear orden de producción urgente si algún ítem tiene specs
-    var itemsConSpecs = itemsU.filter(function(c){ return c.specs; });
-    if(itemsConSpecs.length > 0) crearOrdenProduccionUrgente(folio, itemsConSpecs, fecha, hora);
   }
   // Escuelas — folio ESC
   const itemsEsc=items.filter(c=>c.tipo==='escuela');
@@ -3375,107 +3372,6 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     .catch(function(e){ console.error('Error crear orden:', e); });
 }
 
-function crearOrdenProduccionUrgente(folio, items, fecha, hora){
-  if(!db) return;
-  var orden = {
-    folio: folio,
-    origen: 'urgentes',
-    info: items.map(function(i){ return i.nombre; }).join(' + '),
-    specs: {
-      items: items.map(function(it){
-        var s = it.specs || {};
-        var linea = it.nombre;
-        var detalles = [];
-        if(s.sexo) detalles.push(s.sexo==='H'?'Hombre':'Mujer');
-        if(s.color) detalles.push(s.color==='bn'?'B/N':'Color');
-        if(s.adherible) detalles.push('Con adherible');
-        if(s.fondo) detalles.push('Fondo: '+s.fondo);
-        if(s.vestimenta) detalles.push('Vest: '+s.vestimenta);
-        if(s.cabello) detalles.push('Cab: '+s.cabello);
-        if(s.aretes) detalles.push('Aretes: '+s.aretes);
-        if(s.barba) detalles.push('Barba: '+s.barba);
-        return {nombre: linea, detalle: detalles.join(' · ')};
-      })
-    },
-    fechaEntrega: '',
-    timestamp: new Date().toISOString(),
-    fecha: fecha,
-    archivada: false,
-    proceso:   {hecho:false, quien:'', hora:''},
-    impresion: {hecho:false, quien:'', hora:''},
-    acabado:   {hecho:false, quien:'', hora:''},
-    entrega:   {hecho:false, quien:'', hora:''},
-  };
-  db.collection('produccion_urgentes').doc(folio).set(orden)
-    .then(function(){ cargarProduccionUrgentes(); })
-    .catch(function(e){ console.error('Error crear orden urgente:', e); });
-}
-
-function cargarProduccionUrgentes(){
-  if(!db) return;
-  db.collection('produccion_urgentes').where('archivada','==',false).get()
-    .then(function(snap){
-      var arr = [];
-      snap.forEach(function(d){ arr.push(d.data()); });
-      arr.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
-      renderProduccionUrgentes(arr);
-    })
-    .catch(function(e){ console.error('Error cargar urgentes:', e); });
-}
-
-function renderProduccionUrgentes(lista){
-  var tbody = document.getElementById('urg-prod-body');
-  if(!tbody) return;
-  if(!lista.length){
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>';
-    return;
-  }
-  tbody.innerHTML = lista.map(function(o){
-    var listo = o.listo || false;
-    var itemsHtml = '';
-    if(o.specs && o.specs.items){
-      itemsHtml = o.specs.items.map(function(it){
-        return '<div style="margin-bottom:4px;"><div style="font-size:11px;font-weight:600;">'+it.nombre+'</div>'
-          +(it.detalle?'<div style="font-size:10px;color:#555;">'+it.detalle+'</div>':'')+'</div>';
-      }).join('');
-    }
-    var listoBtn = listo
-      ? '<td style="text-align:center;padding:8px;vertical-align:top;">'
-        +'<div style="color:#1D9E75;font-size:16px;">✅</div>'
-        +'<div style="font-size:10px;color:#1D9E75;font-weight:600;">Listo</div>'
-        +'<button onclick="archivarUrgenteOrden(\x27'+o.folio+'\x27)" style="margin-top:6px;font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button>'
-        +'</td>'
-      : '<td style="text-align:center;padding:8px;vertical-align:top;">'
-        +'<button onclick="marcarListoUrgente(\x27'+o.folio+'\x27)" '
-        +'style="width:80px;height:36px;border:2px solid #1D9E75;border-radius:8px;background:white;cursor:pointer;font-size:12px;color:#1D9E75;font-weight:600;">✓ Listo</button>'
-        +'</td>';
-    return '<tr style="border-bottom:1px solid #f0f0f0;'+(listo?'opacity:0.6;':'')+'}">'
-      +'<td style="padding:10px 12px;vertical-align:top;">'
-      +'<div style="font-weight:700;color:#0C7ED6;font-size:12px;">'+o.folio+'</div>'
-      +(itemsHtml?'<div style="margin-top:4px;max-width:240px;">'+itemsHtml+'</div>':'')
-      +'<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+' '+o.hora+'</div>'
-      +'</td>'
-      +listoBtn+'</tr>';
-  }).join('');
-}
-
-function marcarListoUrgente(folio){
-  var quien = prompt('¿Quién marca como listo?');
-  if(!quien || !quien.trim()) return;
-  if(!db) return;
-  db.collection('produccion_urgentes').doc(folio).update({listo:true, quien:quien.trim(), horaListo: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})})
-    .then(function(){ cargarProduccionUrgentes(); })
-    .catch(function(e){ alert('Error: '+e.message); });
-}
-
-function archivarUrgenteOrden(folio){
-  if(!confirm('¿Archivar la orden '+folio+'?')) return;
-  if(!db) return;
-  db.collection('produccion_urgentes').doc(folio).update({archivada:true})
-    .then(function(){ cargarProduccionUrgentes(); })
-    .catch(function(e){ alert('Error: '+e.message); });
-}
-
 function esOrdenUrgente(o){
   var pasos = ['proceso','impresion','acabado','entrega'];
   var todosHechos = pasos.every(function(p){ return o[p] && o[p].hecho; });
@@ -4190,9 +4086,10 @@ function buscarOrden(){
     </div>
   </div>
 
-  <!-- Camisa blanca + Barba -->
+  <!-- Camisa blanca + Barba + Adherible -->
   <div class="frow">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button id="cr-adherible" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleAdherible()">Adherible +$20</button>
       <button id="cr-camisa" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleCamisa()"><i class="ti ti-shirt"></i> Camisa blanca</button>
       <button id="cr-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('Sí')">Barba Sí</button>
       <button id="cr-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crSetBarba('No')">Barba No</button>
