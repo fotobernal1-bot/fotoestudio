@@ -2133,10 +2133,10 @@ window.addEventListener('load',function(){
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
 let calcState = {
-  infantil:   {cant:0, color:'bn', adherible:false},
-  credencial: {cant:0, color:'bn', adherible:false},
-  diploma:    {cant:0, color:'bn', adherible:false},
-  titulo:     {cant:0, color:'bn', adherible:false},
+  infantil:   {cant:0, color:'bn', adherible:false, tb:false},
+  credencial: {cant:0, color:'bn', adherible:false, tb:false},
+  diploma:    {cant:0, color:'bn', adherible:false, tb:false},
+  titulo:     {cant:0, color:'bn', adherible:false, tb:false},
   digital:    {cant:0, color:'bn', espec:'', vestimenta:''},
 };
 const CALC_CFG = {
@@ -2182,6 +2182,9 @@ function abrirCalculadora(){
     document.getElementById('opt-'+k+'-sad').style.cssText='font-size:11px;padding:4px 9px;';
     document.getElementById('opt-'+k+'-cad').className='btn bgray';
     document.getElementById('opt-'+k+'-cad').style.cssText='font-size:11px;padding:4px 9px;';
+    var tb=document.getElementById('opt-'+k+'-tb');
+    if(tb){tb.className='btn bgray';tb.style.cssText='font-size:11px;padding:4px 9px;';}
+    calcState[k].tb=false;
   });
   // Reset campo digital
   document.getElementById('calc-dig-espec').value='';
@@ -2254,6 +2257,12 @@ function setAdh(grupo, val){
   var paq=s.cant>0?Math.ceil(s.cant/cfg.xPaq):0;
   document.getElementById('sub-'+grupo).textContent=paq>0?'$'+(paq*precio):'';
   calcTotal();
+}
+
+function setTB(grupo, val){
+  calcState[grupo].tb = val;
+  document.getElementById('opt-'+grupo+'-tb').className = val ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('opt-'+grupo+'-tb').style.cssText = 'font-size:11px;padding:4px 9px;';
 }
 
 function selSpec(tipo, valor){
@@ -2519,8 +2528,9 @@ function cobrarCalculadora(){
       var paq=Math.ceil(s.cant/cfg.xPaq);
       var colorTxt=s.color==='bn'?'B/N':'Color';
       var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
+      var tbTxt=(cfg.tieneAdh&&s.tb)?' TB':'';
       var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
-      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt;
+      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt;
       if(especTxt) linea+=' ('+especTxt+')';
       lineas.push({nombre:linea, precio:paq*precio});
     }
@@ -2845,6 +2855,7 @@ function buscarOrden(){
       <button id="opt-infantil-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','bn')">B/N</button>
       <button id="opt-infantil-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',false)">Sin adherible</button>
       <button id="opt-infantil-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',true)">Con adherible</button>
+      <button id="opt-infantil-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('infantil',!calcState.infantil.tb)">TB</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-infantil"></div>
   </div>
@@ -2868,6 +2879,7 @@ function buscarOrden(){
       <button id="opt-credencial-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','bn')">B/N</button>
       <button id="opt-credencial-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',false)">Sin adherible</button>
       <button id="opt-credencial-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',true)">Con adherible</button>
+      <button id="opt-credencial-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('credencial',!calcState.credencial.tb)">TB</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-credencial"></div>
   </div>
@@ -2889,6 +2901,7 @@ function buscarOrden(){
       <button id="opt-diploma-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','bn')">B/N</button>
       <button id="opt-diploma-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',false)">Sin adherible</button>
       <button id="opt-diploma-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',true)">Con adherible</button>
+      <button id="opt-diploma-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('diploma',!calcState.diploma.tb)">TB</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-diploma"></div>
   </div>
@@ -2911,6 +2924,7 @@ function buscarOrden(){
       <button id="opt-titulo-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','bn')">B/N</button>
       <button id="opt-titulo-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',false)">Sin adherible</button>
       <button id="opt-titulo-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',true)">Con adherible</button>
+      <button id="opt-titulo-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('titulo',!calcState.titulo.tb)">TB</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-titulo"></div>
   </div>
