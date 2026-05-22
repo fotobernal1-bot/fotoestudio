@@ -518,7 +518,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <div class="tab active" onclick="showT('inf',this)">Infantil</div>
           <div class="tab" onclick="showT('cred',this)">Credencial</div>
           <div class="tab" onclick="showT('dig',this)">Imagen digital</div>
-          <div class="tab" onclick="showT('visa',this)">Visa</div>
+          <div class="tab" onclick="showT('visa',this)">Visas y Pasaportes</div>
         </div>
         <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')" title="Agregar nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
       </div>
@@ -625,6 +625,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div><p class="ptitle">Reportes</p><p class="psub" style="margin:0;">Historial permanente de ventas</p></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn bgray" style="font-size:11px;" onclick="exportarPDF()"><i class="ti ti-file-type-pdf"></i> Exportar PDF</button>
+          <button class="btn bgreen" style="font-size:11px;" onclick="exportarMeta()"><i class="ti ti-brand-meta"></i> Exportar Meta</button>
           <button class="btn bgray" style="font-size:11px;" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial precios</button>
           <button class="btn bgray" style="font-size:11px;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Limpiar ventas</button>
         </div>
@@ -681,6 +682,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <div id="rep-specs-grid"></div>
         </div>
       </div>
+      <p class="slabel">Visas y Pasaportes</p>
+      <div id="rep-visas" style="margin-bottom:14px;"></div>
       <p class="slabel">Paquetes escolares</p>
       <div id="rep-escuelas" style="margin-bottom:14px;"></div>
       <p class="slabel">Impresiones</p>
@@ -1784,38 +1787,172 @@ function exportarPDF(){
   var ventasActivas = ventasFB.filter(function(v){ return !v.cancelado; });
   var total = ventasActivas.reduce(function(s,v){ return s+v.total; }, 0);
   var periodo = document.getElementById('rep-periodo') ? document.getElementById('rep-periodo').textContent : '';
+  var num = ventasActivas.length;
+  var prom = num ? Math.round(total/num) : 0;
+
+  // Recopilar clienteData para resumen
+  var cSexo={H:0,M:0}, cEdad={'18-30':0,'30-50':0,'50+':0};
+  var cProp={}, cEsc={}, cAdh=0, cCam=0, cBarba=0, cBarbaT=0;
+  var fNinoH=0,fNinoM=0,fJovenH=0,fJovenM=0,fAdultoH=0,fAdultoM=0;
+  ventasActivas.forEach(function(v){
+    (v.items||[]).forEach(function(i){
+      if(!i.clienteData) return;
+      var cd=i.clienteData;
+      if(cd.sexo) cSexo[cd.sexo]=(cSexo[cd.sexo]||0)+1;
+      if(cd.edad) cEdad[cd.edad]=(cEdad[cd.edad]||0)+1;
+      if(cd.proposito) cProp[cd.proposito]=(cProp[cd.proposito]||0)+1;
+      if(cd.proposito==='Escolar'&&cd.escuela) cEsc[cd.escuela]=(cEsc[cd.escuela]||0)+1;
+      if(cd.adherible) cAdh++;
+      if(cd.camisa_blanca) cCam++;
+      if(cd.barba_edicion>0){cBarba++;cBarbaT+=cd.barba_edicion;}
+      if(cd.fotografiados){
+        fNinoH+=(cd.fotografiados.nino_h||0);fNinoM+=(cd.fotografiados.nino_m||0);
+        fJovenH+=(cd.fotografiados.joven_h||0);fJovenM+=(cd.fotografiados.joven_m||0);
+        fAdultoH+=(cd.fotografiados.adulto_h||0);fAdultoM+=(cd.fotografiados.adulto_m||0);
+      }
+    });
+  });
+
   var filas = ventasFB.map(function(v){
-    var metodo = v.metodoPago||'efectivo';
-    var detalle = (v.items||[]).map(function(i){ return i.nombre; }).join(', ')||'—';
-    var cancelado = v.cancelado ? ' (CANCELADA)' : '';
-    return '<tr style="'+(v.cancelado?'opacity:0.5;text-decoration:line-through;':'')+'">'
-      + '<td>'+( v.folio||'—')+cancelado+'</td>'
-      + '<td>'+(v.fecha||'—')+' '+(v.hora||'')+'</td>'
-      + '<td>'+(v.metodoPago||'efectivo')+'</td>'
-      + '<td>'+detalle+'</td>'
-      + '<td style="text-align:right;font-weight:600;">$'+v.total+'</td>'
-      + '</tr>';
+    var detalle = (v.items||[]).map(function(i){
+      var d=i.nombre;
+      if(i.clienteData){
+        var cd=i.clienteData; var ex=[];
+        if(cd.sexo) ex.push(cd.sexo); if(cd.edad) ex.push(cd.edad);
+        if(cd.proposito) ex.push(cd.proposito); if(cd.escuela) ex.push(cd.escuela);
+        if(cd.adherible) ex.push('Adh'); if(cd.camisa_blanca) ex.push('Camisa');
+        if(cd.barba_edicion>0) ex.push('Barba $'+cd.barba_edicion);
+        if(ex.length) d+=' ('+ex.join(', ')+')';
+      }
+      return d;
+    }).join('<br>');
+    var cancelado = v.cancelado?' <span style="color:#A32D2D;">(CANCELADA)</span>':'';
+    return '<tr style="'+(v.cancelado?'opacity:0.5;':'')+'">'
+      +'<td style="font-size:11px;font-weight:600;color:#0C447C;">'+( v.folio||'—')+cancelado+'</td>'
+      +'<td style="font-size:11px;">'+(v.fecha||'—')+' '+(v.hora||'')+'</td>'
+      +'<td style="font-size:11px;">'+(v.metodoPago||'efectivo')+'</td>'
+      +'<td style="font-size:11px;">'+detalle+'</td>'
+      +'<td style="text-align:right;font-weight:600;">$'+v.total+'</td>'
+      +'</tr>';
   }).join('');
+
+  var escHtml = Object.entries(cEsc).sort(function(a,b){return b[1]-a[1];})
+    .map(function(e){return '<tr><td>'+e[0]+'</td><td>'+e[1]+'</td></tr>';}).join('');
+
   var html = '<html><head><title>Reporte FotoEstudio</title>'
-    + '<style>body{font-family:system-ui,sans-serif;font-size:12px;padding:20px;color:#111;}'
-    + 'h1{font-size:18px;margin-bottom:4px;}h2{font-size:13px;color:#555;font-weight:400;margin-bottom:16px;}'
-    + 'table{width:100%;border-collapse:collapse;}th{text-align:left;padding:6px 8px;font-size:11px;border-bottom:2px solid #111;text-transform:uppercase;}'
-    + 'td{padding:6px 8px;border-bottom:1px solid #e0e0e0;font-size:11px;}'
-    + '.total{font-size:14px;font-weight:700;margin-top:16px;text-align:right;}'
-    + '@media print{button{display:none;}}'
-    + '</style></head><body>'
-    + '<h1>📸 FotoEstudio — Reporte de ventas</h1>'
-    + '<h2>Período: '+periodo+' &nbsp;|&nbsp; '+ventasActivas.length+' ventas activas</h2>'
-    + '<table><thead><tr><th>Folio</th><th>Fecha</th><th>Método</th><th>Detalle</th><th style="text-align:right;">Total</th></tr></thead>'
-    + '<tbody>'+filas+'</tbody></table>'
-    + '<div class="total">Total vendido: $'+total.toLocaleString()+'</div>'
-    + '<button onclick="window.print()" style="margin-top:20px;padding:10px 20px;background:#1D9E75;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🖨 Imprimir / Guardar PDF</button>'
-    + '</body></html>';
+    +'<style>body{font-family:system-ui,sans-serif;font-size:12px;padding:20px;color:#111;}'
+    +'h1{font-size:18px;margin-bottom:4px;}h2{font-size:13px;color:#555;font-weight:400;margin-bottom:16px;}'
+    +'.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;}'
+    +'.card{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:8px;padding:12px;}'
+    +'.card-t{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:6px;}'
+    +'.card-v{font-size:18px;font-weight:700;}'
+    +'table{width:100%;border-collapse:collapse;}th{text-align:left;padding:6px 8px;font-size:11px;border-bottom:2px solid #111;text-transform:uppercase;}'
+    +'td{padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:11px;vertical-align:top;}'
+    +'.sec{margin-bottom:20px;} .sec-t{font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;color:#0C447C;border-bottom:2px solid #0C447C;padding-bottom:4px;}'
+    +'@media print{button{display:none;}}'
+    +'</style></head><body>'
+    +'<h1>📸 FotoEstudio — Reporte de ventas</h1>'
+    +'<h2>Período: '+periodo+'</h2>'
+    +'<div class="grid">'
+    +'<div class="card"><div class="card-t">Total vendido</div><div class="card-v" style="color:#1D9E75;">$'+total.toLocaleString()+'</div></div>'
+    +'<div class="card"><div class="card-t">Ventas</div><div class="card-v">'+num+'</div></div>'
+    +'<div class="card"><div class="card-t">Ticket promedio</div><div class="card-v">$'+prom.toLocaleString()+'</div></div>'
+    +'</div>'
+    +'<div class="grid">'
+    +'<div class="card"><div class="card-t">Sexo (quien paga)</div>Hombre: <b>'+(cSexo.H||0)+'</b><br>Mujer: <b>'+(cSexo.M||0)+'</b></div>'
+    +'<div class="card"><div class="card-t">Edad (quien paga)</div>18-30: <b>'+(cEdad['18-30']||0)+'</b><br>30-50: <b>'+(cEdad['30-50']||0)+'</b><br>50+: <b>'+(cEdad['50+']||0)+'</b></div>'
+    +'<div class="card"><div class="card-t">Servicios adicionales</div>Adherible: <b>'+cAdh+'</b><br>Camisa blanca: <b>'+cCam+'</b><br>Edición barba: <b>'+cBarba+'</b>'+(cBarbaT>0?' ($'+cBarbaT+')':'')+'</div>'
+    +'</div>'
+    +'<div class="grid">'
+    +'<div class="card"><div class="card-t">Fotografiados</div>Niño H:<b>'+fNinoH+'</b> M:<b>'+fNinoM+'</b><br>Joven H:<b>'+fJovenH+'</b> M:<b>'+fJovenM+'</b><br>Adulto H:<b>'+fAdultoH+'</b> M:<b>'+fAdultoM+'</b></div>'
+    +(escHtml?'<div class="card" style="grid-column:span 2;"><div class="card-t">Escuelas</div><table>'+escHtml+'</table></div>':'')
+    +'</div>'
+    +'<div class="sec"><div class="sec-t">Historial de ventas</div>'
+    +'<table><thead><tr><th>Folio</th><th>Fecha</th><th>Método</th><th>Detalle</th><th style="text-align:right;">Total</th></tr></thead>'
+    +'<tbody>'+filas+'</tbody></table></div>'
+    +'<button onclick="window.print()" style="margin-top:20px;padding:10px 20px;background:#1D9E75;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;">🖨 Imprimir / Guardar PDF</button>'
+    +'</body></html>';
   var win = window.open('','_blank');
   win.document.write(html);
   win.document.close();
 }
 
+// ── EXPORTAR PARA META ADS ───────────────────────────────────
+function exportarMeta(){
+  if(!ventasFB || !ventasFB.length){ alert('No hay datos para exportar. Selecciona un período primero.'); return; }
+  var ventasActivas = ventasFB.filter(function(v){ return !v.cancelado; });
+  var filas = [];
+  ventasActivas.forEach(function(v){
+    (v.items||[]).forEach(function(i){
+      if(!i.clienteData) return;
+      var cd = i.clienteData;
+      var f = cd.fotografiados||{};
+      filas.push({
+        fecha: v.fecha||'',
+        sexo: cd.sexo==='H'?'Male':cd.sexo==='M'?'Female':'',
+        edad: cd.edad||'',
+        proposito: cd.proposito||'',
+        escuela: cd.escuela||'',
+        adherible: cd.adherible?'Si':'No',
+        camisa_blanca: cd.camisa_blanca?'Si':'No',
+        barba_edicion: cd.barba_edicion>0?cd.barba_edicion:0,
+        nino_h: f.nino_h||0, nino_m: f.nino_m||0,
+        joven_h: f.joven_h||0, joven_m: f.joven_m||0,
+        adulto_h: f.adulto_h||0, adulto_m: f.adulto_m||0,
+        total: v.total||0
+      });
+    });
+  });
+
+  if(!filas.length){ alert('No hay datos de clientes en este período. Asegúrate de haber registrado información al vender.'); return; }
+
+  var periodo = document.getElementById('rep-periodo') ? document.getElementById('rep-periodo').textContent : '';
+  var cols = ['fecha','sexo','edad','proposito','escuela','adherible','camisa_blanca','barba_edicion','nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','total','ciudad','estado','pais','codigo_postal'];
+  var csv = cols.join(',') + '\n'
+    + filas.map(function(r){
+        r.ciudad = 'Chihuahua';
+        r.estado = 'Chihuahua';
+        r.pais = 'Mexico';
+        r.codigo_postal = '31000';
+        return cols.map(function(c){ return '"'+(r[c]||'')+'"'; }).join(',');
+      }).join('\n');
+
+  // Abrir en nueva ventana con instrucciones para Meta
+  var html = '<html><head><title>Exportar para Meta Ads</title>'
+    +'<style>body{font-family:system-ui,sans-serif;font-size:13px;padding:24px;max-width:700px;color:#111;}'
+    +'h1{font-size:18px;margin-bottom:6px;}h2{font-size:14px;color:#555;margin-bottom:16px;}'
+    +'.paso{background:#f7f7f5;border-left:3px solid #1D9E75;padding:12px;margin-bottom:10px;border-radius:0 8px 8px 0;}'
+    +'.paso b{color:#085041;} pre{background:#111;color:#5DCAA5;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;}'
+    +'button{padding:10px 20px;background:#1D9E75;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;margin-right:8px;}'
+    +'</style></head><body>'
+    +'<h1>📊 Datos para Meta Ads</h1>'
+    +'<h2>Período: '+periodo+' · '+filas.length+' registro'+(filas.length!==1?'s':'')+' de clientes</h2>'
+    +'<div class="paso"><b>Paso 1:</b> Descarga el archivo CSV con el botón de abajo</div>'
+    +'<div class="paso"><b>Paso 2:</b> Abre ChatGPT o Claude y escribe exactamente esto:<br><br>'
+    +'"<i>Tengo un CSV con datos de clientes de mi estudio fotográfico. Analízalo y dime: '
+    +'1) Cuál es mi cliente ideal para Meta Ads, '
+    +'2) Cómo segmentar mi audiencia personalizada, '
+    +'3) Qué tipo de anuncio recomiendas para cada segmento. '
+    +'Aquí está el CSV: [pega el contenido]</i>"</div>'
+    +'<div class="paso"><b>Paso 3:</b> Para subir a Meta → Administrador de anuncios → Audiencias → Crear audiencia personalizada → Lista de clientes → sube el CSV</div>'
+    +'<button onclick="descargarCSV()">⬇ Descargar CSV</button>'
+    +'<button onclick="copiarCSV()" style="background:#0C447C;">📋 Copiar CSV</button>'
+    +'<br><br><p style="font-size:11px;color:#888;">Vista previa (primeras 3 filas):</p>'
+    +'<pre id="prev">'+cols.join(', ')+'\n'+filas.slice(0,3).map(function(r){return Object.values(r).join(', ');}).join('\n')+'</pre>'
+    +'<script>'
+    +'var csvData = '+JSON.stringify(csv)+';'
+    +'function descargarCSV(){'
+    +'  var blob=new Blob([csvData],{type:"text/csv"});'
+    +'  var a=document.createElement("a");a.href=URL.createObjectURL(blob);'
+    +'  a.download="fotoestudio_meta_'+periodo.replace(/\\s/g,"_")+'.csv";a.click();'
+    +'}'
+    +'function copiarCSV(){navigator.clipboard.writeText(csvData).then(function(){alert("CSV copiado. Pégalo en ChatGPT o Claude.");});}'
+    +'<\/script>'
+    +'</body></html>';
+  var win = window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+}
 // ── HISTORIAL DE PRECIOS ─────────────────────────────────────
 var historialPrecios = [];
 
@@ -2026,21 +2163,22 @@ function renderReportes(){
   set('rep-numventas',num);
   set('rep-periodo',labels[periodoActual]||'—');
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
-  const urg={},esc={},imp={};
+  const urg={},vis={},esc={},imp={};
   ventasActivas.forEach(v=>{
     (v.items||[]).forEach(item=>{
       const tipo=item.tipo||'otro';
       const precio=item.precio||0;
-      // Usar nombre exacto del producto para desglose preciso
       const n=item.nombre||tipo;
-      const add=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
-      if(tipo==='escuela') add(esc,item.nombre||'Escuela');
-      else if(tipo==='impresion') add(imp,item.nombre||'Impresión');
-      else if(tipo==='extra') {} // extras no se cuentan en reportes
-      else add(urg,n); // nombre exacto: "6 Inf COLOR", "6 Inf BN", etc.
+      const addM=(m,k)=>{if(!m[k])m[k]={total:0,count:0};m[k].total+=precio;m[k].count++;};
+      if(tipo==='escuela') addM(esc,item.nombre||'Escuela');
+      else if(tipo==='impresion') addM(imp,item.nombre||'Impresión');
+      else if(tipo==='extra') {}
+      else if(tipo==='visaUSA'||tipo==='visa') addM(vis,n);
+      else addM(urg,n);
     });
   });
   renderSeccion('rep-urgentes',urg);
+  renderSeccion('rep-visas',vis);
   renderSeccion('rep-escuelas',esc);
   renderSeccion('rep-impresiones',imp);
   renderDesgloseSpecs(ventasActivas);
@@ -2058,7 +2196,7 @@ function renderDesgloseSpecs(ventas){
   var itemsConSpecs = [];
   var clientesData = [];
   ventas.forEach(function(v){
-    if(v.origen !== 'urgentes') return;
+    if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
     (v.items||[]).forEach(function(it){
       if(it.specs) itemsConSpecs.push(it.specs);
       if(it.clienteData) clientesData.push(it.clienteData);
@@ -2076,10 +2214,12 @@ function renderDesgloseSpecs(ventas){
   var fotoNino=0, fotoJoven=0, fotoAdulto=0;
   var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0;
   var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
+  var cEscuelas={};
   clientesData.forEach(function(c){
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
+    if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
     if(c.adherible) cAdherible++;
     if(c.camisa_blanca) cCamisa++;
     if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
@@ -2142,6 +2282,15 @@ function renderDesgloseSpecs(ventas){
         return e[1]>0 ? barra(e[0], e[1], totalClientes, '#555') : '';
       }).join('')
       +'</div></div>';
+
+    // Escuelas
+    var escEntries = Object.entries(cEscuelas).sort(function(a,b){return b[1]-a[1];});
+    if(escEntries.length){
+      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Escuelas</p>'
+        +escEntries.map(function(e){ return barra(e[0], e[1], totalClientes, '#0C447C'); }).join('')
+        +'</div>';
+    }
 
     var totalFotosReal = fotoNino+fotoJoven+fotoAdulto;
     if(totalFotosReal > 0){
@@ -2251,7 +2400,7 @@ function rendVisas(){
         ${v.img?`<img src="${v.img}" class="vsp" alt="specs">`:'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>'}
         <div class="vbtns">
           <label class="bsm" style="cursor:pointer;"><i class="ti ti-upload"></i> Subir specs<input type="file" accept="image/*" style="display:none;" onchange="updVisaImg(${i},this)"></label>
-          <button class="bsmg" onclick="add('${v.n}',${v.p},'${v.usa?'visaUSA':'visa'}')"><i class="ti ti-shopping-cart"></i> Vender</button>
+          <button class="bsmg" onclick="abrirClienteRapido('${v.n}',${v.p},'${v.usa?'visaUSA':'visa'}')"><i class="ti ti-shopping-cart"></i> Vender</button>
         </div>
       </div>
     </div>`).join('');
