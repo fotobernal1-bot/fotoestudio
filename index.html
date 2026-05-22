@@ -3515,7 +3515,7 @@ function cobrarCalculadora(){
   closeM('m-calc');
 
   // Guardar pendiente y abrir popup sexo+edad
-  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total};
+  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
     var b=document.getElementById(id); if(!b) return;
     var esH=id.startsWith('esc-h');
@@ -3524,6 +3524,9 @@ function cobrarCalculadora(){
     b.style.color=esH?'#0C447C':'#7C0C44';
   });
   _calcPendiente.sexo=''; _calcPendiente.edad='';
+  ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
+    var el=document.getElementById('esc-foto-'+k); if(el) el.textContent='0';
+  });
   openM('m-calc-pagador');
 
   // Reset flujo de personas
@@ -3549,10 +3552,25 @@ function escSetSexoEdad(sexo, edad, btnIds){
   if(sel){ sel.style.background=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.borderColor=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.color='white'; }
 }
 
+function escAjFoto(tipo, delta){
+  if(!_calcPendiente.foto) _calcPendiente.foto={nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0};
+  _calcPendiente.foto[tipo] = Math.max(0, (_calcPendiente.foto[tipo]||0) + delta);
+  var el = document.getElementById('esc-foto-'+tipo);
+  if(el) el.textContent = _calcPendiente.foto[tipo];
+}
+
 function confirmarCalcPagador(){
   var sexoLabel = _calcPendiente.sexo ? ' — '+_calcPendiente.sexo : '';
   var nombreFinal = (_calcPendiente.nombreBase||'Paquete') + sexoLabel;
-  var clienteData = {sexo:_calcPendiente.sexo||'', edad:_calcPendiente.edad||''};
+  var foto = _calcPendiente.foto||{};
+  var clienteData = {
+    sexo:_calcPendiente.sexo||'', edad:_calcPendiente.edad||'',
+    fotografiados:{
+      nino_h:foto.nino_h||0, nino_m:foto.nino_m||0,
+      joven_h:foto.joven_h||0, joven_m:foto.joven_m||0,
+      adulto_h:foto.adulto_h||0, adulto_m:foto.adulto_m||0
+    }
+  };
   carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData});
   renderCarrito();
   closeM('m-calc-pagador');
@@ -4432,7 +4450,7 @@ function buscarOrden(){
     <button id="esc-m2" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','30-50',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">2</button>
     <button id="esc-m3" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','50+',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">3</button>
   </div>
-  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-bottom:14px;">
+  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-bottom:10px;">
     <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
     <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
     <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
@@ -4440,6 +4458,60 @@ function buscarOrden(){
     <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
     <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
   </div>
+
+  <!-- Quien se fotografía -->
+  <p class="slabel" style="margin-bottom:8px;">Quien se fotografía</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('nino_h',-1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">−</button>
+        <span id="esc-foto-nino_h" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="escAjFoto('nino_h',1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('nino_m',-1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">−</button>
+        <span id="esc-foto-nino_m" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="escAjFoto('nino_m',1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('joven_h',-1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">−</button>
+        <span id="esc-foto-joven_h" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="escAjFoto('joven_h',1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('joven_m',-1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">−</button>
+        <span id="esc-foto-joven_m" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="escAjFoto('joven_m',1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('adulto_h',-1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">−</button>
+        <span id="esc-foto-adulto_h" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="escAjFoto('adulto_h',1)" style="width:22px;height:22px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#0C447C;">+</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M</span>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <button onclick="escAjFoto('adulto_m',-1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">−</button>
+        <span id="esc-foto-adulto_m" style="font-size:13px;font-weight:700;min-width:14px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="escAjFoto('adulto_m',1)" style="width:22px;height:22px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-btns">
     <button class="btn bgray" onclick="omitirCalcPagador()">Omitir</button>
     <button class="btn bgreen" onclick="confirmarCalcPagador()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
