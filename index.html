@@ -587,8 +587,31 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     <!-- PRODUCCIÓN -->
     <div id="page-produccion" class="page">
       <div class="hrow">
-        <div><p class="ptitle">Producción</p><p class="psub" style="margin:0;">Órdenes ordinarias del día</p></div>
+        <div><p class="ptitle">Producción</p><p class="psub" style="margin:0;">Órdenes del día</p></div>
       </div>
+
+      <!-- URGENTES CON SPECS -->
+      <p class="slabel" style="margin-bottom:8px;"><i class="ti ti-bolt" style="color:#BA7517;"></i> Urgentes con especificaciones</p>
+      <div style="overflow-x:auto;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:#FAEEDA;border-bottom:2px solid #e0e0e0;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#633806;font-weight:600;min-width:220px;">INFORMACIÓN</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">PROCESO</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">IMPRESIÓN</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">ACABADO</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:110px;">ENTREGA</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;color:#633806;font-weight:600;min-width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="urg-prod-body">
+            <tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ORDINARIOS -->
+      <p class="slabel" style="margin-bottom:8px;"><i class="ti ti-school" style="color:#0C447C;"></i> Ordinarios</p>
 
       <!-- Buscador -->
       <div style="position:relative;margin-bottom:14px;">
@@ -905,7 +928,7 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
   if(id==='reportes')setTimeout(cargarReportes,300);
-  if(id==='produccion')setTimeout(cargarProduccion,300);
+  if(id==='produccion'){setTimeout(cargarProduccion,300);setTimeout(cargarProduccionUrgentes,300);}
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -958,6 +981,82 @@ function agregarExtra(){
 }
 
 function add(nombre,precio,tipo){carrito.push({nombre,precio,tipo});renderCarrito();}
+
+// ── SPECS URGENTES ───────────────────────────────────────────
+var _specUrg = {}; // estado temporal de la mini calculadora
+
+function abrirSpecsUrgente(cat, i){
+  var p = productos[cat][i];
+  _specUrg = {cat:cat, idx:i, nombre:p.nombre, precioBase:p.precio, precio:p.precio, tipo:p.tipo,
+    adherible:false, color: p.nombre.toLowerCase().includes('b/n')?'bn':'color',
+    sexo:'', fondo:'', vestimenta:'', cabello:'', aretes:'', barba:''};
+  // Fill modal
+  document.getElementById('su-titulo').textContent = p.nombre;
+  document.getElementById('su-precio').textContent = '$'+p.precio;
+  // Reset all buttons
+  ['su-color','su-bn','su-adh-si','su-adh-no',
+   'su-sexo-h','su-sexo-m',
+   'su-fondo-b','su-fondo-o',
+   'su-vest-camisa','su-vest-saco-c','su-vest-saco-o','su-vest-otra',
+   'su-cab-rec','su-cab-ore','su-cab-lib',
+   'su-ar-no','su-ar-sinrec','su-ar-si',
+   'su-barba-si','su-barba-no'
+  ].forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; b.style.cssText='font-size:11px;padding:4px 9px;'; });
+  // Preselect color/bn
+  var colorBtn = document.getElementById(_specUrg.color==='bn'?'su-bn':'su-color');
+  if(colorBtn){ colorBtn.className='btn bgreen'; }
+  document.getElementById('su-vest-txt').style.display='none';
+  document.getElementById('su-vest-txt').value='';
+  openM('m-specs-urgente');
+}
+
+function suSetAdh(val){
+  _specUrg.adherible = val;
+  var tieneAdh = ['infantil6','infantil9','infantil6bn','infantil9bn','cred4','cred4bn','cred6','cred6bn','cartilla'].includes(_specUrg.tipo);
+  _specUrg.precio = _specUrg.precioBase + (val && tieneAdh ? 20 : 0);
+  document.getElementById('su-adh-si').className = val ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('su-adh-no').className = !val ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('su-precio').textContent = '$'+_specUrg.precio;
+}
+
+function suSetColor(val){
+  _specUrg.color = val;
+  document.getElementById('su-color').className = val==='color' ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('su-bn').className = val==='bn' ? 'btn bgreen' : 'btn bgray';
+}
+
+function suSetSexo(val){
+  _specUrg.sexo = val;
+  document.getElementById('su-sexo-h').className = val==='H' ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('su-sexo-m').className = val==='M' ? 'btn bgreen' : 'btn bgray';
+}
+
+function suSet(campo, val, btnIds){
+  _specUrg[campo] = val;
+  btnIds.forEach(function(b){ document.getElementById(b.id).className = b.v===val ? 'btn bgreen' : 'btn bgray'; });
+  if(campo==='vestimenta'){
+    document.getElementById('su-vest-txt').style.display = val==='' ? 'block' : 'none';
+    if(val!=='') document.getElementById('su-vest-txt').value='';
+  }
+}
+
+function cobrarSpecsUrgente(){
+  var s = _specUrg;
+  var vestFinal = s.vestimenta || document.getElementById('su-vest-txt').value.trim();
+  var specs = {
+    sexo: s.sexo, color: s.color, adherible: s.adherible,
+    fondo: s.fondo, vestimenta: vestFinal,
+    cabello: s.cabello, aretes: s.aretes, barba: s.barba
+  };
+  // Build display name with key specs
+  var extras = [];
+  if(s.adherible) extras.push('adh');
+  if(s.sexo) extras.push(s.sexo);
+  var nombreDisplay = s.nombre + (extras.length ? ' ('+extras.join(', ')+')' : '');
+  carrito.push({nombre:nombreDisplay, precio:s.precio, tipo:s.tipo, specs:specs});
+  renderCarrito();
+  closeM('m-specs-urgente');
+}
 function delItem(i){carrito.splice(i,1);renderCarrito();}
 function limpiar(){carrito=[];document.getElementById('pago').value='';renderCarrito();}
 function renderCarrito(){
@@ -1205,12 +1304,15 @@ async function cobrar(){
       folio,origen:'urgentes',metodoPago:metodo,cancelado:false,
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo})),
+      items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,specs:c.specs||null})),
       total:totalU,pago:hayO?totalU:pago,cambio:hayO?0:pago-total
     };
     if(db) db.collection('ventas').doc(folio).set(ventaU).catch(e=>console.error(e));
     ventas.push({f:folio,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
     tickets.push(ventaU);
+    // Crear orden de producción urgente si algún ítem tiene specs
+    var itemsConSpecs = itemsU.filter(function(c){ return c.specs; });
+    if(itemsConSpecs.length > 0) crearOrdenProduccionUrgente(folio, itemsConSpecs, fecha, hora);
   }
   // Escuelas — folio ESC
   const itemsEsc=items.filter(c=>c.tipo==='escuela');
@@ -1985,6 +2087,7 @@ function rendProds(cat,gridId){
           <div class="fc-p">$${p.precio}</div>
         </div>
         <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px;">
+          <button style="background:#1D9E75;border:none;cursor:pointer;font-size:11px;color:white;border-radius:6px;padding:3px 7px;font-weight:600;" onclick="event.stopPropagation();abrirSpecsUrgente('${cat}',${i})" title="Con especificaciones">+</button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#ccc;" onclick="editarProd('${cat}',${i})" title="Editar"><i class="ti ti-pencil"></i></button>
           <button style="background:transparent;border:none;cursor:pointer;font-size:13px;color:#f5c0c0;" onclick="eliminarProd('${cat}',${i})" title="Eliminar"><i class="ti ti-trash"></i></button>
         </div>
@@ -2825,6 +2928,117 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     .catch(function(e){ console.error('Error crear orden:', e); });
 }
 
+function crearOrdenProduccionUrgente(folio, items, fecha, hora){
+  if(!db) return;
+  var orden = {
+    folio: folio,
+    origen: 'urgentes',
+    info: items.map(function(i){ return i.nombre; }).join(' + '),
+    specs: {
+      items: items.map(function(it){
+        var s = it.specs || {};
+        var linea = it.nombre;
+        var detalles = [];
+        if(s.sexo) detalles.push(s.sexo==='H'?'Hombre':'Mujer');
+        if(s.color) detalles.push(s.color==='bn'?'B/N':'Color');
+        if(s.adherible) detalles.push('Con adherible');
+        if(s.fondo) detalles.push('Fondo: '+s.fondo);
+        if(s.vestimenta) detalles.push('Vest: '+s.vestimenta);
+        if(s.cabello) detalles.push('Cab: '+s.cabello);
+        if(s.aretes) detalles.push('Aretes: '+s.aretes);
+        if(s.barba) detalles.push('Barba: '+s.barba);
+        return {nombre: linea, detalle: detalles.join(' · ')};
+      })
+    },
+    fechaEntrega: '',
+    timestamp: new Date().toISOString(),
+    fecha: fecha,
+    archivada: false,
+    proceso:   {hecho:false, quien:'', hora:''},
+    impresion: {hecho:false, quien:'', hora:''},
+    acabado:   {hecho:false, quien:'', hora:''},
+    entrega:   {hecho:false, quien:'', hora:''},
+  };
+  db.collection('produccion_urgentes').doc(folio).set(orden)
+    .then(function(){ cargarProduccionUrgentes(); })
+    .catch(function(e){ console.error('Error crear orden urgente:', e); });
+}
+
+function cargarProduccionUrgentes(){
+  if(!db) return;
+  db.collection('produccion_urgentes').where('archivada','==',false).get()
+    .then(function(snap){
+      var arr = [];
+      snap.forEach(function(d){ arr.push(d.data()); });
+      arr.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
+      renderProduccionUrgentes(arr);
+    })
+    .catch(function(e){ console.error('Error cargar urgentes:', e); });
+}
+
+function renderProduccionUrgentes(lista){
+  var tbody = document.getElementById('urg-prod-body');
+  if(!tbody) return;
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Sin órdenes urgentes pendientes</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(o){
+    var pasos = ['proceso','impresion','acabado','entrega'];
+    var todosHechos = pasos.every(function(p){ return o[p].hecho; });
+    var celdas = pasos.map(function(p){
+      var paso = o[p];
+      if(paso.hecho){
+        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
+          +'<div style="color:#1D9E75;font-size:16px;">✅</div>'
+          +'<div style="font-size:10px;color:#1D9E75;font-weight:600;">'+paso.quien+'</div>'
+          +'<div style="font-size:9px;color:#aaa;">'+paso.hora+'</div></td>';
+      } else {
+        return '<td style="text-align:center;padding:8px;vertical-align:top;">'
+          +'<button onclick="marcarPasoUrgente(\x27'+o.folio+'\x27,\x27'+p+'\x27)" '
+          +'style="width:32px;height:32px;border:2px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;color:#ccc;">○</button></td>';
+      }
+    }).join('');
+    var archivarBtn = todosHechos
+      ? '<td style="text-align:center;padding:8px;"><button onclick="archivarUrgenteOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
+      : '<td></td>';
+    var itemsHtml = '';
+    if(o.specs && o.specs.items){
+      itemsHtml = o.specs.items.map(function(it){
+        return '<div style="margin-bottom:4px;"><div style="font-size:11px;font-weight:600;">'+it.nombre+'</div>'
+          +(it.detalle?'<div style="font-size:10px;color:#555;">'+it.detalle+'</div>':'')+'</div>';
+      }).join('');
+    }
+    return '<tr style="border-bottom:1px solid #f0f0f0;">'
+      +'<td style="padding:10px 12px;vertical-align:top;">'
+      +'<div style="font-weight:700;color:#0C7ED6;font-size:12px;">'+o.folio+'</div>'
+      +(itemsHtml?'<div style="margin-top:4px;max-width:240px;">'+itemsHtml+'</div>':'')
+      +'<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+' '+o.hora+'</div>'
+      +'</td>'
+      +celdas+archivarBtn+'</tr>';
+  }).join('');
+}
+
+function marcarPasoUrgente(folio, paso){
+  var quien = prompt('¿Quién autoriza este paso?');
+  if(!quien || !quien.trim()) return;
+  var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  if(!db) return;
+  var update = {};
+  update[paso] = {hecho:true, quien:quien.trim(), hora:hora};
+  db.collection('produccion_urgentes').doc(folio).update(update)
+    .then(function(){ cargarProduccionUrgentes(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+function archivarUrgenteOrden(folio){
+  if(!confirm('¿Archivar la orden '+folio+'?')) return;
+  if(!db) return;
+  db.collection('produccion_urgentes').doc(folio).update({archivada:true})
+    .then(function(){ cargarProduccionUrgentes(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
 function esOrdenUrgente(o){
   var pasos = ['proceso','impresion','acabado','entrega'];
   var todosHechos = pasos.every(function(p){ return o[p] && o[p].hecho; });
@@ -3397,6 +3611,99 @@ function buscarOrden(){
     <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
+<!-- MODAL SPECS URGENTES -->
+<div class="modal-ov" id="m-specs-urgente"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
+  <p class="modal-t"><i class="ti ti-list-details"></i> Especificaciones — <span id="su-titulo"></span></p>
+
+  <!-- Sexo -->
+  <div class="frow">
+    <label>Sexo</label>
+    <div style="display:flex;gap:8px;">
+      <button id="su-sexo-h" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="suSetSexo('H')"><i class="ti ti-user"></i> Hombre</button>
+      <button id="su-sexo-m" class="btn bgray" style="flex:1;font-size:12px;padding:7px;" onclick="suSetSexo('M')"><i class="ti ti-user"></i> Mujer</button>
+    </div>
+  </div>
+
+  <!-- Color / B&N -->
+  <div class="frow">
+    <label>Color / B&N</label>
+    <div style="display:flex;gap:6px;">
+      <button id="su-color" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="suSetColor('color')">Color</button>
+      <button id="su-bn" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="suSetColor('bn')">B/N</button>
+    </div>
+  </div>
+
+  <!-- Adherible -->
+  <div class="frow">
+    <label>Adherible (+$20)</label>
+    <div style="display:flex;gap:6px;">
+      <button id="su-adh-no" class="btn bgreen" style="font-size:11px;padding:5px 12px;" onclick="suSetAdh(false)">Sin adherible</button>
+      <button id="su-adh-si" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="suSetAdh(true)">Con adherible</button>
+    </div>
+  </div>
+
+  <!-- Fondo -->
+  <div class="frow">
+    <label>Fondo</label>
+    <div style="display:flex;gap:6px;">
+      <button id="su-fondo-b" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('fondo','Blanco',[{id:'su-fondo-b',v:'Blanco'},{id:'su-fondo-o',v:'Otro'}])">Blanco</button>
+      <button id="su-fondo-o" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('fondo','Otro',[{id:'su-fondo-b',v:'Blanco'},{id:'su-fondo-o',v:'Otro'}])">Otro</button>
+    </div>
+  </div>
+
+  <!-- Vestimenta -->
+  <div class="frow">
+    <label>Vestimenta</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+      <button id="su-vest-camisa" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="suSet('vestimenta','Camisa blanca',[{id:'su-vest-camisa',v:'Camisa blanca'},{id:'su-vest-saco-c',v:'Saco claro'},{id:'su-vest-saco-o',v:'Saco oscuro'},{id:'su-vest-otra',v:''}])">Camisa blanca</button>
+      <button id="su-vest-saco-c" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="suSet('vestimenta','Saco claro',[{id:'su-vest-camisa',v:'Camisa blanca'},{id:'su-vest-saco-c',v:'Saco claro'},{id:'su-vest-saco-o',v:'Saco oscuro'},{id:'su-vest-otra',v:''}])">Saco claro</button>
+      <button id="su-vest-saco-o" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="suSet('vestimenta','Saco oscuro',[{id:'su-vest-camisa',v:'Camisa blanca'},{id:'su-vest-saco-c',v:'Saco claro'},{id:'su-vest-saco-o',v:'Saco oscuro'},{id:'su-vest-otra',v:''}])">Saco oscuro</button>
+      <button id="su-vest-otra" class="btn bgray" style="font-size:11px;padding:4px 8px;" onclick="suSet('vestimenta','',[{id:'su-vest-camisa',v:'Camisa blanca'},{id:'su-vest-saco-c',v:'Saco claro'},{id:'su-vest-saco-o',v:'Saco oscuro'},{id:'su-vest-otra',v:''}])">Otra</button>
+    </div>
+    <input type="text" id="su-vest-txt" placeholder="Describir vestimenta..." style="display:none;font-size:12px;">
+  </div>
+
+  <!-- Cabello -->
+  <div class="frow">
+    <label>Cabello</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="su-cab-rec" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('cabello','Recogido',[{id:'su-cab-rec',v:'Recogido'},{id:'su-cab-ore',v:'Orejas descubiertas'},{id:'su-cab-lib',v:'Libre'}])">Recogido</button>
+      <button id="su-cab-ore" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('cabello','Orejas descubiertas',[{id:'su-cab-rec',v:'Recogido'},{id:'su-cab-ore',v:'Orejas descubiertas'},{id:'su-cab-lib',v:'Libre'}])">Orejas descubiertas</button>
+      <button id="su-cab-lib" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('cabello','Libre',[{id:'su-cab-rec',v:'Recogido'},{id:'su-cab-ore',v:'Orejas descubiertas'},{id:'su-cab-lib',v:'Libre'}])">Libre</button>
+    </div>
+  </div>
+
+  <!-- Aretes -->
+  <div class="frow">
+    <label>Aretes</label>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="su-ar-no" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('aretes','No permitidos',[{id:'su-ar-no',v:'No permitidos'},{id:'su-ar-sinrec',v:'Sin recomendación'},{id:'su-ar-si',v:'Permitidos'}])">No permitidos</button>
+      <button id="su-ar-sinrec" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('aretes','Sin recomendación',[{id:'su-ar-no',v:'No permitidos'},{id:'su-ar-sinrec',v:'Sin recomendación'},{id:'su-ar-si',v:'Permitidos'}])">Sin recomendación</button>
+      <button id="su-ar-si" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="suSet('aretes','Permitidos',[{id:'su-ar-no',v:'No permitidos'},{id:'su-ar-sinrec',v:'Sin recomendación'},{id:'su-ar-si',v:'Permitidos'}])">Permitidos</button>
+    </div>
+  </div>
+
+  <!-- Barba -->
+  <div class="frow">
+    <label>Barba</label>
+    <div style="display:flex;gap:6px;">
+      <button id="su-barba-si" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('barba','Sí',[{id:'su-barba-si',v:'Sí'},{id:'su-barba-no',v:'No'}])">Sí</button>
+      <button id="su-barba-no" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="suSet('barba','No',[{id:'su-barba-si',v:'Sí'},{id:'su-barba-no',v:'No'}])">No</button>
+    </div>
+  </div>
+
+  <!-- Total -->
+  <div style="background:#E1F5EE;border-radius:8px;padding:10px;text-align:center;margin:10px 0;">
+    <div style="font-size:11px;color:#085041;">Total</div>
+    <div id="su-precio" style="font-size:22px;font-weight:700;color:#1D9E75;">$0</div>
+  </div>
+
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-specs-urgente')">Cancelar</button>
+    <button class="btn bgreen" onclick="cobrarSpecsUrgente()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+  </div>
+</div></div>
+
 <!-- MODAL HISTORIAL DE PRECIOS -->
 <div class="modal-ov" id="m-historial-precios"><div class="modal-box" style="width:420px;max-height:85vh;">
   <p class="modal-t"><i class="ti ti-history"></i> Historial de cambios de precio</p>
