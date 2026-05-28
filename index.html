@@ -1715,7 +1715,7 @@ function confirmarEntrega(){
 async function cobrar(){
   const total=carrito.reduce((s,c)=>s+c.precio,0);
   const pago=parseFloat(document.getElementById('pago').value)||0;
-  const anticipo=parseFloat(document.getElementById('anticipo').value)||0;
+  const anticipo=0; // anticipo removido — pago parcial manejado desde campo principal
   const now=new Date();
   const fecha=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const hora=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
@@ -1783,7 +1783,6 @@ async function cobrar(){
 
   ultimaVenta=tickets;
   carrito=[];document.getElementById('pago').value='';
-  var anticipoEl=document.getElementById('anticipo'); if(anticipoEl) anticipoEl.value='';
   // Resetear método de pago a efectivo
   selMetodo('efectivo');
   renderCarrito();
