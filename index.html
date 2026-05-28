@@ -386,31 +386,30 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
     padding-bottom: env(safe-area-inset-bottom, 8px);
   }
   .cart-hdr {
-    padding: 6px 12px 5px;
+    padding: 10px 16px 8px;
     border-bottom: 1px solid #e0e0e0;
     flex-shrink: 0;
   }
-  .cart-hdr p { font-size: 12px; }
+  .cart-hdr p { font-size: 15px; }
   .cart-items {
-    max-height: 72px;
+    max-height: 90px;
     overflow-y: auto;
-    padding: 4px 0;
+    padding: 5px 0;
   }
-  .ci { padding: 4px 12px; }
-  .ci-n { font-size: 12px; }
-  .ci-p { font-size: 11px; }
+  .ci { padding: 6px 16px; }
+  .ci-n { font-size: 14px; }
+  .ci-p { font-size: 13px; }
 
-  /* Footer compacto en una sola fila */
+  /* Footer más grande */
   .cart-ftr {
-    padding: 7px 12px;
+    padding: 10px 16px;
     border-top: 1px solid #e0e0e0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
-  /* Fila 1: Total + input + cambio */
   .trow.big {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 700;
     margin-bottom: 0;
     display: flex;
@@ -420,35 +419,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   .pago-lbl { display: none; }
   .pago-inp {
     font-size: 14px;
-    padding: 6px 8px;
+    padding: 9px 12px;
     margin-bottom: 0;
-    width: 110px;
+    width: 140px;
     flex-shrink: 0;
+    font-size: 16px;
   }
   .cambio-row {
-    padding: 5px 8px;
+    padding: 8px 12px;
     margin-bottom: 0;
     flex: 1;
   }
-  .cambio-row strong { font-size: 14px; }
+  .cambio-row strong { font-size: 17px; }
 
   /* Fila 2: método de pago */
   #metodo-pago {
     display: flex;
-    gap: 5px;
+    gap: 6px;
   }
-  #metodo-pago button { flex: 1; font-size: 11px; padding: 6px 4px; }
+  #metodo-pago button { flex: 1; font-size: 13px; padding: 9px 4px; }
 
-  /* Fila 3: Cobrar */
+  /* Cobrar en misma fila que total/cambio */
   .bcobrar {
-    padding: 11px;
-    font-size: 15px;
+    padding: 12px 20px;
+    font-size: 16px;
     margin-bottom: 0;
-    width: 100%;
+    width: auto;
+    flex-shrink: 0;
   }
   .blimpiar {
-    padding: 6px;
-    font-size: 11px;
+    padding: 7px;
+    font-size: 12px;
     margin-bottom: 0;
   }
 
@@ -480,10 +481,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
   .modal-ov { align-items: center; }
   .modal-box {
-    width: 94%;
-    max-width: 500px;
+    width: 96%;
+    max-width: 640px;
     border-radius: 16px;
-    max-height: 85vh;
+    max-height: 88vh;
   }
 }
   .g2 { grid-template-columns: 1fr 1fr; }
