@@ -3873,7 +3873,7 @@ function cobrarCalculadora(){
   closeM('m-calc');
 
   // Guardar pendiente y abrir popup sexo+edad
-  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
+  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
     var b=document.getElementById(id); if(!b) return;
     var esH=id.startsWith('esc-h');
@@ -3882,6 +3882,8 @@ function cobrarCalculadora(){
     b.style.color=esH?'#0C447C':'#7C0C44';
   });
   _calcPendiente.sexo=''; _calcPendiente.edad='';
+  var numP=document.getElementById('esc-num-personas'); if(numP) numP.textContent='1';
+  var tdP=document.getElementById('esc-total-display'); if(tdP) tdP.textContent='$'+total;
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
     var el=document.getElementById('esc-foto-'+k); if(el) el.textContent='0';
   });
@@ -3908,6 +3910,15 @@ function escSetSexoEdad(sexo, edad, btnIds){
   var selId = mapa[sexo][edad];
   var sel = document.getElementById(selId);
   if(sel){ sel.style.background=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.borderColor=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.color='white'; }
+}
+
+function escAjPersonas(delta){
+  _calcPendiente.personas = Math.max(1, (_calcPendiente.personas||1) + delta);
+  _calcPendiente.total = _calcPendiente.precioBase * _calcPendiente.personas;
+  var el = document.getElementById('esc-num-personas');
+  if(el) el.textContent = _calcPendiente.personas;
+  var td = document.getElementById('esc-total-display');
+  if(td) td.textContent = '$'+_calcPendiente.total;
 }
 
 function escAjFoto(tipo, delta){
@@ -4889,6 +4900,17 @@ function buscarOrden(){
 <div class="modal-ov" id="m-calc-pagador"><div class="modal-box" style="width:300px;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> ¿Quién paga?</p>
   <p style="font-size:11px;color:#888;margin-bottom:12px;">Opcional — toca un botón o presiona Omitir</p>
+
+  <!-- Número de personas -->
+  <div style="display:flex;align-items:center;justify-content:space-between;background:#E1F5EE;border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+    <span style="font-size:13px;font-weight:600;color:#085041;">Personas</span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button onclick="escAjPersonas(-1)" style="width:32px;height:32px;border:1px solid #1D9E75;border-radius:8px;background:white;cursor:pointer;font-size:18px;color:#1D9E75;">−</button>
+      <span id="esc-num-personas" style="font-size:20px;font-weight:700;color:#085041;min-width:24px;text-align:center;">1</span>
+      <button onclick="escAjPersonas(1)" style="width:32px;height:32px;border:1px solid #1D9E75;border-radius:8px;background:white;cursor:pointer;font-size:18px;color:#1D9E75;">+</button>
+    </div>
+    <span id="esc-total-display" style="font-size:16px;font-weight:700;color:#1D9E75;">$0</span>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
     <button id="esc-h1" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','18-30',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">1</button>
     <button id="esc-h2" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','30-50',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">2</button>
