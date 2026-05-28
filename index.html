@@ -1520,65 +1520,68 @@ function selMetodo(m){
 }
 
 async function generarFolioU(now){
-  // Urgentes: F-U-00001-MAY-2026 contador continuo eterno en Firebase
   const mes=MESES_FOLIO[now.getMonth()];
   const year=now.getFullYear();
   if(!db) return 'F-U-LOCAL-'+mes+'-'+year;
   const contRef=db.collection('contadores').doc('urgentes');
   try{
-    const nuevo = await db.runTransaction(async t=>{
+    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000));
+    const txPromise = db.runTransaction(async t=>{
       const doc=await t.get(contRef);
       const actual=doc.exists?(doc.data().contador||0):0;
       const siguiente=actual+1;
       t.set(contRef,{contador:siguiente});
       return siguiente;
     });
+    const nuevo = await Promise.race([txPromise, timeoutPromise]);
     return 'F-U-'+String(nuevo).padStart(5,'0')+'-'+mes+'-'+year;
   }catch(e){
     console.error('Error contador urgentes:',e);
-    return 'F-U-ERR-'+mes+'-'+year;
+    return 'F-U-'+String(Date.now()).slice(-5)+'-'+mes+'-'+year;
   }
 }
 
 async function generarFolioEsc(now){
-  // Escuelas: ESC-0001-MAY-2026 contador anual
   const year=now.getFullYear();
   const mes=MESES_FOLIO[now.getMonth()];
   if(!db) return 'ESC-LOCAL-'+mes+'-'+year;
   const contRef=db.collection('contadores').doc('escuelas_'+year);
   try{
-    const nuevo=await db.runTransaction(async t=>{
+    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000));
+    const txPromise = db.runTransaction(async t=>{
       const doc=await t.get(contRef);
       const actual=doc.exists?(doc.data().contador||0):0;
       const siguiente=actual+1;
       t.set(contRef,{contador:siguiente,year});
       return siguiente;
     });
+    const nuevo = await Promise.race([txPromise, timeoutPromise]);
     return 'ESC-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
   }catch(e){
     console.error('Error contador escuelas:',e);
-    return 'ESC-ERR-'+mes+'-'+year;
+    return 'ESC-'+String(Date.now()).slice(-4)+'-'+mes+'-'+year;
   }
 }
 
 async function generarFolioImp(now){
-  // Impresiones: IMP-0001-MAY-2026 contador anual
   const year=now.getFullYear();
   const mes=MESES_FOLIO[now.getMonth()];
   if(!db) return 'IMP-LOCAL-'+mes+'-'+year;
   const contRef=db.collection('contadores').doc('impresiones_'+year);
   try{
-    const nuevo=await db.runTransaction(async t=>{
+    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000));
+    const txPromise = db.runTransaction(async t=>{
       const doc=await t.get(contRef);
       const actual=doc.exists?(doc.data().contador||0):0;
       const siguiente=actual+1;
       t.set(contRef,{contador:siguiente,year});
       return siguiente;
     });
+    const nuevo = await Promise.race([txPromise, timeoutPromise]);
     return 'IMP-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
   }catch(e){
     console.error('Error contador impresiones:',e);
-    return 'IMP-ERR-'+mes+'-'+year;
+    return 'IMP-'+String(Date.now()).slice(-4)+'-'+mes+'-'+year;
   }
 }
 
@@ -4047,19 +4050,49 @@ function esOrdenUrgente(o){
   var todosHechos = pasos.every(function(p){ return o[p] && o[p].hecho; });
   if(todosHechos || !o.fechaEntrega) return false;
   try{
+    var fe = o.fechaEntrega;
     var ahora = new Date();
-    var horaMatch = o.fechaEntrega.match(/(\d+):(\d+)\s*(am|pm)/i);
+
+    // Extraer hora (ej: "1:00 pm", "13:30")
+    var horaMatch = fe.match(/(\d+):(\d+)\s*(am|pm)?/i);
     if(!horaMatch) return false;
     var h = parseInt(horaMatch[1]);
     var min = parseInt(horaMatch[2]);
-    var ampm = horaMatch[3].toLowerCase();
+    var ampm = horaMatch[3] ? horaMatch[3].toLowerCase() : null;
     if(ampm==='pm' && h!==12) h+=12;
     if(ampm==='am' && h===12) h=0;
+
     var entrega = new Date(ahora);
-    if(/mañana/i.test(o.fechaEntrega)) entrega.setDate(entrega.getDate()+1);
-    // Fecha específica (ej: "Lunes 25 Mayo 2026 a las 3:00 pm")
-    var fechaMatch = o.fechaEntrega.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if(fechaMatch){ entrega = new Date(parseInt(fechaMatch[3]), parseInt(fechaMatch[2])-1, parseInt(fechaMatch[1])); }
+
+    // Formato: "Hoy ..."
+    if(/^hoy/i.test(fe)){
+      // mismo día
+    }
+    // Formato: "Mañana ..." (con o sin acento)
+    else if(/ma.ana/i.test(fe)){
+      entrega.setDate(entrega.getDate()+1);
+    }
+    // Formato: "Viernes 29 Mayo 2026 ..." o "Lunes 25 Mayo 2026 ..."
+    else {
+      var MESES_ES = {enero:0,febrero:1,marzo:2,abril:3,mayo:4,junio:5,julio:6,agosto:7,septiembre:8,octubre:9,noviembre:10,diciembre:11};
+      var mesesMatch = fe.match(/(\d{1,2})\s+([a-záéíóúü]+)\s+(\d{4})/i);
+      if(mesesMatch){
+        var dia = parseInt(mesesMatch[1]);
+        var mesStr = mesesMatch[2].toLowerCase();
+        var año = parseInt(mesesMatch[3]);
+        var mesNum = MESES_ES[mesStr];
+        if(mesNum !== undefined){
+          entrega = new Date(año, mesNum, dia);
+        }
+      } else {
+        // Formato dd/mm/yyyy
+        var fechaSlash = fe.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if(fechaSlash){
+          entrega = new Date(parseInt(fechaSlash[3]), parseInt(fechaSlash[2])-1, parseInt(fechaSlash[1]));
+        }
+      }
+    }
+
     entrega.setHours(h, min, 0, 0);
     var diffMs = entrega - ahora;
     return diffMs > 0 && diffMs < 2*60*60*1000;
