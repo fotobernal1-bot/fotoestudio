@@ -2041,6 +2041,18 @@ function imprimirNotaTrabajo(){
     +'<div class="nota-row"><span class="nota-lbl">NOMBRE / ESCUELA:</span><span class="nota-val nota-underline">'+nombreEscuela+'</span></div>'
     +'<div class="nota-row"><span class="nota-lbl">FECHA:</span><span class="nota-val">'+fecha+'</span>'
     +(sexo?'<span class="nota-lbl" style="margin-left:8px;">SEXO:</span><span class="nota-val">'+sexo+'</span>':'')
+    // clienteData del carrito
+    +(ultimaV&&ultimaV.items?function(){
+        var partes=[];
+        (ultimaV.items||[]).forEach(function(it){
+          if(it.clienteData){
+            var cd=it.clienteData;
+            if(cd.personas>1) partes.push(cd.personas+' personas');
+            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
+          }
+        });
+        return partes.length?'<span class="nota-lbl" style="margin-left:8px;">'+partes.join(' · ')+'</span>':'';
+      }():'')
     +'</div>'
     +'<div class="nota-checks">'
     +'<span>'+chk(tieneInfantil)+' Infantil</span>'
@@ -3978,12 +3990,12 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
         personas: cs.personas||[],
         descuento: cs.descuento||0,
         // Guardar specs individuales por ítem para mostrar en producción
-        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||''}; })
+        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||'', clienteData: it.clienteData||null}; })
       };
     } else {
       specs = {
         lineas: items.map(function(it){ return it.nombre+(it.detalle?' — '+it.detalle:''); }),
-        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||''}; })
+        items: items.map(function(it){ return {nombre: it.nombre, detalle: it.detalle||'', clienteData: it.clienteData||null}; })
       };
     }
   } else if(origen === 'impresiones'){
@@ -4194,15 +4206,61 @@ function renderProduccion(lista){
       var vestLine=vestH&&vestM?'Vest H: '+vestH+' / M: '+vestM:(vestH||vestM?'Vest: '+(vestH||vestM):'');
       var digVLine=digVH&&digVM?'Vest dig H: '+digVH+' / M: '+digVM:(digVH||digVM?'Vest dig: '+(digVH||digVM):'');
       var personasLine='';
-      if(sp.personas&&sp.personas.length===1){personasLine='Persona: '+sp.personas[0].sexo;}
+      if(sp.sexo) personasLine='Persona: '+(sp.sexo==='H'?'Hombre':'Mujer');
+      else if(sp.personas&&sp.personas.length===1){personasLine='Persona: '+sp.personas[0].sexo;}
       else if(sp.personas&&sp.personas.length>1){
         var hc=sp.personas.filter(function(p){return p.sexo==='H';}).length;
         var mc=sp.personas.filter(function(p){return p.sexo==='M';}).length;
         personasLine='Personas: '+(hc?hc+'H ':'')+( mc?mc+'M':'');
       }
+      // clienteData del item (nuevo flujo)
+      var clienteDataLine='';
+      if(o.specs&&o.specs.items){
+        o.specs.items.forEach(function(it){
+          if(it.clienteData){
+            var cd=it.clienteData;
+            var partes=[];
+            if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
+            else partes.push('1 persona');
+            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
+            if(cd.fotografiados){
+              var f=cd.fotografiados;
+              var fStr=[];
+              if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
+              if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
+              if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
+              if(fStr.length) partes.push(fStr.join(', '));
+            }
+            if(partes.length) clienteDataLine+='<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>';
+          }
+        });
+      }
+      // También leer clienteData directo en items de la orden
+      if(!clienteDataLine && o.items){
+        o.items.forEach(function(it){
+          if(it.clienteData){
+            var cd=it.clienteData;
+            var partes=[];
+            if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
+            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
+            if(cd.fotografiados){
+              var f=cd.fotografiados;
+              var fStr=[];
+              if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
+              if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
+              if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
+              if(fStr.length) partes.push(fStr.join(', '));
+            }
+            if(partes.length) clienteDataLine+='<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>';
+          }
+        });
+      }
       var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:''].filter(Boolean);
       specsDetail=lineasHtml+(specLines.length?'<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'+specLines.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>':'');
     }
+    // Mostrar clienteData aunque no haya specs
+    if(!specsDetail && clienteDataLine) specsDetail = clienteDataLine;
+    else if(clienteDataLine) specsDetail = clienteDataLine + specsDetail;
     return '<tr style="'+rowStyle+'">'
       + '<td style="padding:10px 12px;vertical-align:top;">'
       + '<div style="display:flex;align-items:center;gap:4px;">'
