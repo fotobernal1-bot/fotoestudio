@@ -1998,7 +1998,10 @@ function imprimirNotaTrabajo(){
   var folio = ultimaV ? (ultimaV.folio||'') : '';
   var fecha = ultimaV ? (ultimaV.fecha||'') : new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   var nombreEscuela = cs.nombre || (ultimaV&&ultimaV.items?ultimaV.items.map(function(i){return i.nombre;}).join(', '):'');
-  var total = ultimaV ? (ultimaV.total||0) : 0;
+  var totalBase = ultimaV ? (ultimaV.total||0) : 0;
+  // Si hay clienteData con fotografiados, el precio ya está multiplicado en la venta
+  // Usamos el total real de la venta directamente
+  var total = totalBase;
   var fechaEntrega = cs.fechaEntrega || (ultimaV&&ultimaV.fechaEntrega) || '';
   
   // Detectar tipos de foto del paquete
@@ -2071,11 +2074,11 @@ function imprimirNotaTrabajo(){
     +'</div>';
 
   var css = `
-    @page { size: letter landscape; margin: 8mm; }
+    @page { size: letter; margin: 10mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; font-size: 9px; }
-    .sheet { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 4mm; width: 100%; height: 100vh; }
-    .nota { border: 1px solid #333; border-radius: 3px; padding: 5px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .sheet { display: flex; width: 100%; justify-content: center; }
+    .nota { border: 1px solid #333; border-radius: 3px; padding: 8px; width: 100%; max-width: 180mm; }
     .nota-hdr { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 2px; }
     .nota-info { flex: 1; }
     .nota-nombre { font-size: 10px; font-weight: 700; }
@@ -2102,7 +2105,7 @@ function imprimirNotaTrabajo(){
   var win = window.open('','_blank');
   win.document.write('<html><head><title>Nota de trabajo</title><style>'+css+'</style></head><body>'
     +'<div class="sheet">'
-    +notaHTML+notaHTML+notaHTML+notaHTML
+    +notaHTML
     +'</div></body></html>');
   win.document.close();
   win.focus();
