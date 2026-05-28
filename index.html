@@ -323,8 +323,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   .sidebar {
     width: 100%;
     flex-direction: row;
-    height: 50px;
-    min-height: 50px;
+    height: 64px;
+    min-height: 64px;
     padding: 0 10px;
     border-right: none;
     border-bottom: 1px solid #e0e0e0;
@@ -338,18 +338,21 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   .logo { display: none; }
   .nav {
     flex-direction: row;
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 0 18px;
+    font-size: 13px;
     border-left: none;
     border-bottom: 3px solid transparent;
     border-top: none;
     white-space: nowrap;
-    gap: 5px;
+    gap: 6px;
     height: 100%;
+    min-height: 64px;
     align-items: center;
     flex-shrink: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
   }
-  .nav i { font-size: 15px; }
+  .nav i { font-size: 18px; }
   .nav.active {
     border-left: none;
     border-bottom-color: #1D9E75;
@@ -1063,16 +1066,12 @@ function eliminarCatProd(catId, i){
 
 let productos={
   infantil:[
-    {nombre:'Infantil color 6 fotos',desc:'A color',precio:80,tipo:'infantil6'},
-    {nombre:'Infantil color 9 fotos',desc:'A color',precio:100,tipo:'infantil9'},
-    {nombre:'Infantil B/N 6 fotos',desc:'Blanco y negro',precio:80,tipo:'infantil6bn'},
-    {nombre:'Infantil B/N 9 fotos',desc:'Blanco y negro',precio:100,tipo:'infantil9bn'}
+    {nombre:'Infantil 6 fotos',desc:'Color o B/N mismo precio',precio:80,tipo:'infantil6'},
+    {nombre:'Infantil 9 fotos',desc:'Color o B/N mismo precio',precio:100,tipo:'infantil9'}
   ],
   credencial:[
-    {nombre:'Credencial color 4 fotos',desc:'A color',precio:100,tipo:'cred4'},
-    {nombre:'Credencial color 6 fotos',desc:'A color',precio:120,tipo:'cred6'},
-    {nombre:'Credencial B/N 4 fotos',desc:'Blanco y negro',precio:100,tipo:'cred4bn'},
-    {nombre:'Credencial B/N 6 fotos',desc:'Blanco y negro',precio:120,tipo:'cred6bn'}
+    {nombre:'Credencial 4 fotos',desc:'Color o B/N mismo precio',precio:100,tipo:'cred4'},
+    {nombre:'Credencial 6 fotos',desc:'Color o B/N mismo precio',precio:120,tipo:'cred6'}
   ],
   cartilla:[{nombre:'Cartilla militar 4 fotos',desc:'TBarita',precio:100,tipo:'cartilla'},{nombre:'Cartilla militar 6 fotos',desc:'TBarita',precio:120,tipo:'cartilla'}],
   digital:[{nombre:'Imagen digital',desc:'',precio:250,tipo:'digital'}]
@@ -1147,10 +1146,13 @@ var _clienteRapido = {};
 
 function abrirClienteRapido(nombre, precio, tipo){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
-    sexo:'', edad:'', proposito:'',
+    sexo:'', edad:'', proposito:'', colorBN:'color',
     foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0};
   document.getElementById('cr-titulo').textContent = nombre;
   document.getElementById('cr-precio').textContent = '$'+precio;
+  // Reset Color/BN — default Color
+  var crColor=document.getElementById('cr-color'); if(crColor) crColor.className='btn bgreen';
+  var crBN=document.getElementById('cr-bn'); if(crBN) crBN.className='btn bgray';
   // Reset todos los botones
   ['cr-h1','cr-h2','cr-h3'].forEach(function(id){
     var b=document.getElementById(id);
@@ -1262,6 +1264,12 @@ function crSelEscuelaSug(nombre){
   _clienteRapido.escuela = nombre;
 }
 
+function crSetColorBN(val){
+  _clienteRapido.colorBN = val;
+  document.getElementById('cr-color').className = val==='color' ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('cr-bn').className = val==='bn' ? 'btn bgreen' : 'btn bgray';
+}
+
 function crToggleAdherible(){
   _clienteRapido.adherible = !_clienteRapido.adherible;
   document.getElementById('cr-adherible').className = _clienteRapido.adherible ? 'btn bgreen' : 'btn bgray';
@@ -1309,6 +1317,7 @@ function confirmarClienteRapido(){
   var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
   var clienteData = {
     sexo: c.sexo, edad: c.edad, proposito: c.proposito,
+    colorBN: c.colorBN||'color',
     escuela: escuela,
     camisa_blanca: c.camisa_blanca||false,
     adherible: c.adherible||false,
@@ -1445,6 +1454,7 @@ function renderCarrito(){
     var extras=[];
     if(c.clienteData){
       var cd=c.clienteData;
+      if(cd.colorBN) extras.push(cd.colorBN==='bn'?'B/N':'Color');
       if(cd.adherible) extras.push('Adherible');
       if(cd.camisa_blanca) extras.push('Camisa blanca');
       if(cd.barba_edicion>0) extras.push('Editar barba');
@@ -2424,12 +2434,14 @@ function renderDesgloseSpecs(ventas){
   var fotoNino=0, fotoJoven=0, fotoAdulto=0;
   var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0;
   var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
+  var cColor=0, cBN=0;
   var cEscuelas={};
   clientesData.forEach(function(c){
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
     if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
+    if(c.colorBN==='bn') cBN++; else cColor++;
     if(c.adherible) cAdherible++;
     if(c.camisa_blanca) cCamisa++;
     if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
@@ -2483,6 +2495,12 @@ function renderDesgloseSpecs(ventas){
       +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')
       +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')
       +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')
+      +'</div>';
+
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
+      +barra('Color', cColor||0, totalClientes, '#1D9E75')
+      +barra('B/N', cBN||0, totalClientes, '#555')
       +'</div>';
 
     html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
@@ -4534,6 +4552,15 @@ function buscarOrden(){
 <!-- MODAL CLIENTE RÁPIDO -->
 <div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
+
+  <!-- Color / BN — primero -->
+  <div class="frow">
+    <label>Color / B&N</label>
+    <div style="display:flex;gap:8px;">
+      <button id="cr-color" class="btn bgreen" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('color')">Color</button>
+      <button id="cr-bn" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('bn')">B/N</button>
+    </div>
+  </div>
 
   <!-- Quien paga: sexo + edad en cuadrícula 2x3 -->
   <p class="slabel" style="margin-bottom:8px;">Quien paga</p>
