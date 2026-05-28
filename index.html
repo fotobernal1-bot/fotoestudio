@@ -897,10 +897,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgray" id="mp-transferencia" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('transferencia')"><i class="ti ti-transfer"></i> Transfer</button>
         <button class="btn bgray" id="mp-tarjeta" style="flex:1;font-size:11px;padding:5px 0;" onclick="selMetodo('tarjeta')"><i class="ti ti-credit-card"></i> Tarjeta</button>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-        <span style="font-size:11px;color:#888;white-space:nowrap;">Anticipo (opcional):</span>
-        <input type="number" id="anticipo" placeholder="$0" min="0" oninput="calcCambio()" style="flex:1;font-size:13px;padding:5px 8px;border:1px solid #e0e0e0;border-radius:8px;">
-      </div>
       <button class="blimpiar" onclick="openM('m-extra')"><i class="ti ti-plus"></i> Servicio extra</button>
     </div>
   </div>
@@ -1490,8 +1486,26 @@ function calcCambio(){
   const pago=parseFloat(document.getElementById('pago').value)||0;
   const row=document.getElementById('cambio-row');
   const btn=document.getElementById('btn-cobrar');
-  if(pago>=total&&carrito.length){row.classList.remove('cambio-ins');btn.disabled=false;document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);}
-  else{row.classList.add('cambio-ins');btn.disabled=true;document.getElementById('cambio-val').textContent=pago>0&&pago<total?'Faltan $'+(total-pago).toFixed(0):'$0';}
+  if(pago>=total&&carrito.length){
+    row.style.background='#E1F5EE'; row.style.color='#085041';
+    document.querySelector('#cambio-row span').style.color='#085041';
+    document.querySelector('#cambio-row strong').style.color='#085041';
+    btn.disabled=false;
+    document.getElementById('cambio-val').textContent='$'+(pago-total).toFixed(0);
+  } else if(pago>0&&pago<total&&carrito.length){
+    // Pago parcial — permitir cobrar, mostrar pendiente en rojo
+    row.style.background='#FCEBEB'; row.style.color='#A32D2D';
+    document.querySelector('#cambio-row span').style.color='#A32D2D';
+    document.querySelector('#cambio-row strong').style.color='#A32D2D';
+    btn.disabled=false;
+    document.getElementById('cambio-val').textContent='Faltan $'+(total-pago).toFixed(0);
+  } else {
+    row.style.background='#E1F5EE'; row.style.color='#085041';
+    document.querySelector('#cambio-row span').style.color='#085041';
+    document.querySelector('#cambio-row strong').style.color='#085041';
+    btn.disabled=!carrito.length;
+    document.getElementById('cambio-val').textContent='$0';
+  }
 }
 // Meses en español para folio ordinario
 const MESES_FOLIO=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
@@ -1923,12 +1937,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
     <div class="tkt-row" style="margin-top:4px;">
       <span>Pagó</span><span>$${pagoTotal}</span>
     </div>
-    ${anticipo>0?`
-    <div class="tkt-row" style="margin-top:2px;">
-      <span>Anticipo</span><span>$${anticipo}</span>
-    </div>
-    <div class="tkt-row tkt-bold" style="color:#A32D2D;font-size:14px;">
-      <span>PENDIENTE</span><span>$${Math.max(0,totalGeneral-anticipo)}</span>
+    ${pagoTotal>0&&pagoTotal<v.total?`
+    <div class="tkt-row tkt-bold" style="color:#A32D2D;font-size:14px;margin-top:2px;">
+      <span>PENDIENTE</span><span>$${Math.max(0,v.total-pagoTotal)}</span>
     </div>`:`
     <div class="tkt-row tkt-bold" style="color:#1D9E75;">
       <span>Cambio</span><span>$${Math.max(0,cambio).toFixed(0)}</span>
