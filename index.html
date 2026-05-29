@@ -1891,6 +1891,14 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
           }
           return '<div style="font-size:12px;font-weight:600;margin-bottom:3px;">'+i.nombre+'</div>'
                + personasHtml
+               + (i.clienteData&&i.clienteData.fotografiados ? function(){
+                   var f=i.clienteData.fotografiados;
+                   var fL=[];
+                   if(f.nino_h||f.nino_m) fL.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
+                   if(f.joven_h||f.joven_m) fL.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
+                   if(f.adulto_h||f.adulto_m) fL.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
+                   return fL.length?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:2px;">👤 '+fL.join(' · ')+'</div>':'';
+                 }() : '')
                + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
         }
       }
@@ -4001,7 +4009,6 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
           if(!it.clienteData) return '';
           var cd=it.clienteData; var partes=[];
           if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-          if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
           if(cd.fotografiados){var f=cd.fotografiados;
             if(f.nino_h||f.nino_m) partes.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
             if(f.joven_h||f.joven_m) partes.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
@@ -4239,8 +4246,6 @@ function renderProduccion(lista){
             var cd=it.clienteData;
             var partes=[];
             if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-            else partes.push('1 persona');
-            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
             if(cd.fotografiados){
               var f=cd.fotografiados;
               var fStr=[];
@@ -4260,7 +4265,6 @@ function renderProduccion(lista){
             var cd=it.clienteData;
             var partes=[];
             if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
             if(cd.fotografiados){
               var f=cd.fotografiados;
               var fStr=[];
@@ -4276,10 +4280,7 @@ function renderProduccion(lista){
       var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:''].filter(Boolean);
       specsDetail=lineasHtml+(specLines.length?'<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'+specLines.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>':'');
     }
-    // Mostrar clienteData aunque no haya specs
-    if(!specsDetail && clienteDataLine) specsDetail = clienteDataLine;
-    else if(clienteDataLine) specsDetail = clienteDataLine + specsDetail;
-    // También mostrar fotografiadosResumen si existe
+    // Mostrar fotografiadosResumen si existe (evita duplicados)
     if(o.specs && o.specs.fotografiadosResumen){
       var fResumen = '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+o.specs.fotografiadosResumen+'</div>';
       specsDetail = fResumen + specsDetail;
