@@ -592,7 +592,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar producto cartilla';"><i class="ti ti-plus"></i> Agregar</button>
         </div>
         <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
-        <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="prevSpec(this,'pca')"></div>
+        <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="subirCartillaSpec(this)"></div>
         <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this)" title="Toca para ver en grande">
       </div>
       <div id="t-dig" class="tsec">
@@ -840,7 +840,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 const CLAVE='8888';
 let carrito=[],ventas=[],ultimaVenta=null;
 let visas=[{n:'Visa USA',p:200,usa:1,img:null},{n:'Pasaporte México',p:150,usa:0,img:null},{n:'Visa Schengen',p:185,usa:0,img:null}];
-let categoriasDinamicas = []; // {id, nombre, productos:[]}
+let categoriasDinamicas = [];
+let cartillaSpecUrl = null;
 
 function guardarNuevaCat(){
   const nombre = document.getElementById('nc-nombre').value.trim();
@@ -2716,24 +2717,30 @@ function filtrarHistorial(){
 }
 
 function rendVisas(){
-  document.getElementById('visas-list').innerHTML=visas.map((v,i)=>`
-    <div class="visa-card">
-      <div class="vh" onclick="toggleVisa(${i})">
-        <span style="font-size:13px;font-weight:500;">${v.n}</span>
-        <div style="display:flex;align-items:center;gap:9px;">
-          <span style="font-size:13px;color:#1D9E75;font-weight:600;">$${v.p}</span>
-          <button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:3px;" onclick="event.stopPropagation();editarVisa(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
-          <i class="ti ti-chevron-down" style="font-size:13px;color:#888;"></i>
-        </div>
-      </div>
-      <div class="vb" id="vb-${i}">
-        ${v.img?`<img src="${v.img}" class="vsp" alt="specs">`:'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>'}
-        <div class="vbtns">
-          <label class="bsm" style="cursor:pointer;"><i class="ti ti-upload"></i> Subir specs<input type="file" accept="image/*" style="display:none;" onchange="updVisaImg(${i},this)"></label>
-          <button class="bsmg" onclick="abrirClienteRapido('${v.n}',${v.p},'${v.usa?'visaUSA':'visa'}')"><i class="ti ti-shopping-cart"></i> Vender</button>
-        </div>
-      </div>
-    </div>`).join('');
+  document.getElementById('visas-list').innerHTML=visas.map((v,i)=>{
+    const tipo=v.usa?'visaUSA':'visa';
+    const imgHtml=v.img
+      ?'<img src="'+v.img+'" class="vsp" alt="specs" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this)">'
+      :'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>';
+    const quitarBtn=v.img?'<button class="bsm" onclick="quitarImgVisa('+i+')" title="Quitar imagen"><i class="ti ti-photo-off"></i> Quitar imagen</button>':'';
+    const nEsc=v.n.replace(/'/g,"\x27");
+    return '<div class="visa-card">'
+      +'<div class="vh" onclick="toggleVisa('+i+')">'
+      +'<span style="font-size:13px;font-weight:500;">'+v.n+'</span>'
+      +'<div style="display:flex;align-items:center;gap:9px;">'
+      +'<span style="font-size:13px;color:#1D9E75;font-weight:600;">$'+v.p+'</span>'
+      +'<button style="background:transparent;border:none;cursor:pointer;font-size:14px;color:#ccc;padding:3px;" onclick="event.stopPropagation();editarVisa('+i+')" title="Editar"><i class="ti ti-pencil"></i></button>'
+      +'<i class="ti ti-chevron-down" style="font-size:13px;color:#888;"></i>'
+      +'</div></div>'
+      +'<div class="vb" id="vb-'+i+'">'
+      +imgHtml
+      +'<div class="vbtns">'
+      +'<label class="bsm" style="cursor:pointer;"><i class="ti ti-upload"></i> Subir specs<input type="file" accept="image/*" style="display:none;" onchange="updVisaImg('+i+',this)"></label>'
+      +quitarBtn
+      +'<button class="bsm" style="color:#A32D2D;border-color:#f5c0c0;" onclick="eliminarVisa('+i+')"><i class="ti ti-trash"></i> Eliminar</button>'
+      +'<button class="bsmg" onclick="abrirClienteRapido(\x27'+nEsc+'\x27,'+v.p+',\x27'+tipo+'\x27)"><i class="ti ti-shopping-cart"></i> Vender</button>'
+      +'</div></div></div>';
+  }).join('');
 }
 
 function editarVisa(i){
@@ -2950,7 +2957,10 @@ function guardarVisa(){
   const usa=parseInt(document.getElementById('v-usa').value);
   const v={n,p,usa,img:null};const imgI=document.getElementById('v-img');
   const s=()=>{visas.push(v);rendVisas();closeM('m-visa');autoGuardar();document.getElementById('v-n').value='';document.getElementById('v-p').value='';};
-  if(imgI.files[0]){const r=new FileReader();r.onload=e=>{v.img=e.target.result;s();};r.readAsDataURL(imgI.files[0]);}else s();
+  if(imgI.files[0]){
+    setDriveStatus(true,'Subiendo imagen...');
+    subirImagenCloudinary(imgI.files[0]).then(url=>{v.img=url;s();}).catch(()=>s());
+  } else s();
 }
 
 function guardarImp(){
@@ -2958,6 +2968,32 @@ function guardarImp(){
   impresiones.push({sz,p});rendImp();closeM('m-imp');autoGuardar();document.getElementById('im-s').value='';document.getElementById('im-p').value='';
 }
 function prevSpec(input,id){if(!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(id);img.src=e.target.result;img.style.display='block';};r.readAsDataURL(input.files[0]);}
+
+function subirCartillaSpec(input){
+  if(!input.files[0])return;
+  setDriveStatus(true,'Subiendo imagen...');
+  subirImagenCloudinary(input.files[0]).then(url=>{
+    if(!url)return;
+    cartillaSpecUrl=url;
+    const img=document.getElementById('pca');
+    img.src=url;img.style.display='block';
+    autoGuardar();
+  }).catch(()=>setDriveStatus(false,'Error imagen'));
+}
+
+function quitarImgVisa(i){
+  if(!confirm('¿Quitar imagen de esta visa?'))return;
+  visas[i].img=null;
+  rendVisas();
+  autoGuardar();
+}
+
+function eliminarVisa(i){
+  if(!confirm('¿Eliminar "'+visas[i].n+'"?'))return;
+  visas.splice(i,1);
+  rendVisas();
+  autoGuardar();
+}
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
 
@@ -3074,7 +3110,7 @@ function guardarImpEdit(){
 // ============================================================
 function guardarLocal(){
   try{
-    const datos={visas,escuelas,impresiones,productos,categoriasDinamicas};
+    const datos={visas,escuelas,impresiones,productos,categoriasDinamicas,cartillaSpecUrl};
     localStorage.setItem('fotoestudio_datos', JSON.stringify(datos));
   } catch(e){}
 }
@@ -3087,6 +3123,7 @@ function cargarLocal(){
     if(datos.escuelas) escuelas=datos.escuelas;
     if(datos.impresiones) impresiones=datos.impresiones;
     if(datos.productos) productos=datos.productos;
+    if(datos.cartillaSpecUrl){cartillaSpecUrl=datos.cartillaSpecUrl;const pca=document.getElementById('pca');if(pca){pca.src=cartillaSpecUrl;pca.style.display='block';}}
     rendVisas();rendEsc();rendImp();
     rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
     rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
@@ -3143,9 +3180,8 @@ function iniciarFirebase(){
   Promise.all([
     db.collection('datos').doc('precios').get(),
     db.collection('datos').doc('productos').get(),
-    db.collection('visas').get(),
     db.collection('escuelas').get()
-  ]).then(([precDoc,prodDoc,visSnap,escSnap])=>{
+  ]).then(([precDoc,prodDoc,escSnap])=>{
     firebaseConectado=true; fbListo=true;
     if(precDoc.exists){
       const d=precDoc.data();
@@ -3158,8 +3194,9 @@ function iniciarFirebase(){
       if(d.cartilla)productos.cartilla=d.cartilla;
       if(d.digital)productos.digital=d.digital;
       if(d.categoriasDinamicas)categoriasDinamicas=d.categoriasDinamicas;
+      if(d.visas)visas=d.visas;
+      if(d.cartillaSpecUrl){cartillaSpecUrl=d.cartillaSpecUrl;const pca=document.getElementById('pca');if(pca){pca.src=cartillaSpecUrl;pca.style.display='block';}}
     }
-    if(!visSnap.empty){const arr=[];visSnap.forEach(d=>arr.push(d.data()));visas=arr;}
     if(!escSnap.empty){
       const arr=[];
       escSnap.forEach(d=>arr.push({...d.data(),_id:d.id}));
@@ -3220,11 +3257,10 @@ async function guardarFirebase(){
     await db.collection('datos').doc('productos').set({
       infantil:productos.infantil, credencial:productos.credencial,
       cartilla:productos.cartilla, digital:productos.digital,
-      categoriasDinamicas:categoriasDinamicas
+      categoriasDinamicas:categoriasDinamicas,
+      visas:visas,
+      cartillaSpecUrl:cartillaSpecUrl||null
     });
-    for(let i=0;i<visas.length;i++){
-      await db.collection('visas').doc('v'+i).set(visas[i]);
-    }
     for(let i=0;i<escuelas.length;i++){
       await db.collection('escuelas').doc(escuelas[i]._id||('e'+i)).set(escuelas[i]);
     }
