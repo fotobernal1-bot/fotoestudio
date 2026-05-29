@@ -1876,11 +1876,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
           return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml
             + (i.clienteData&&i.clienteData.fotografiados ? function(){
                 var f=i.clienteData.fotografiados;
-                var fL=[];
-                if(f.nino_h||f.nino_m) fL.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-                if(f.joven_h||f.joven_m) fL.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-                if(f.adulto_h||f.adulto_m) fL.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-                return fL.length?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:4px;">👤 '+fL.join(' · ')+'</div>':'';
+                var H=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0);
+                var M=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0);
+                return (H||M)?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:4px;">👤 '+(H?'H:'+H+' ':'')+(M?'M:'+M:'')+'</div>':'';
               }() : '');
         }
         // Desde escuela guardada: usa i.detalle (campo s) + personas del carrito
@@ -1901,11 +1899,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
                + personasHtml
                + (i.clienteData&&i.clienteData.fotografiados ? function(){
                    var f=i.clienteData.fotografiados;
-                   var fL=[];
-                   if(f.nino_h||f.nino_m) fL.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-                   if(f.joven_h||f.joven_m) fL.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-                   if(f.adulto_h||f.adulto_m) fL.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-                   return fL.length?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:2px;">👤 '+fL.join(' · ')+'</div>':'';
+                   var H=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0);
+                   var M=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0);
+                   return (H||M)?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:2px;">👤 '+(H?'H:'+H+' ':'')+(M?'M:'+M:'')+'</div>':'';
                  }() : '')
                + '<div style="font-size:10px;color:#555;margin-top:3px;padding-top:4px;border-top:1px dashed #ddd;">'+detalleHtml+'</div>';
         }
@@ -3951,8 +3947,7 @@ function escAjFoto(tipo, delta){
 }
 
 function confirmarCalcPagador(){
-  var sexoLabel = _calcPendiente.sexo ? ' — '+_calcPendiente.sexo : '';
-  var nombreFinal = (_calcPendiente.nombreBase||'Paquete') + sexoLabel;
+  var nombreFinal = _calcPendiente.nombreBase||'Paquete';
   var foto = _calcPendiente.foto||{};
   var totalFotos = (foto.nino_h||0)+(foto.nino_m||0)+(foto.joven_h||0)+(foto.joven_m||0)+(foto.adulto_h||0)+(foto.adulto_m||0);
   var clienteData = {
