@@ -593,7 +593,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
         <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
         <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="subirCartillaSpec(this)"></div>
-        <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this)" title="Toca para ver en grande">
+        <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this,'Especificaciones cartilla militar')" title="Toca para ver en grande">
       </div>
       <div id="t-dig" class="tsec">
         <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar producto digital';"><i class="ti ti-plus"></i> Agregar</button></div>
@@ -2720,7 +2720,7 @@ function rendVisas(){
   document.getElementById('visas-list').innerHTML=visas.map((v,i)=>{
     const tipo=v.usa?'visaUSA':'visa';
     const imgHtml=v.img
-      ?'<img src="'+v.img+'" class="vsp" alt="specs" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this)">'
+      ?'<img src="'+v.img+'" class="vsp" alt="specs" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this,\'Especificaciones: '+v.n+'\')">'
       :'<div class="vph"><i class="ti ti-photo" style="font-size:20px;display:block;margin:0 auto 6px;"></i>Sin imagen de especificaciones</div>';
     const quitarBtn=v.img?'<button class="bsm" onclick="quitarImgVisa('+i+')" title="Quitar imagen"><i class="ti ti-photo-off"></i> Quitar imagen</button>':'';
     const nEsc=v.n.replace(/'/g,"\x27");
@@ -2829,10 +2829,10 @@ function renderEscGrid(lista){
 }
 function closeLb(){document.getElementById('lb').classList.remove('open');}
 
-function abrirSpecFullscreen(imgEl){
+function abrirSpecFullscreen(imgEl, titulo){
   if(!imgEl || !imgEl.src) return;
-  document.getElementById('lb-img-wrap').innerHTML='<img src="'+imgEl.src+'" style="max-width:92%;max-height:72vh;object-fit:contain;border-radius:10px;" alt="Especificaciones cartilla">';
-  document.getElementById('lb-t').textContent='Especificaciones cartilla militar';
+  document.getElementById('lb-img-wrap').innerHTML='<img src="'+imgEl.src+'" style="max-width:92%;max-height:72vh;object-fit:contain;border-radius:10px;" alt="Especificaciones">';
+  document.getElementById('lb-t').textContent=titulo||'Especificaciones';
   document.getElementById('lb-s').textContent='';
   document.getElementById('lb-p').textContent='';
   document.getElementById('lb-add-btn').style.display='none';
