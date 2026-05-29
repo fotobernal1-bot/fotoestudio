@@ -1873,7 +1873,15 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
             var specsArr=[personasLine,'Fondo: '+cs.fondo,vestLine,digVestLine,'Cabello: '+cs.cabello,'Aretes: '+cs.aretes,cs.barba?'Barba: '+cs.barba:''].filter(Boolean);
             specsHtml='<div style="font-size:10px;color:#555;margin-top:5px;padding-top:5px;border-top:1px dashed #ddd;">'+specsArr.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>';
           }
-          return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml;
+          return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">'+i.nombre+'</div>'+lineasHtml+descHtml+specsHtml
+            + (i.clienteData&&i.clienteData.fotografiados ? function(){
+                var f=i.clienteData.fotografiados;
+                var fL=[];
+                if(f.nino_h||f.nino_m) fL.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
+                if(f.joven_h||f.joven_m) fL.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
+                if(f.adulto_h||f.adulto_m) fL.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
+                return fL.length?'<div style="font-size:10px;color:#0C447C;font-weight:600;margin-top:4px;">👤 '+fL.join(' · ')+'</div>':'';
+              }() : '');
         }
         // Desde escuela guardada: usa i.detalle (campo s) + personas del carrito
         if(i.detalle){
