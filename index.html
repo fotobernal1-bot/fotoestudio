@@ -593,7 +593,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
         <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
         <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="prevSpec(this,'pca')"></div>
-        <img id="pca" class="simg" alt="specs cartilla">
+        <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this)" title="Toca para ver en grande">
       </div>
       <div id="t-dig" class="tsec">
         <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar producto digital';"><i class="ti ti-plus"></i> Agregar</button></div>
@@ -2821,6 +2821,17 @@ function renderEscGrid(lista){
     </div>`).join('');
 }
 function closeLb(){document.getElementById('lb').classList.remove('open');}
+
+function abrirSpecFullscreen(imgEl){
+  if(!imgEl || !imgEl.src) return;
+  document.getElementById('lb-img-wrap').innerHTML='<img src="'+imgEl.src+'" style="max-width:92%;max-height:72vh;object-fit:contain;border-radius:10px;" alt="Especificaciones cartilla">';
+  document.getElementById('lb-t').textContent='Especificaciones cartilla militar';
+  document.getElementById('lb-s').textContent='';
+  document.getElementById('lb-p').textContent='';
+  document.getElementById('lb-add-btn').style.display='none';
+  document.getElementById('lb').classList.add('open');
+}
+
 function abrirLb(i,tipo){
   let obj=escuelas[i];
   document.getElementById('lb-img-wrap').innerHTML=obj.img?`<img src="${obj.img}" style="max-width:90%;max-height:65vh;object-fit:contain;border-radius:10px;" alt="${obj.n||obj.nombre}">`:'<div class="lb-noi"><i class="ti ti-photo" style="font-size:44px;display:block;margin:0 auto 10px;"></i>Sin imagen todavía</div>';
@@ -3283,9 +3294,9 @@ window.addEventListener('load',function(){
 var _calcPendiente = {}; // pagador ordinarios
 let calcState = {
   infantil:   {cant:0, color:'bn', adherible:false, tb:false},
-  credencial: {cant:0, color:'bn', adherible:false, tb:false},
-  diploma:    {cant:0, color:'bn', adherible:false, tb:false},
-  titulo:     {cant:0, color:'bn', adherible:false, tb:false},
+  credencial: {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
+  diploma:    {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
+  titulo:     {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
   digital:    {cant:0, color:'bn', espec:'', vestimenta:''},
 };
 const CALC_CFG = {
@@ -3316,6 +3327,7 @@ function abrirCalculadora(){
     calcState[k].color='bn';
     calcState[k].adherible=false;
     if(k==='digital') calcState[k].espec='';
+    if(calcState[k].forma!==undefined) calcState[k].forma='rect';
   });
   // Reset contadores en pantalla
   ['infantil','credencial','diploma','titulo','digital'].forEach(k=>{
@@ -3334,6 +3346,11 @@ function abrirCalculadora(){
     var tb=document.getElementById('opt-'+k+'-tb');
     if(tb){tb.className='btn bgray';tb.style.cssText='font-size:11px;padding:4px 9px;';}
     calcState[k].tb=false;
+    // Reset forma
+    var fr=document.getElementById('opt-'+k+'-rect');
+    var fo=document.getElementById('opt-'+k+'-oval');
+    if(fr){fr.className='btn bgreen';fr.style.cssText='font-size:11px;padding:4px 9px;';}
+    if(fo){fo.className='btn bgray';fo.style.cssText='font-size:11px;padding:4px 9px;';}
   });
   // Reset campo digital
   document.getElementById('calc-dig-espec').value='';
@@ -3351,6 +3368,7 @@ function abrirCalculadora(){
   document.getElementById('calc-nombre').value='';
   document.getElementById('calc-desc-pesos').value='';
   document.getElementById('calc-desc-pct').value='';
+  var cajEl=document.getElementById('calc-ajuste'); if(cajEl) cajEl.value='';
   document.getElementById('calc-notas').value='';
   document.getElementById('calc-fondo-txt').style.display='none';
   var vht=document.getElementById('calc-vest-h-txt'); if(vht) vht.style.display='none';
@@ -3414,6 +3432,14 @@ function setTB(grupo, val){
   calcState[grupo].tb = val;
   document.getElementById('opt-'+grupo+'-tb').className = val ? 'btn bgreen' : 'btn bgray';
   document.getElementById('opt-'+grupo+'-tb').style.cssText = 'font-size:11px;padding:4px 9px;';
+}
+
+function setForma(grupo, val){
+  calcState[grupo].forma = val;
+  var br = document.getElementById('opt-'+grupo+'-rect');
+  var bo = document.getElementById('opt-'+grupo+'-oval');
+  if(br){ br.className = val==='rect' ? 'btn bgreen' : 'btn bgray'; br.style.cssText='font-size:11px;padding:4px 9px;'; }
+  if(bo){ bo.className = val==='oval' ? 'btn bgreen' : 'btn bgray'; bo.style.cssText='font-size:11px;padding:4px 9px;'; }
 }
 
 function calcToggleEditarBarba(){
@@ -3484,13 +3510,24 @@ function calcTotal(){
   });
   var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
   var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
+  var ajuste=parseFloat(document.getElementById('calc-ajuste').value)||0;
   var barbaPrecio=parseFloat(document.getElementById('calc-barba-precio')&&document.getElementById('calc-barba-precio').style.display==='block'?document.getElementById('calc-barba-precio').value:0)||0;
   var descTotal=Math.min(subtotal, descPesos+Math.round(subtotal*descPct/100));
-  var total=Math.max(0, subtotal-descTotal+barbaPrecio);
+  var total=Math.max(0, subtotal-descTotal+ajuste+barbaPrecio);
   document.getElementById('calc-subtotal').textContent='$'+subtotal;
   document.getElementById('calc-desc-val').textContent='-$'+descTotal;
   var row=document.getElementById('calc-desc-row');
   if(row) row.style.display=descTotal>0?'flex':'none';
+  // Mostrar fila de ajuste
+  var ajusteRow=document.getElementById('calc-ajuste-row');
+  var ajusteVal=document.getElementById('calc-ajuste-val');
+  if(ajusteRow && ajusteVal){
+    ajusteRow.style.display=ajuste!==0?'flex':'none';
+    ajusteVal.textContent=(ajuste>0?'+':'')+ajuste;
+    ajusteVal.style.color=ajuste>0?'#085041':'#A32D2D';
+    var ajusteLbl=document.getElementById('calc-ajuste-lbl');
+    if(ajusteLbl) ajusteLbl.style.color=ajuste>0?'#085041':'#A32D2D';
+  }
   document.getElementById('calc-total').textContent='$'+total;
 }
 
@@ -3562,6 +3599,7 @@ function precargarCalculadora(e){
         if(cd[k].color) setColor(k, cd[k].color);
         if(k!=='digital' && cd[k].adherible !== undefined) setAdh(k, cd[k].adherible);
         if(k!=='digital' && cd[k].tb) setTB(k, cd[k].tb);
+        if(k!=='digital' && cd[k].forma) setForma(k, cd[k].forma);
         if(k==='digital' && cd[k].espec){
           var especEl = document.getElementById('calc-dig-espec');
           if(especEl) especEl.value = cd[k].espec;
@@ -3586,6 +3624,10 @@ function precargarCalculadora(e){
     if(cd.descuento_pct){
       var dpc=document.getElementById('calc-desc-pct');
       if(dpc) dpc.value=cd.descuento_pct;
+    }
+    if(cd.ajuste){
+      var daj=document.getElementById('calc-ajuste');
+      if(daj) daj.value=cd.ajuste;
     }
     calcTotal();
   } else {
@@ -3699,8 +3741,9 @@ function cobrarCalculadora(){
       var colorTxt=s.color==='bn'?'B/N':'Color';
       var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
       var tbTxt=(cfg.tieneAdh&&s.tb)?' TB':'';
+      var formaTxt=(s.forma&&s.forma==='oval')?' ovalada':'';
       var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
-      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt;
+      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt;
       if(especTxt) linea+=' ('+especTxt+')';
       lineas.push({nombre:linea, precio:paq*precio});
     }
@@ -3710,7 +3753,11 @@ function cobrarCalculadora(){
   var total=parseInt(totalEl.replace('$',''))||0;
   var subtotalEl=document.getElementById('calc-subtotal').textContent;
   var subtotal=parseInt(subtotalEl.replace('$',''))||0;
-  var descuento=subtotal-total;
+  var ajuste=parseFloat(document.getElementById('calc-ajuste').value)||0;
+  var descuento=subtotal-total+ajuste; // descuento neto (sin el ajuste que puede ser positivo)
+  var descuentoReal=subtotal-total+ajuste; // para mostrar en ticket
+  var ajusteTxt=ajuste!==0?(' | Ajuste: '+(ajuste>0?'+':'')+ajuste):'';
+  var descTxt=descuentoReal>0?' | Desc: -$'+(descuentoReal-ajuste):'';
   var fondo=calcSpecs.fondo||document.getElementById('calc-fondo-txt').value||'No especificado';
   var vestH=calcSpecs.vestimenta_h||(document.getElementById('calc-vest-h-txt')&&document.getElementById('calc-vest-h-txt').value)||'';
   var vestM=calcSpecs.vestimenta_m||(document.getElementById('calc-vest-m-txt')&&document.getElementById('calc-vest-m-txt').value)||'';
@@ -3723,7 +3770,7 @@ function cobrarCalculadora(){
   var digVestM=calcSpecs.dig_vest_m||(document.getElementById('calc-dig-vest-m-txt')&&document.getElementById('calc-dig-vest-m-txt').value)||'';
   var digVest=(digVestH&&digVestM)?'H: '+digVestH+' / M: '+digVestM:(digVestH||digVestM||'');
   var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,'Barba: '+barba,digVest?'Vestimenta digital: '+digVest:'',notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
-  var descripcionCompleta=lineas.map(function(l){return l.nombre;}).join(', ')+(descuento>0?' | Desc: -$'+descuento:'');
+  var descripcionCompleta=lineas.map(function(l){return l.nombre;}).join(', ')+descTxt+ajusteTxt;
   // Recopilar specs por persona si existen
   var specsPersonas = [];
   if(escuelaPersonas && escuelaPersonas.length > 0){
@@ -3746,9 +3793,9 @@ function cobrarCalculadora(){
       // Build calcData for reliable precarga
       var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
       var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
-      var calcData={specs:{fondo:fondo,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',cabello:cab,aretes:aretes,barba:barba||''},descuento_pesos:descPesos,descuento_pct:descPct};
+      var calcData={specs:{fondo:fondo,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',cabello:cab,aretes:aretes,barba:barba||''},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
       Object.keys(calcState).forEach(function(k){
-        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false};
+        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
         if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
       });
       var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId,calcData:calcData};
@@ -4423,6 +4470,8 @@ function mostrarEmailStatus(tipo, msg){
       <button id="opt-credencial-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',false)">Sin adherible</button>
       <button id="opt-credencial-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',true)">Con adherible</button>
       <button id="opt-credencial-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('credencial',!calcState.credencial.tb)">TB</button>
+      <button id="opt-credencial-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('credencial','rect')">Rectangular</button>
+      <button id="opt-credencial-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('credencial','oval')">Ovalada</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-credencial"></div>
   </div>
@@ -4445,6 +4494,8 @@ function mostrarEmailStatus(tipo, msg){
       <button id="opt-diploma-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',false)">Sin adherible</button>
       <button id="opt-diploma-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',true)">Con adherible</button>
       <button id="opt-diploma-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('diploma',!calcState.diploma.tb)">TB</button>
+      <button id="opt-diploma-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('diploma','rect')">Rectangular</button>
+      <button id="opt-diploma-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('diploma','oval')">Ovalada</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-diploma"></div>
   </div>
@@ -4468,6 +4519,8 @@ function mostrarEmailStatus(tipo, msg){
       <button id="opt-titulo-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',false)">Sin adherible</button>
       <button id="opt-titulo-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',true)">Con adherible</button>
       <button id="opt-titulo-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('titulo',!calcState.titulo.tb)">TB</button>
+      <button id="opt-titulo-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('titulo','rect')">Rectangular</button>
+      <button id="opt-titulo-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('titulo','oval')">Ovalada</button>
     </div>
     <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-titulo"></div>
   </div>
@@ -4594,6 +4647,13 @@ function mostrarEmailStatus(tipo, msg){
     </div>
   </div>
 
+  <!-- Ajuste de precio -->
+  <p class="slabel" style="margin:12px 0 8px;">Ajuste de precio (opcional)</p>
+  <div class="frow" style="margin:0;">
+    <label style="font-size:10px;">Sumar o restar al total (ej: +50 o -30)</label>
+    <input type="number" id="calc-ajuste" placeholder="0" oninput="calcTotal()" style="font-size:13px;">
+  </div>
+
   <!-- Resumen -->
   <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin:12px 0;">
     <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
@@ -4601,6 +4661,9 @@ function mostrarEmailStatus(tipo, msg){
     </div>
     <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;" id="calc-desc-row">
       <span style="color:#A32D2D;">Descuento</span><span id="calc-desc-val" style="color:#A32D2D;">-$0</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;display:none;" id="calc-ajuste-row">
+      <span id="calc-ajuste-lbl">Ajuste</span><span id="calc-ajuste-val">0</span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;border-top:1px solid #e0e0e0;padding-top:8px;margin-top:4px;">
       <span>Total</span><span id="calc-total" style="color:#1D9E75;">$0</span>
