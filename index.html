@@ -2876,11 +2876,10 @@ function abrirLb(i,tipo){
 }
 
 function editarEsc(i){
-  escuelaEditIdx = i;
+  escuelaEditIdx = i;  // setear ANTES de precargarCalculadora para que abrirCalculadora no lo resetee
   // Abrir calculadora precargada en modo edición
-  escuelaActual = {idx:i, escuela:escuelas[i]};
   precargarCalculadora(escuelas[i]);
-  // Cambiar botón a "Guardar cambios"
+  // Cambiar botón a "Guardar cambios" (después de precargar para sobrescribir el reset)
   var btn = document.getElementById('btn-calc-action');
   if(btn){
     btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
@@ -3383,12 +3382,14 @@ function selCalcSexo(sexo){
 
 function abrirCalculadora(){
   escuelaActual = null;
-  escuelaEditIdx = null;
+  // NO resetear escuelaEditIdx aquí — editarEsc lo setea antes de llamar precargarCalculadora
   personaSpecs = {};
   escuelaPersonas = [];
-  // Restaurar botón a modo venta
-  var btn = document.getElementById('btn-calc-action');
-  if(btn){ btn.innerHTML = '<i class="ti ti-shopping-cart"></i> Agregar al carrito'; }
+  // Restaurar botón a modo venta solo si no estamos en modo edición
+  if(escuelaEditIdx === null){
+    var btn = document.getElementById('btn-calc-action');
+    if(btn){ btn.innerHTML = '<i class="ti ti-shopping-cart"></i> Agregar al carrito'; }
+  }
   // Reset estado
   Object.keys(calcState).forEach(k=>{
     calcState[k].cant=0;
