@@ -3651,6 +3651,25 @@ function precargarCalculadora(e){
       if(cd.specs.cabello) selSpec('cabello', cd.specs.cabello);
       if(cd.specs.aretes) selSpec('aretes', cd.specs.aretes);
       if(cd.specs.barba) selSpec('barba', cd.specs.barba);
+      // Restaurar texto libre ("Otra") — si el valor no coincide con ningún botón,
+      // selSpec deja calcSpecs.X vacío; hay que escribirlo en el input txt manualmente
+      var _txtMap=[
+        {spec:'vestimenta_h', txt:'calc-vest-h-txt', vals:['Saco claro','Saco oscuro','Camisa blanca']},
+        {spec:'vestimenta_m', txt:'calc-vest-m-txt', vals:['Saco claro','Saco oscuro','Camisa blanca']},
+        {spec:'dig_vest_h',   txt:'calc-dig-vest-h-txt', vals:['Saco claro','Saco oscuro','Camisa blanca']},
+        {spec:'dig_vest_m',   txt:'calc-dig-vest-m-txt', vals:['Saco claro','Saco oscuro','Camisa blanca']},
+        {spec:'fondo',        txt:'calc-fondo-txt', vals:['Blanco']}
+      ];
+      _txtMap.forEach(function(m){
+        var val=cd.specs[m.spec];
+        if(val && !m.vals.includes(val)){
+          // Es texto libre — mostrar el input y escribir el valor
+          selSpec(m.spec,''); // muestra el txt
+          var el=document.getElementById(m.txt);
+          if(el){el.value=val;}
+        }
+      });
+      if(cd.specs.notas){var cn=document.getElementById('calc-notas');if(cn)cn.value=cd.specs.notas;}
     }
     // Precargar descuento
     if(cd.descuento_pesos){
@@ -3829,7 +3848,7 @@ function cobrarCalculadora(){
       // Build calcData for reliable precarga
       var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
       var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
-      var calcData={specs:{fondo:fondo,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',cabello:cab,aretes:aretes,barba:barba||''},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
+      var calcData={specs:{fondo:fondo,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,cabello:cab,aretes:aretes,barba:barba||'',notas:notas},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
       Object.keys(calcState).forEach(function(k){
         calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
         if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
