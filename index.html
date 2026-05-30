@@ -3848,7 +3848,7 @@ function cobrarCalculadora(){
 
   var barbaPrecioFinal = parseFloat(document.getElementById('calc-barba-precio')&&document.getElementById('calc-barba-precio').style.display==='block'?document.getElementById('calc-barba-precio').value:0)||0;
   if(barbaPrecioFinal>0) lineas.push({nombre:'Edición de barba', precio:barbaPrecioFinal});
-  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:calcSpecs.vestimenta_h||'',vestimenta_m:calcSpecs.vestimenta_m||'',dig_vest_h:calcSpecs.dig_vest_h||'',dig_vest_m:calcSpecs.dig_vest_m||'',fondo:fondo,cabello:cab,aretes:aretes,barba:barba,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
+  window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,fondo:fondo,cabello:cab,aretes:aretes,barba:barba,notas:notas,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
   closeM('m-calc');
 
   // Guardar pendiente y abrir popup sexo+edad
@@ -3958,6 +3958,7 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
         cabello: cs.cabello||'',
         aretes: cs.aretes||'',
         barba: cs.barba||'',
+        notas: cs.notas||'',
         sexo: cs.sexo||'',
         personas: cs.personas||[],
         descuento: cs.descuento||0,
@@ -4235,7 +4236,7 @@ function renderProduccion(lista){
           }
         });
       }
-      var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:''].filter(Boolean);
+      var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:'',sp.notas?'📝 '+sp.notas:''].filter(Boolean);
       specsDetail=lineasHtml+(specLines.length?'<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'+specLines.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>':'');
     }
     // Mostrar fotografiadosResumen si existe (evita duplicados)
