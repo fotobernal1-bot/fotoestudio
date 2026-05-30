@@ -3744,9 +3744,25 @@ function renderPersonasEnCalc(){
   });
   cont.innerHTML = html;
   // Precargar specs del paquete a cada persona
+  // Leer también inputs de texto libre para el caso "Otra"
+  var _fondoActual = calcSpecs.fondo || document.getElementById('calc-fondo-txt').value.trim() || '';
+  var _vestHActual = calcSpecs.vestimenta_h || (document.getElementById('calc-vest-h-txt')&&document.getElementById('calc-vest-h-txt').value.trim()) || '';
+  var _vestMActual = calcSpecs.vestimenta_m || (document.getElementById('calc-vest-m-txt')&&document.getElementById('calc-vest-m-txt').value.trim()) || '';
   escuelaPersonas.forEach(function(sexo, idx){
-    if(calcSpecs.fondo) selSpecP(idx,'fondo',calcSpecs.fondo);
-    if(calcSpecs.vestimenta) selSpecP(idx,'vestimenta',calcSpecs.vestimenta);
+    if(_fondoActual) selSpecP(idx,'fondo',_fondoActual);
+    // Usar vestimenta según sexo de la persona
+    var _vestActual = sexo==='H' ? _vestHActual : _vestMActual;
+    if(_vestActual){
+      // Si es texto libre, selSpecP con '' y escribir en el txt
+      var _valsVest=['Clara','Oscura'];
+      if(_valsVest.includes(_vestActual)){
+        selSpecP(idx,'vestimenta',_vestActual);
+      } else {
+        selSpecP(idx,'vestimenta','');
+        var vtxt=document.getElementById('cp-vest-txt-'+idx);
+        if(vtxt){vtxt.value=_vestActual;}
+      }
+    }
     if(calcSpecs.cabello) selSpecP(idx,'cabello',calcSpecs.cabello);
     if(calcSpecs.aretes) selSpecP(idx,'aretes',calcSpecs.aretes);
   });
@@ -3831,8 +3847,8 @@ function cobrarCalculadora(){
   if(escuelaPersonas && escuelaPersonas.length > 0){
     escuelaPersonas.forEach(function(sexo, idx){
       var sp = personaSpecs[idx] || {};
-      var fondoP = sp.fondo !== undefined ? (sp.fondo || document.getElementById('cp-fondo-txt-'+idx)&&document.getElementById('cp-fondo-txt-'+idx).value || 'No esp.') : fondo;
-      var vestP  = sp.vestimenta !== undefined ? (sp.vestimenta || document.getElementById('cp-vest-txt-'+idx)&&document.getElementById('cp-vest-txt-'+idx).value || 'No esp.') : vest;
+      var fondoP = sp.fondo !== undefined ? (sp.fondo || (document.getElementById('cp-fondo-txt-'+idx)&&document.getElementById('cp-fondo-txt-'+idx).value) || 'No esp.') : fondo;
+      var vestP  = sp.vestimenta !== undefined ? (sp.vestimenta || (document.getElementById('cp-vest-txt-'+idx)&&document.getElementById('cp-vest-txt-'+idx).value) || 'No esp.') : vest;
       var cabP   = sp.cabello || cab;
       var aretesP= sp.aretes || aretes;
       var notasP = document.getElementById('cp-notas-'+idx) ? document.getElementById('cp-notas-'+idx).value.trim() : '';
@@ -3840,19 +3856,20 @@ function cobrarCalculadora(){
     });
   }
 
-  // Guardar escuela si viene de calculadora nueva
+  // Construir calcData actualizado (común para nueva y existente)
+  var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
+  var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
+  var calcData={specs:{fondo:fondo,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,cabello:cab,aretes:aretes,barba:barba||'',notas:notas},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
+  Object.keys(calcState).forEach(function(k){
+    calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
+    if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
+  });
+
   if(!escuelaActual){
+    // Escuela nueva — preguntar si guardar
     var guardar=confirm('¿Guardar "'+nombre+'" como escuela nueva para usarla en el futuro?');
     if(guardar){
       var docId='e_'+Date.now();
-      // Build calcData for reliable precarga
-      var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
-      var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
-      var calcData={specs:{fondo:fondo,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,cabello:cab,aretes:aretes,barba:barba||'',notas:notas},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
-      Object.keys(calcState).forEach(function(k){
-        calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
-        if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
-      });
       var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId,calcData:calcData};
       escuelas.push(escData);
       rendEsc();
@@ -3861,6 +3878,20 @@ function cobrarCalculadora(){
         db.collection('escuelas').doc(docId).set(escData)
           .then(function(){setDriveStatus(true,'Escuela guardada ✓');})
           .catch(function(e){setDriveStatus(false,'Error: '+e.code);});
+      }
+    }
+  } else {
+    // Escuela existente — actualizar calcData automáticamente
+    var idx=escuelaActual.idx;
+    if(escuelas[idx]){
+      escuelas[idx].calcData=calcData;
+      escuelas[idx].s=descripcionCompleta+' | '+specs;
+      escuelas[idx].p='$'+total;
+      var docId=escuelas[idx]._id||('e_'+idx);
+      guardarLocal();
+      if(db){
+        db.collection('escuelas').doc(docId).update({calcData:calcData,s:escuelas[idx].s,p:escuelas[idx].p})
+          .catch(function(e){console.error('Error actualizar escuela:',e);});
       }
     }
   }
