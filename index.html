@@ -2592,34 +2592,11 @@ function renderDesgloseSpecs(ventas){
 
   // Sexo pagador
   if(clientesData.length){
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (quien paga)</p>'
-      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')
-      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')
-      +'</div>';
+    // Columna izquierda: Sexo + Edad
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +'</div>';
 
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'
-      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')
-      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')
-      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')
-      +(fotoNino+fotoJoven+fotoAdulto > 0
-        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'
-          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'
-          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')
-          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')
-          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')
-          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')
-          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'
-          +'</div>'
-        : '')
-      +'</div>';
-
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
-      +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')
-      +barra('B/N', cBN||0, totalFotosParaBarra, '#555')
-      +'</div>';
+    // Columna derecha: Personas fotografiadas + Color/B&N
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
 
     html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
@@ -2758,6 +2735,7 @@ function renderHistorialRows(sorted, elH){
           var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
           if(fH||fM) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
         }
+        if(cd.colorBN) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
         var extras=[];
         if(cd.adherible) extras.push('Adherible');
         if(cd.camisa_blanca) extras.push('Camisa blanca');
