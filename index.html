@@ -2491,13 +2491,19 @@ function renderDesgloseSpecs(ventas){
   var cColor=0, cBN=0;
   var cEscuelas={};
   clientesData.forEach(function(c){
+    // Total de fotografiados en este item (para ponderar color, propósito, etc.)
+    var f = c.fotografiados || {};
+    var totalFotografiadosItem = (f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)
+      +(f.adulto_h||0)+(f.adulto_m||0)+(f.adulto_plus_h||0)+(f.adulto_plus_m||0);
+    var peso = totalFotografiadosItem > 0 ? totalFotografiadosItem : 1;
+
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
-    if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+1;
+    if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+peso;
     if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
-    if(c.colorBN==='bn') cBN++; else cColor++;
-    if(c.adherible) cAdherible++;
-    if(c.camisa_blanca) cCamisa++;
+    if(c.colorBN==='bn') cBN+=peso; else cColor+=peso;
+    if(c.adherible) cAdherible+=peso;
+    if(c.camisa_blanca) cCamisa+=peso;
     if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
     if(c.fotografiados){
       fotoNino+=(c.fotografiados.nino_h||0)+(c.fotografiados.nino_m||0);
@@ -2511,6 +2517,8 @@ function renderDesgloseSpecs(ventas){
     }
   });
   var totalClientes = clientesData.length || 1;
+  // Para color y propósito el denominador correcto es el total de fotografiados
+  var totalFotosParaBarra = fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus || totalClientes;
   var totalFotos = fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus || 1;
 
   // --- Análisis specs (mini calculadora) ---
@@ -2565,15 +2573,15 @@ function renderDesgloseSpecs(ventas){
 
     html += '<div style="background:white;border-radius:8px;padding:10px;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
-      +barra('Color', cColor||0, totalClientes, '#1D9E75')
-      +barra('B/N', cBN||0, totalClientes, '#555')
+      +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')
+      +barra('B/N', cBN||0, totalFotosParaBarra, '#555')
       +'</div>';
 
     html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
       +'<div class="g2" style="gap:6px;">'
       +Object.entries(cProp).map(function(e){
-        return e[1]>0 ? barra(e[0], e[1], totalClientes, '#555') : '';
+        return e[1]>0 ? barra(e[0], e[1], totalFotosParaBarra, '#555') : '';
       }).join('')
       +'</div></div>';
 
