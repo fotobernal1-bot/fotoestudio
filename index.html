@@ -1052,12 +1052,18 @@ function abrirClienteRapido(nombre, precio, tipo){
     var b=document.getElementById(id);
     if(b){b.style.background='#FFEEF5';b.style.borderColor='#FFB3D4';b.style.color='#7C0C44';b.style.opacity='1';}
   });
-  ['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'
+  ['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'
   ].forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; });
   var escSec=document.getElementById('cr-escuela-sec'); if(escSec) escSec.style.display='none';
   var escTxt=document.getElementById('cr-escuela-txt'); if(escTxt) escTxt.value='';
   var escSugs=document.getElementById('cr-escuela-sugs'); if(escSugs) escSugs.style.display='none';
   _clienteRapido.escuela='';
+  var otroSec=document.getElementById('cr-otro-sec'); if(otroSec) otroSec.style.display='none';
+  var otroTxt=document.getElementById('cr-otro-txt'); if(otroTxt) otroTxt.value='';
+  _clienteRapido.otroDesc='';
+  var tramiteSec=document.getElementById('cr-tramite-sec'); if(tramiteSec) tramiteSec.style.display='none';
+  var tramiteTxt=document.getElementById('cr-tramite-txt'); if(tramiteTxt) tramiteTxt.value='';
+  _clienteRapido.tramiteDesc='';
   // Reset camisa y barba
   var camisa=document.getElementById('cr-camisa'); if(camisa) camisa.className='btn bgray';
   _clienteRapido.camisa_blanca=false;
@@ -1100,19 +1106,35 @@ function crSet(campo, val, btnIds){
     var b=document.getElementById(id);
     if(b) b.className = (id==='cr-'+val||id==='cr-'+val.toLowerCase().replace('/','').replace(' ','-')) ? 'btn bgreen':'btn bgray';
   });
-  // Si cambia el propósito fuera de Escolar, ocultar el campo de escuela
-  if(campo==='proposito' && val!=='Escolar'){
-    var escSec=document.getElementById('cr-escuela-sec');
-    if(escSec) escSec.style.display='none';
-    var escTxt=document.getElementById('cr-escuela-txt');
-    if(escTxt) escTxt.value='';
-    _clienteRapido.escuela='';
+  // Si cambia el propósito, ocultar todos los campos de texto secundarios
+  if(campo==='proposito'){
+    if(val!=='Escolar'){
+      var escSec=document.getElementById('cr-escuela-sec');
+      if(escSec) escSec.style.display='none';
+      var escTxt=document.getElementById('cr-escuela-txt');
+      if(escTxt) escTxt.value='';
+      _clienteRapido.escuela='';
+    }
+    if(val!=='Otro'){
+      var otroSec=document.getElementById('cr-otro-sec');
+      if(otroSec) otroSec.style.display='none';
+      var otroTxtEl=document.getElementById('cr-otro-txt');
+      if(otroTxtEl) otroTxtEl.value='';
+      _clienteRapido.otroDesc='';
+    }
+    if(val!=='Tr\u00e1mite gobierno'){
+      var tramiteSec=document.getElementById('cr-tramite-sec');
+      if(tramiteSec) tramiteSec.style.display='none';
+      var tramiteTxtEl=document.getElementById('cr-tramite-txt');
+      if(tramiteTxtEl) tramiteTxtEl.value='';
+      _clienteRapido.tramiteDesc='';
+    }
   }
   // Activar el correcto
   var _crEl = document.getElementById('cr-'+val.toLowerCase()
     .replace('imss/issste','imss')
-    .replace('trámite gobierno','tramite')
-    .replace('personal','personal')
+    .replace('tr\u00e1mite gobierno','tramite')
+    .replace('trabajo','trabajo')
     .replace('escolar','escolar')
     .replace('inapam','inapam')
     .replace('otro','otro')
@@ -1138,15 +1160,21 @@ function crAjFoto(tipo, delta){
 }
 
 function crSelOtro(){
-  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro']);
+  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
   document.getElementById('cr-otro-sec').style.display='block';
   document.getElementById('cr-otro-txt').focus();
 }
 
 function crSelEscolar(){
-  crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro']);
+  crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
   document.getElementById('cr-escuela-sec').style.display='block';
   document.getElementById('cr-escuela-txt').focus();
+}
+
+function crSelTramite(){
+  crSet('proposito','Tr\u00e1mite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
+  document.getElementById('cr-tramite-sec').style.display='block';
+  document.getElementById('cr-tramite-txt').focus();
 }
 
 function crFiltrarEscuelas(){
@@ -1220,12 +1248,14 @@ function confirmarClienteRapido(){
   var c = _clienteRapido;
   var escuela = c.proposito==='Escolar' ? (document.getElementById('cr-escuela-txt').value.trim()||'') : '';
   var otroDesc = c.proposito==='Otro' ? (document.getElementById('cr-otro-txt').value.trim()||'') : '';
+  var tramiteDesc = c.proposito==='Trámite gobierno' ? (document.getElementById('cr-tramite-txt').value.trim()||'') : '';
   var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
   var clienteData = {
     sexo: c.sexo, edad: c.edad, proposito: c.proposito,
     colorBN: c.colorBN||'color',
     escuela: escuela,
     otroDesc: otroDesc,
+    tramiteDesc: tramiteDesc,
     camisa_blanca: c.camisa_blanca||false,
     adherible: c.adherible||false,
     barba: c.barba||'',
@@ -2492,7 +2522,7 @@ function renderDesgloseSpecs(ventas){
   // --- Análisis de quien paga (clienteData) ---
   var cSexo={H:0,M:0};
   var cEdad={'18-30':0,'30-50':0,'50+':0};
-  var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Personal':0,'Otro':0};
+  var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Trabajo':0,'Otro':0};
   var fotoNino=0, fotoJoven=0, fotoAdulto=0, fotoAdultoPlus=0;
   var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0, fotoAdultoPlusH=0, fotoAdultoPlusM=0;
   var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
@@ -2509,7 +2539,9 @@ function renderDesgloseSpecs(ventas){
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito){
       // Si es "Otro" y tiene descripción, usar el texto real como clave en reportes
-      var propKey = (c.proposito==='Otro' && c.otroDesc) ? ('Otro: '+c.otroDesc) : c.proposito;
+      var propKey = c.proposito;
+      if(c.proposito==='Otro' && c.otroDesc) propKey = 'Otro: '+c.otroDesc;
+      else if(c.proposito==='Trámite gobierno' && c.tramiteDesc) propKey = 'Trámite: '+c.tramiteDesc;
       cProp[propKey]=(cProp[propKey]||0)+peso;
     }
     if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
@@ -2691,28 +2723,55 @@ function renderDesgloseSpecs(ventas){
 
 function renderHistorialRows(sorted, elH){
   if(!sorted.length){ elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
-  elH.innerHTML='<table class="itbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead><tbody>'+
-    sorted.map(v=>{
-      const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
-      const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
-      const detalle=(v.items||[]).map(i=>i.nombre).join(', ')||'—';
-      // Calcular fotografiados totales H y M sumando todos los items
-      let fotoH=0, fotoM=0;
-      (v.items||[]).forEach(function(it){
-        const f=it.clienteData&&it.clienteData.fotografiados;
-        if(f){
-          fotoH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-          fotoM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+  elH.innerHTML = sorted.map(v=>{
+    const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
+    const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
+    const metodo=v.metodoPago||'efectivo';
+    const iconMetodo=metodo==='transferencia'?'🔄':metodo==='tarjeta'?'💳':'💵';
+    const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:600;margin-left:6px;">CANCELADA</span>'
+      +(v.canceladoFecha?'<div style="font-size:9px;color:#A32D2D;margin-top:2px;">'+v.canceladoFecha+(v.canceladoPor?' · '+v.canceladoPor:'')+'</div>':''):'';
+
+    // Items detallados
+    let itemsHtml = (v.items||[]).map(function(i){
+      var linea = '<div style="font-size:11px;font-weight:600;padding:2px 0;">• '+i.nombre+' <span style="color:'+color+';font-weight:700;">$'+i.precio+'</span></div>';
+      // specs de urgentes
+      if(i.specs){
+        var s=i.specs; var d=[];
+        if(s.sexo) d.push(s.sexo==='H'?'Hombre':'Mujer');
+        if(s.colorBN) d.push(s.colorBN==='bn'?'B/N':'Color');
+        if(s.adherible) d.push('Adherible');
+        if(d.length) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+d.join(' · ')+'</div>';
+      }
+      // clienteData (propósito, escuela, etc.)
+      if(i.clienteData){
+        var cd=i.clienteData;
+        if(cd.proposito){
+          var propLabel=cd.proposito;
+          if(cd.proposito==='Escolar'&&cd.escuela) propLabel='Escolar: '+cd.escuela;
+          else if(cd.proposito==='Otro'&&cd.otroDesc) propLabel='Otro: '+cd.otroDesc;
+          else if(cd.proposito==='Trámite gobierno'&&cd.tramiteDesc) propLabel='Trámite: '+cd.tramiteDesc;
+          linea+='<div style="font-size:10px;color:#0C7ED6;padding-left:10px;">📋 '+propLabel+'</div>';
         }
-      });
-      const fotoTag=(fotoH||fotoM)?`<div style="font-size:9px;color:#085041;margin-top:2px;">👤 ${fotoH?'H×'+fotoH:''}${(fotoH&&fotoM)?' ':''}${fotoM?'M×'+fotoM:''}</div>`:'';
-      const metodo=v.metodoPago||'efectivo';
-      const iconMetodo=metodo==='transferencia'?'🔄':metodo==='tarjeta'?'💳':'💵';
-      const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">CANCELADA</span>'+(v.canceladoFecha?'<div style="font-size:9px;color:#A32D2D;margin-top:2px;">'+v.canceladoFecha+(v.canceladoPor?' · '+v.canceladoPor:'')+'</div>':''):'';
-      const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:2px 7px;cursor:pointer;">✕ Cancelar</button>`;
-      const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:2px 7px;cursor:pointer;margin-top:3px;">🖨 Reimprimir</button>`;
-      return `<tr style="${v.cancelado?'opacity:0.5;text-decoration:line-through;':''}"><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'} ${cancelBadge}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}<br><span style="font-size:9px;">${iconMetodo} ${metodo}</span></td><td style="font-size:11px;">${detalle}${fotoTag}</td><td style="color:${color};font-weight:600;">$${v.total}<br>${cancelBtn}<br>${reimpBtn}</td></tr>`;
-    }).join('')+'</tbody></table>';
+        if(cd.fotografiados){
+          var f=cd.fotografiados;
+          var fH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+          var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+          if(fH||fM) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
+        }
+        var extras=[];
+        if(cd.adherible) extras.push('Adherible');
+        if(cd.camisa_blanca) extras.push('Camisa blanca');
+        if(cd.barba_edicion>0) extras.push('Editar barba');
+        if(extras.length) linea+='<div style="font-size:10px;color:#BA7517;padding-left:10px;">+ '+extras.join(', ')+'</div>';
+      }
+      return linea;
+    }).join('');
+
+    const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:3px 8px;cursor:pointer;">✕ Cancelar</button>`;
+    const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:3px 8px;cursor:pointer;">🖨 Reimprimir</button>`;
+
+    return '<div style="border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:white;'+(v.cancelado?'opacity:0.55;':'')+'">'      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'      +'<div>'      +'<span style="color:'+color+';font-weight:700;font-size:13px;">'+(v.folio||'—')+'</span>'      +cancelBadge      +'<div style="font-size:10px;color:#888;margin-top:2px;">'+(v.fecha||'—')+' '+(v.hora||'')+' · '+iconMetodo+' '+metodo+'</div>'      +'</div>'      +'<div style="text-align:right;">'      +'<div style="font-size:16px;font-weight:700;color:'+color+';">$'+v.total+'</div>'      +'<div style="display:flex;gap:5px;margin-top:4px;">'+cancelBtn+reimpBtn+'</div>'      +'</div>'      +'</div>'      +'<div style="border-top:1px dashed #e0e0e0;padding-top:8px;">'+itemsHtml+'</div>'      +'</div>';
+  }).join('');
 }
 
 function filtrarHistorial(){
@@ -5235,16 +5294,19 @@ function mostrarEmailStatus(tipo, msg){
   <div class="frow">
     <label>Propósito</label>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">IMSS/ISSSTE</button>
+      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">IMSS/ISSSTE</button>
       <button id="cr-escolar" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelEscolar()">Escolar</button>
-      <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trámite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Trámite gov.</button>
-      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">INAPAM</button>
-      <button id="cr-personal" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Personal',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Personal</button>
+      <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelTramite()">Trámite gov.</button>
+      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">INAPAM</button>
+      <button id="cr-trabajo" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trabajo',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">Trabajo</button>
       <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelOtro()">Otro</button>
     </div>
     <div id="cr-escuela-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-escuela-txt" placeholder="Nombre de la escuela..." style="font-size:12px;" oninput="crFiltrarEscuelas()" autocomplete="off">
       <div id="cr-escuela-sugs" style="background:white;border:1px solid #e0e0e0;border-radius:8px;margin-top:4px;max-height:120px;overflow-y:auto;display:none;"></div>
+    </div>
+    <div id="cr-tramite-sec" style="display:none;margin-top:8px;">
+      <input type="text" id="cr-tramite-txt" placeholder="Especifica el trámite (ej. pasaporte, CURP)..." style="font-size:12px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="_clienteRapido.tramiteDesc=this.value.trim()">
     </div>
     <div id="cr-otro-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-otro-txt" placeholder="Especifica el propósito..." style="font-size:12px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="_clienteRapido.otroDesc=this.value.trim()">
