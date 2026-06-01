@@ -2675,7 +2675,11 @@ function renderDesgloseSpecs(ventas){
     if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
     (v.items||[]).forEach(function(it){
       if(it.specs) itemsConSpecs.push(it.specs);
-      if(it.clienteData) clientesData.push(it.clienteData);
+      if(it.clienteData){
+        // Guardar el nombre del producto junto con clienteData para cruzar propósito+producto
+        var cd = Object.assign({}, it.clienteData, {_nombreProducto: it.nombre||''});
+        clientesData.push(cd);
+      }
     });
   });
   // Escuelas ordinarias con fecha
@@ -2722,11 +2726,17 @@ function renderDesgloseSpecs(ventas){
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
     if(c.proposito){
-      // Si es "Otro" y tiene descripción, usar el texto real como clave en reportes
       var propKey = c.proposito;
       if(c.proposito==='Otro' && c.otroDesc) propKey = 'Otro: '+c.otroDesc;
       else if(c.proposito==='Trámite gobierno' && c.tramiteDesc) propKey = 'Trámite: '+c.tramiteDesc;
-      cProp[propKey]=(cProp[propKey]||0)+peso;
+      if(!cProp[propKey]) cProp[propKey] = {count:0, productos:{}};
+      else if(typeof cProp[propKey] === 'number') cProp[propKey] = {count:cProp[propKey], productos:{}};
+      cProp[propKey].count += peso;
+      // Registrar el producto asociado
+      if(c._nombreProducto){
+        var prod = c._nombreProducto.trim();
+        cProp[propKey].productos[prod] = (cProp[propKey].productos[prod]||0) + peso;
+      }
     }
     if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
     if(c.colorBN==='bn') cBN+=peso; else cColor+=peso;
@@ -2782,13 +2792,37 @@ function renderDesgloseSpecs(ventas){
     // Columna derecha: Personas fotografiadas + Color/B&N
     html += '<div style="background:white;border-radius:8px;padding:10px;">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
 
-    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
-      +'<div class="g2" style="gap:6px;">'
-      +Object.entries(cProp).map(function(e){
-        return e[1]>0 ? barra(e[0], e[1], totalFotosParaBarra, '#555') : '';
-      }).join('')
-      +'</div></div>';
+        // Propósito de visita con desglose de productos
+    var propEntries = Object.entries(cProp).filter(function(e){
+      var v = e[1]; return (typeof v === 'number' ? v : v.count) > 0;
+    }).sort(function(a,b){
+      var va = typeof a[1]==='number'?a[1]:a[1].count;
+      var vb = typeof b[1]==='number'?b[1]:b[1].count;
+      return vb - va;
+    });
+    if(propEntries.length){
+      var maxProp = propEntries.length ? (typeof propEntries[0][1]==='number' ? propEntries[0][1] : propEntries[0][1].count) : 1;
+      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
+        +'<div class="g2" style="gap:6px;">'
+        +propEntries.map(function(e){
+          var label = e[0];
+          var val = typeof e[1]==='number' ? e[1] : e[1].count;
+          var prods = (typeof e[1]==='object' && e[1].productos) ? e[1].productos : {};
+          var pct = maxProp>0 ? Math.round(val/maxProp*100) : 0;
+          var prodStr = Object.entries(prods).sort(function(a,b){return b[1]-a[1];}).map(function(p){
+            return '<span style="background:#f0f0f0;border-radius:4px;padding:1px 6px;font-size:9px;color:#555;margin-right:3px;">'+p[0]+(p[1]>1?' ×'+p[1]:'')+'</span>';
+          }).join('');
+          return '<div style="margin-bottom:8px;">'
+            +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
+            +'<span style="font-weight:500;">'+label+'</span><span style="font-weight:600;color:#555;">'+val+'</span></div>'
+            +'<div style="background:#e0e0e0;border-radius:6px;height:6px;margin-bottom:'+(prodStr?'4px':'0')+';">'
+            +'<div style="background:#555;height:100%;width:'+pct+'%;border-radius:6px;"></div></div>'
+            +(prodStr ? '<div style="margin-top:3px;">'+prodStr+'</div>' : '')
+            +'</div>';
+        }).join('')
+        +'</div></div>';
+    }
 
     // Escuelas
     var escEntries = Object.entries(cEscuelas).sort(function(a,b){return b[1]-a[1];});
@@ -3025,6 +3059,7 @@ function consultarProducto(){
   var cColor=0, cBN=0, cAdh=0;
   var cSexoPag={H:0,M:0};
   var cEdadPag={'18-30':0,'30-50':0,'50+':0};
+  var cProposito={};
   var sinDatos=0;
 
   itemsFiltrados.forEach(function(r){
@@ -3037,6 +3072,12 @@ function consultarProducto(){
     if(cd.edad) cEdadPag[cd.edad]=(cEdadPag[cd.edad]||0)+1;
     if(cd.colorBN==='bn') cBN++; else cColor++;
     if(cd.adherible) cAdh++;
+    if(cd.proposito){
+      var pk = cd.proposito;
+      if(cd.proposito==='Otro' && cd.otroDesc) pk='Otro: '+cd.otroDesc;
+      else if(cd.proposito==='Trámite gobierno' && cd.tramiteDesc) pk='Trámite: '+cd.tramiteDesc;
+      cProposito[pk]=(cProposito[pk]||0)+1;
+    }
     if(cd.fotografiados){
       var f=cd.fotografiados;
       fotoNinoH+=(f.nino_h||0); fotoNinoM+=(f.nino_m||0);
@@ -3085,6 +3126,23 @@ function consultarProducto(){
     }
     html += '</div>';
     html += '</div>'; // g2
+  }
+
+  // Propósito de visita para este producto
+  var propProdEntries = Object.entries(cProposito).sort(function(a,b){return b[1]-a[1];});
+  if(propProdEntries.length){
+    var maxPP = propProdEntries[0][1] || 1;
+    html += '<div style="background:white;border-radius:8px;padding:10px;margin-top:10px;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
+      +propProdEntries.map(function(e){
+        var pct = Math.round(e[1]/maxPP*100);
+        return '<div style="margin-bottom:6px;">'
+          +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
+          +'<span>'+e[0]+'</span><span style="font-weight:600;color:#555;">'+e[1]+'</span></div>'
+          +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'
+          +'<div style="background:#555;height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
+      }).join('')
+      +'</div>';
   }
 
   html += '</div>';
