@@ -744,7 +744,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <p class="slabel">Visas y Pasaportes</p>
       <div id="rep-visas" style="margin-bottom:14px;"></div>
       <p class="slabel">Paquetes escolares</p>
-      <div id="rep-escuelas" style="margin-bottom:14px;"></div>
+      <div id="rep-escuelas" style="margin-bottom:8px;"></div>
+      <!-- Desglose ordinarios -->
+      <div id="rep-ordinarios-desglose" style="margin-bottom:14px;display:none;">
+        <div style="background:#EEF4FA;border:1px solid #a0c4e8;border-radius:10px;padding:12px;">
+          <p style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-school"></i> Desglose paquetes escolares</p>
+          <div id="rep-ord-grid"></div>
+        </div>
+      </div>
       <p class="slabel">Impresiones</p>
       <div id="rep-impresiones" style="margin-bottom:14px;"></div>
       <p class="slabel">Historial de ventas</p>
@@ -2476,6 +2483,7 @@ function renderReportes(){
   renderSeccion('rep-escuelas',esc);
   renderSeccion('rep-impresiones',imp);
   renderDesgloseSpecs(ventasActivas);
+  renderDesgloseOrdinarios(ventasActivas);
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
   if(elH) renderHistorialRows(sorted, elH);
@@ -2695,6 +2703,74 @@ function renderDesgloseSpecs(ventas){
     +(clientesData.length?clientesData.length+' venta'+(clientesData.length!==1?'s':'')+' rápida'+(clientesData.length!==1?'s':'')+' con datos':'')
     +(itemsConSpecs.length?' · '+itemsConSpecs.length+' con especificaciones':'')
     +'</div>';
+  grid.innerHTML = html;
+}
+
+function renderDesgloseOrdinarios(ventas){
+  var sec = document.getElementById('rep-ordinarios-desglose');
+  var grid = document.getElementById('rep-ord-grid');
+  if(!sec || !grid) return;
+
+  // Acumular datos de TODAS las ventas de escuelas en el período
+  var totalH = 0, totalM = 0;
+  var totalVentas = 0;
+  // Por escuela: {ventas, H, M, meses:{}}
+  var porEscuela = {};
+  var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  ventas.forEach(function(v){
+    if(v.origen !== 'escuelas') return;
+    totalVentas++;
+    var mes = v.month ? MESES_NOMBRE[(v.month-1)] : '';
+
+    (v.items||[]).forEach(function(it){
+      if(it.tipo !== 'escuela') return;
+      // Extraer nombre limpio de la escuela
+      var escNombre = (it.nombre||'').replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim() || 'Sin nombre';
+
+      if(!porEscuela[escNombre]) porEscuela[escNombre] = {ventas:0, H:0, M:0, total:0, meses:{}};
+      porEscuela[escNombre].ventas++;
+      porEscuela[escNombre].total += (it.precio||0);
+      if(mes) porEscuela[escNombre].meses[mes] = (porEscuela[escNombre].meses[mes]||0) + 1;
+
+      // Sumar fotografiados desde clienteData
+      if(it.clienteData && it.clienteData.fotografiados){
+        var f = it.clienteData.fotografiados;
+        var iH = (f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var iM = (f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        porEscuela[escNombre].H += iH;
+        porEscuela[escNombre].M += iM;
+        totalH += iH;
+        totalM += iM;
+      }
+    });
+  });
+
+  var escEntries = Object.entries(porEscuela).sort(function(a,b){ return b[1].ventas - a[1].ventas; });
+
+  if(!escEntries.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+
+  var totalFotos = totalH + totalM || 1;
+
+  function barra(label, val, max, color){
+    var pct = max>0 ? Math.round(val/max*100) : 0;
+    return '<div style="margin-bottom:6px;">'      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
+  }
+
+  var html = '<div class="g2" style="gap:10px;">';
+
+  // Columna izquierda: Total H/M fotografiados
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Fotografiados (total período)</p>'    +barra('Hombre', totalH, totalFotos, '#0C447C')    +barra('Mujer', totalM, totalFotos, '#7C0C44')    +'<div style="font-size:10px;color:#888;margin-top:6px;">Total: <strong>'+(totalH+totalM)+'</strong> personas · <strong>'+totalVentas+'</strong> venta'+(totalVentas!==1?'s':'')+'</div>'    +'</div>';
+
+  // Columna derecha: Desglose por escuela (barras H y M)
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Por escuela</p>'    +escEntries.map(function(e){
+      var nombre = e[0]; var d = e[1];
+      var totalEsc = d.H + d.M;
+      return '<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f0f0f0;">'        +'<div style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:4px;">'+nombre+'</div>'        +'<div style="display:flex;gap:12px;font-size:10px;color:#555;margin-bottom:4px;">'        +'<span>'+d.ventas+' venta'+(d.ventas!==1?'s':'')+' · $'+d.total+'</span>'        +(totalEsc>0?'<span style="color:#085041;font-weight:600;">'+totalEsc+' fotografiad'+(totalEsc!==1?'os':'o')+(d.H&&d.M?' (H:'+d.H+' M:'+d.M+')':d.H?' ('+d.H+'H)':' ('+d.M+'M)')+'</span>':'')        +'</div>'        +(totalEsc>0          ? barra('H', d.H, totalEsc, '#0C447C') + barra('M', d.M, totalEsc, '#7C0C44')          : '<div style="font-size:10px;color:#aaa;font-style:italic;">Sin datos de fotografiados</div>')        +'</div>';
+    }).join('')    +'</div>';
+
+  html += '</div>';
   grid.innerHTML = html;
 }
 
