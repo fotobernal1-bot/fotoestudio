@@ -3095,16 +3095,25 @@ function deseleccionarTodas(){
 }
 
 function marcarPasoMultiple(paso){
-  var seleccionados = Array.from(document.querySelectorAll('.prod-sel-chk:checked')).map(function(c){ return c.dataset.folio; });
+  var seleccionados = document.querySelectorAll('.prod-sel-chk:checked');
   if(!seleccionados.length){ alert('Selecciona al menos una orden'); return; }
-  var quien = prompt('¿Quién autoriza este paso? (' + seleccionados.length + ' órdenes)');
-  if(!quien || !quien.trim()) return;
-  quien = quien.trim();
+  var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado',entrega:'Entrega'};
+  _marcarPasoCtx = {folio:null, paso:paso, multiple:true};
+  var tit = document.getElementById('marcar-paso-titulo');
+  if(tit) tit.textContent = '✅ ' + (nombresP[paso]||paso) + ' — ' + seleccionados.length + ' órdenes';
+  _renderAccesosOperador();
+  var inp = document.getElementById('marcar-paso-quien');
+  if(inp){ inp.value = localStorage.getItem('fs_ultimo_op')||''; inp.focus(); inp.select(); }
+  openM('m-marcar-paso');
+}
+
+function _ejecutarMarcarMultiple(paso, quien){
+  var seleccionados = Array.from(document.querySelectorAll('.prod-sel-chk:checked')).map(function(c){ return c.dataset.folio; });
+  if(!seleccionados.length) return;
   var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  if(!db){ alert('Sin conexión a Firebase'); return; }
+  if(!db){ alert('Sin conexión'); return; }
   var promesas = seleccionados.map(function(folio){
-    var update = {};
-    update[paso] = {hecho:true, quien:quien, hora:hora};
+    var update = {}; update[paso] = {hecho:true, quien:quien, hora:hora};
     return db.collection('produccion').doc(folio).update(update);
   });
   Promise.all(promesas)
@@ -4987,13 +4996,13 @@ function renderProduccion(lista){
       var paso = o[p] || {hecho:false, quien:'', hora:''};
       if(paso.hecho){
         return '<td style="text-align:center;padding:8px;vertical-align:top;">'
-          + '<div style="color:#1D9E75;font-size:16px;">✅</div>'
+          + '<div style="color:#1D9E75;font-size:18px;cursor:pointer;" onclick="deshacerPaso(\x27'+o.folio+'\x27,\x27'+p+'\x27)" title="Toca para deshacer">✅</div>'
           + '<div style="font-size:10px;color:#1D9E75;font-weight:600;">'+paso.quien+'</div>'
           + '<div style="font-size:9px;color:#aaa;">'+paso.hora+'</div>'
           + '</td>';
       } else {
         return '<td style="text-align:center;padding:8px;vertical-align:top;">'
-          + '<button onclick="marcarPaso(\x27'+o.folio+'\x27,\x27'+p+'\x27)" '
+          + '<button onclick="abrirMarcarPaso(\x27'+o.folio+'\x27,\x27'+p+'\x27)" '
           + 'style="width:32px;height:32px;border:2px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;color:#ccc;">○</button>'
           + '</td>';
       }
@@ -5090,22 +5099,75 @@ function renderProduccion(lista){
   }).join('');
 }
 
-function marcarPaso(folio, paso, btnEl){
-  if(!db){ alert('Sin conexión a Firebase'); return; }
-  var quien = prompt('¿Quién autoriza este paso?');
-  if(!quien || !quien.trim()) return;
+// Estado temporal para marcar paso
+var _marcarPasoCtx = {folio:null, paso:null, multiple:false};
+
+function _getOperadoresGuardados(){
+  try{ return JSON.parse(localStorage.getItem('fs_operadores')||'[]'); }catch(e){ return []; }
+}
+function _guardarOperador(nombre){
+  var lista = _getOperadoresGuardados();
+  nombre = nombre.trim().toLowerCase();
+  if(!lista.includes(nombre)) lista.unshift(nombre);
+  if(lista.length > 8) lista = lista.slice(0,8);
+  try{ localStorage.setItem('fs_operadores', JSON.stringify(lista)); }catch(e){}
+}
+
+function abrirMarcarPaso(folio, paso){
+  _marcarPasoCtx = {folio:folio, paso:paso, multiple:false};
+  var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado',entrega:'Entrega'};
+  var tit = document.getElementById('marcar-paso-titulo');
+  if(tit) tit.textContent = '✅ ' + (nombresP[paso]||paso) + ' — ' + folio;
+  _renderAccesosOperador();
+  var inp = document.getElementById('marcar-paso-quien');
+  if(inp){ inp.value = localStorage.getItem('fs_ultimo_op')||''; inp.focus(); inp.select(); }
+  openM('m-marcar-paso');
+}
+
+function _renderAccesosOperador(){
+  var cont = document.getElementById('marcar-paso-accesos');
+  if(!cont) return;
+  var lista = _getOperadoresGuardados();
+  if(!lista.length){ cont.innerHTML=''; return; }
+  cont.innerHTML = lista.map(function(n){
+    var escaped = n.replace(/'/g, "\'");
+    return '<button onclick="var el=document.getElementById(\x27marcar-paso-quien\x27);if(el)el.value=\x27'+escaped+'\x27;" '
+      +'style="font-size:11px;padding:4px 10px;border:1px solid #e0e0e0;border-radius:8px;background:white;cursor:pointer;text-transform:capitalize;">'+n+'</button>';
+  }).join('');
+}
+
+function confirmarMarcarPaso(){
+  var quien = (document.getElementById('marcar-paso-quien').value||'').trim();
+  if(!quien){ document.getElementById('marcar-paso-quien').focus(); return; }
+  _guardarOperador(quien);
+  localStorage.setItem('fs_ultimo_op', quien.toLowerCase());
+  closeM('m-marcar-paso');
+  if(_marcarPasoCtx.multiple){
+    _ejecutarMarcarMultiple(_marcarPasoCtx.paso, quien);
+  } else {
+    _ejecutarMarcarPaso(_marcarPasoCtx.folio, _marcarPasoCtx.paso, quien);
+  }
+}
+
+function _ejecutarMarcarPaso(folio, paso, quien){
+  if(!db){ alert('Sin conexión'); return; }
   var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-  // Deshabilitar el botón para evitar doble tap
-  // btn deshabilitado via parámetro btnEl
-  if(btnEl) btnEl.disabled = true;
-  var update = {};
-  update[paso] = {hecho:true, quien:quien.trim(), hora:hora};
+  var update = {}; update[paso] = {hecho:true, quien:quien, hora:hora};
   db.collection('produccion').doc(folio).update(update)
     .then(function(){ cargarProduccion(); })
-    .catch(function(e){
-      alert('Error: '+e.message);
-      if(btnEl) btnEl.disabled = false;
-    });
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+function marcarPaso(folio, paso){ abrirMarcarPaso(folio, paso); }
+
+function deshacerPaso(folio, paso){
+  var clave = prompt('Clave para deshacer:');
+  if(clave !== '8888'){ if(clave !== null) alert('Clave incorrecta'); return; }
+  if(!db) return;
+  var update = {}; update[paso] = {hecho:false, quien:'', hora:''};
+  db.collection('produccion').doc(folio).update(update)
+    .then(function(){ cargarProduccion(); })
+    .catch(function(e){ alert('Error: '+e.message); });
 }
 
 function archivarOrden(folio){
@@ -5608,6 +5670,20 @@ function mostrarEmailStatus(tipo, msg){
     <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
+<!-- MODAL MARCAR PASO -->
+<div class="modal-ov" id="m-marcar-paso"><div class="modal-box" style="width:300px;">
+  <p class="modal-t" id="marcar-paso-titulo">Marcar paso</p>
+  <div class="frow" style="margin-bottom:8px;">
+    <label>¿Quién lo hizo?</label>
+    <input type="text" id="marcar-paso-quien" placeholder="Nombre del operador..." style="font-size:14px;font-weight:600;" autocomplete="off" onkeydown="if(event.key==='Enter')confirmarMarcarPaso()">
+  </div>
+  <div id="marcar-paso-accesos" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-marcar-paso')">Cancelar</button>
+    <button class="btn bgreen" onclick="confirmarMarcarPaso()"><i class="ti ti-check"></i> Confirmar</button>
+  </div>
+</div></div>
+
 <!-- MODAL ESTADÍSTICAS OPERADOR -->
 <div class="modal-ov" id="m-stats-operador"><div class="modal-box" style="width:420px;max-height:85vh;">
   <p class="modal-t"><i class="ti ti-chart-bar"></i> Estadísticas por operador</p>
