@@ -737,7 +737,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           </div>
           <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
             <span style="font-size:11px;color:#0C7ED6;font-weight:600;"><span id="rep-total-urg">$0</span> urgentes</span>
-            <span style="font-size:11px;color:#0C447C;font-weight:600;"><span id="rep-total-ord">$0</span> ordinarios</span>
+            <span style="font-size:11px;color:#0C447C;font-weight:600;"><span id="rep-total-ord">$0</span> escolares</span>
+            <span style="font-size:11px;color:#1D9E75;font-weight:600;"><span id="rep-total-imp" style="display:none;"></span></span>
           </div>
         </div>
       </div>
@@ -2508,13 +2509,23 @@ function renderReportes(){
   set('rep-cnt-ord', cntOrd);
   set('rep-cnt-imp', cntImp);
   // Totales en $ por tipo
-  var sumUrg=0, sumOrd=0;
+  var sumUrg=0, sumOrd=0, sumImp=0;
   ventasActivas.forEach(function(v){
     if(v.origen==='urgentes'||(v.folio||'').startsWith('F-U')) sumUrg+=v.total||0;
     else if(v.origen==='escuelas') sumOrd+=v.total||0;
+    else if(v.origen==='impresiones'||(v.folio||'').startsWith('IMP')) sumImp+=v.total||0;
   });
   set('rep-total-urg', '$'+sumUrg.toLocaleString());
   set('rep-total-ord', '$'+sumOrd.toLocaleString());
+  var impEl = document.getElementById('rep-total-imp');
+  if(impEl){
+    if(sumImp>0){
+      impEl.textContent = '$'+sumImp.toLocaleString()+' impresiones';
+      impEl.style.display='inline';
+    } else {
+      impEl.style.display='none';
+    }
+  }
   const urg={},vis={},esc={},imp={};
   ventasActivas.forEach(v=>{
     (v.items||[]).forEach(item=>{
