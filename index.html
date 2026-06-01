@@ -4808,9 +4808,10 @@ function verificarAlertaUrgente(){
 }
 
 function esOrdenUrgente(o){
-  var pasos = ['proceso','impresion','acabado','entrega'];
-  var todosHechos = pasos.every(function(p){ return o[p] && o[p].hecho; });
-  if(todosHechos || !o.fechaEntrega) return false;
+  // La alerta aplica solo hasta acabado — entrega no es responsabilidad del estudio
+  var pasosAlerta = ['proceso','impresion','acabado'];
+  var acabadoHecho = pasosAlerta.every(function(p){ return o[p] && o[p].hecho; });
+  if(acabadoHecho || !o.fechaEntrega) return false;
   try{
     var fe = o.fechaEntrega;
     var ahora = new Date();
@@ -4980,7 +4981,7 @@ function renderProduccion(lista){
   tbody.innerHTML = lista.map(function(o){
     var pasos = ['proceso','impresion','acabado','entrega'];
     var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado',entrega:'Entrega'};
-    var todosHechos = pasos.every(function(p){ return o[p].hecho; });
+    var todosHechos = pasos.every(function(p){ return o[p].hecho; }); // todos incluye entrega para archivar
 
     // Alerta roja: faltan menos de 2 horas para entrega y no está completa
     var esUrgente = esOrdenUrgente(o);
