@@ -623,16 +623,34 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
       <!-- Panel: Activas -->
       <div id="prod-panel-activas">
-        <!-- Buscador -->
-        <div style="position:relative;margin-bottom:14px;">
-          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
-          <input type="text" id="prod-buscar" placeholder="Buscar por folio, escuela o fecha..." oninput="buscarOrden()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;">
+        <!-- Buscador + acciones -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+            <input type="text" id="prod-buscar" placeholder="Buscar por folio, escuela o fecha..." oninput="buscarOrden()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;box-sizing:border-box;">
+          </div>
+          <button onclick="toggleModoSeleccion()" id="btn-modo-sel" class="btn bgray" style="font-size:12px;padding:7px 14px;white-space:nowrap;"><i class="ti ti-checkbox"></i> Selección múltiple</button>
+          <button onclick="abrirEstadisticasOp()" class="btn bgray" style="font-size:12px;padding:7px 14px;white-space:nowrap;"><i class="ti ti-chart-bar"></i> Estadísticas</button>
+        </div>
+        <!-- Barra de acción múltiple (oculta por defecto) -->
+        <div id="prod-barra-sel" style="display:none;background:#EBF3FF;border:1px solid #90BEFF;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#0C447C;font-weight:600;" id="prod-sel-count">0 seleccionadas</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;">
+              <button onclick="marcarPasoMultiple('proceso')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Proceso</button>
+              <button onclick="marcarPasoMultiple('impresion')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Impresión</button>
+              <button onclick="marcarPasoMultiple('acabado')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Acabado</button>
+              <button onclick="marcarPasoMultiple('entrega')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Entrega</button>
+              <button onclick="deseleccionarTodas()" class="btn bgray" style="font-size:11px;padding:5px 10px;color:#A32D2D;border-color:#f5c0c0;">✕ Limpiar</button>
+            </div>
+          </div>
         </div>
         <!-- Tabla -->
         <div style="overflow-x:auto;">
           <table id="prod-tabla" style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
               <tr style="background:#f7f7f5;border-bottom:2px solid #e0e0e0;">
+                <th id="prod-th-sel" style="display:none;padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:36px;"><input type="checkbox" id="prod-sel-all" onchange="toggleSelAll(this)" title="Seleccionar todas"></th>
                 <th style="padding:10px 12px;text-align:left;font-size:11px;color:#666;font-weight:600;min-width:220px;">INFORMACIÓN</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">PROCESO</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">IMPRESIÓN</th>
@@ -661,6 +679,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
               <tr style="background:#f7f7f5;border-bottom:2px solid #e0e0e0;">
+                <th id="prod-th-sel" style="display:none;padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:36px;"><input type="checkbox" id="prod-sel-all" onchange="toggleSelAll(this)" title="Seleccionar todas"></th>
                 <th style="padding:10px 12px;text-align:left;font-size:11px;color:#666;font-weight:600;min-width:220px;">INFORMACIÓN</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:80px;">PROCESO</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:80px;">IMPRESIÓN</th>
@@ -3040,6 +3059,121 @@ function consultarProducto(){
   res.innerHTML=html;
 }
 
+
+// ── SELECCIÓN MÚLTIPLE EN PRODUCCIÓN ──────────────────────────
+var modoSeleccionActivo = false;
+
+function toggleModoSeleccion(){
+  modoSeleccionActivo = !modoSeleccionActivo;
+  var barra = document.getElementById('prod-barra-sel');
+  var btnModo = document.getElementById('btn-modo-sel');
+  var thSel = document.getElementById('prod-th-sel');
+  // Mostrar/ocultar columna checkbox en todas las filas
+  document.querySelectorAll('[id^="prod-chk-td-"]').forEach(function(td){ td.style.display = modoSeleccionActivo ? 'table-cell' : 'none'; });
+  if(thSel) thSel.style.display = modoSeleccionActivo ? 'table-cell' : 'none';
+  if(barra) barra.style.display = modoSeleccionActivo ? 'block' : 'none';
+  if(btnModo){ btnModo.style.background = modoSeleccionActivo ? '#0C447C' : ''; btnModo.style.color = modoSeleccionActivo ? 'white' : ''; }
+  if(!modoSeleccionActivo) deseleccionarTodas();
+}
+
+function actualizarSelCount(){
+  var sel = document.querySelectorAll('.prod-sel-chk:checked');
+  var el = document.getElementById('prod-sel-count');
+  if(el) el.textContent = sel.length + ' seleccionada' + (sel.length!==1?'s':'');
+}
+
+function toggleSelAll(chk){
+  document.querySelectorAll('.prod-sel-chk').forEach(function(c){ c.checked = chk.checked; });
+  actualizarSelCount();
+}
+
+function deseleccionarTodas(){
+  document.querySelectorAll('.prod-sel-chk').forEach(function(c){ c.checked = false; });
+  var all = document.getElementById('prod-sel-all');
+  if(all) all.checked = false;
+  actualizarSelCount();
+}
+
+function marcarPasoMultiple(paso){
+  var seleccionados = Array.from(document.querySelectorAll('.prod-sel-chk:checked')).map(function(c){ return c.dataset.folio; });
+  if(!seleccionados.length){ alert('Selecciona al menos una orden'); return; }
+  var quien = prompt('¿Quién autoriza este paso? (' + seleccionados.length + ' órdenes)');
+  if(!quien || !quien.trim()) return;
+  quien = quien.trim();
+  var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  if(!db){ alert('Sin conexión a Firebase'); return; }
+  var promesas = seleccionados.map(function(folio){
+    var update = {};
+    update[paso] = {hecho:true, quien:quien, hora:hora};
+    return db.collection('produccion').doc(folio).update(update);
+  });
+  Promise.all(promesas)
+    .then(function(){ deseleccionarTodas(); cargarProduccion(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
+// ── ESTADÍSTICAS POR OPERADOR ──────────────────────────────────
+function abrirEstadisticasOp(){
+  if(!db){ alert('Sin conexión a Firebase'); return; }
+  var modal = document.getElementById('m-stats-operador');
+  var cont  = document.getElementById('stats-op-cont');
+  if(!modal || !cont) return;
+  cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:20px;">Cargando...</p>';
+  openM('m-stats-operador');
+
+  db.collection('produccion').get().then(function(snap){
+    var pasos = ['proceso','impresion','acabado','entrega'];
+    var operadores = {}; // {nombre: {proceso:0, impresion:0, acabado:0, entrega:0, total:0}}
+
+    snap.forEach(function(doc){
+      var o = doc.data();
+      pasos.forEach(function(p){
+        if(o[p] && o[p].hecho && o[p].quien){
+          var nombre = o[p].quien.toLowerCase().trim();
+          if(!operadores[nombre]) operadores[nombre] = {proceso:0,impresion:0,acabado:0,entrega:0,total:0};
+          operadores[nombre][p]++;
+          operadores[nombre].total++;
+        }
+      });
+    });
+
+    var lista = Object.entries(operadores).sort(function(a,b){ return b[1].total - a[1].total; });
+
+    if(!lista.length){
+      cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:20px;">Sin datos registrados aún</p>';
+      return;
+    }
+
+    var maxTotal = lista[0][1].total || 1;
+    var html = '<div style="margin-bottom:12px;">';
+
+    lista.forEach(function(entry, idx){
+      var nombre = entry[0];
+      var d = entry[1];
+      var pct = Math.round(d.total / maxTotal * 100);
+      var medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'';
+      html += '<div style="background:white;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+        + '<span style="font-size:13px;font-weight:700;color:#0C447C;text-transform:capitalize;">'+(medal?medal+' ':'')+nombre+'</span>'
+        + '<span style="font-size:16px;font-weight:700;color:#1D9E75;">'+d.total+' pasos</span>'
+        + '</div>'
+        + '<div style="background:#e0e0e0;border-radius:6px;height:8px;margin-bottom:8px;">'
+        + '<div style="background:#1D9E75;height:100%;width:'+pct+'%;border-radius:6px;"></div></div>'
+        + '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#555;">'
+        + '<span>⚙️ Proceso: <b>'+d.proceso+'</b></span>'
+        + '<span>🖨 Impresión: <b>'+d.impresion+'</b></span>'
+        + '<span>✂️ Acabado: <b>'+d.acabado+'</b></span>'
+        + '<span>📦 Entrega: <b>'+d.entrega+'</b></span>'
+        + '</div></div>';
+    });
+
+    html += '</div>';
+    cont.innerHTML = html;
+  }).catch(function(e){
+    cont.innerHTML = '<p style="color:#A32D2D;font-size:12px;padding:16px;">Error: '+e.message+'</p>';
+  });
+}
+
 function renderHistorialRows(sorted, elH){
   if(!sorted.length){ elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
   elH.innerHTML = sorted.map(v=>{
@@ -4936,7 +5070,8 @@ function renderProduccion(lista){
       var fResumen = '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+o.specs.fotografiadosResumen+'</div>';
       specsDetail = fResumen + specsDetail;
     }
-    return '<tr style="'+rowStyle+'">'
+    return '<tr style="'+rowStyle+'" id="prod-row-'+o.folio+'">'
+      + '<td id="prod-chk-td-'+o.folio+'" style="display:none;text-align:center;padding:10px 8px;vertical-align:top;"><input type="checkbox" class="prod-sel-chk" data-folio="'+o.folio+'" onchange="actualizarSelCount()"></td>'
       + '<td style="padding:10px 12px;vertical-align:top;">'
       + '<div style="display:flex;align-items:center;gap:4px;">'
       + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
@@ -5473,6 +5608,17 @@ function mostrarEmailStatus(tipo, msg){
     <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
+<!-- MODAL ESTADÍSTICAS OPERADOR -->
+<div class="modal-ov" id="m-stats-operador"><div class="modal-box" style="width:420px;max-height:85vh;">
+  <p class="modal-t"><i class="ti ti-chart-bar"></i> Estadísticas por operador</p>
+  <div style="overflow-y:auto;max-height:65vh;" id="stats-op-cont">
+    <p style="font-size:12px;color:#888;text-align:center;padding:20px;">Cargando...</p>
+  </div>
+  <div class="modal-btns" style="margin-top:10px;">
+    <button class="btn bgray" onclick="closeM('m-stats-operador')">Cerrar</button>
+  </div>
+</div></div>
+
 <!-- MODAL SPECS URGENTES -->
 <div class="modal-ov" id="m-specs-urgente"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-list-details"></i> Especificaciones — <span id="su-titulo"></span></p>
