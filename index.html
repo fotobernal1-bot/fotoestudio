@@ -782,6 +782,31 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <button class="btn bgray" style="font-size:11px;padding:6px 12px;" onclick="document.getElementById('rep-buscar-folio').value='';filtrarHistorial()"><i class="ti ti-x"></i></button>
       </div>
       <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+
+      <!-- Consulta por producto -->
+      <div style="margin-top:20px;border-top:2px solid #e0e0e0;padding-top:16px;">
+        <p class="slabel" style="margin-bottom:10px;"><i class="ti ti-search"></i> Consulta por producto</p>
+        <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:12px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:2;min-width:160px;">
+              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Producto</div>
+              <select id="cprod-nombre" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;background:white;">
+                <option value="">— Selecciona —</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:130px;">
+              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Desde</div>
+              <input type="date" id="cprod-desde" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;box-sizing:border-box;">
+            </div>
+            <div style="flex:1;min-width:130px;">
+              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Hasta</div>
+              <input type="date" id="cprod-hasta" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;box-sizing:border-box;">
+            </div>
+            <button class="btn bgreen" style="font-size:12px;padding:8px 16px;white-space:nowrap;" onclick="consultarProducto()"><i class="ti ti-search"></i> Consultar</button>
+          </div>
+        </div>
+        <div id="cprod-resultado" style="display:none;"></div>
+      </div>
     </div>
 
   </div>
@@ -2585,6 +2610,7 @@ function renderReportes(){
   renderSeccion('rep-impresiones',imp);
   renderDesgloseSpecs(ventasActivas);
   renderDesgloseOrdinarios(ventasActivas);
+  poblarSelectProductos();
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
   if(elH) renderHistorialRows(sorted, elH);
@@ -2873,6 +2899,145 @@ function renderDesgloseOrdinarios(ventas){
 
   html += '</div>';
   grid.innerHTML = html;
+}
+
+
+// ── CONSULTA POR PRODUCTO ─────────────────────────────────────
+function poblarSelectProductos(){
+  var sel = document.getElementById('cprod-nombre');
+  if(!sel) return;
+  // Recopilar todos los nombres únicos de items de todas las ventas cargadas
+  var nombres = {};
+  (ventasFB||[]).forEach(function(v){
+    (v.items||[]).forEach(function(it){
+      if(it.tipo==='extra') return;
+      var n = (it.nombre||'').trim();
+      if(n) nombres[n] = true;
+    });
+  });
+  // También agregar productos fijos conocidos
+  [].concat(
+    (productos.infantil||[]).map(function(p){return p.nombre;}),
+    (productos.credencial||[]).map(function(p){return p.nombre;}),
+    (productos.cartilla||[]).map(function(p){return p.nombre;}),
+    (visas||[]).map(function(v){return v.n;})
+  ).forEach(function(n){ if(n) nombres[n]=true; });
+
+  var lista = Object.keys(nombres).sort();
+  sel.innerHTML = '<option value="">— Selecciona un producto —</option>'
+    + lista.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+}
+
+function consultarProducto(){
+  var nombre = (document.getElementById('cprod-nombre').value||'').trim();
+  var desde  = document.getElementById('cprod-desde').value;
+  var hasta  = document.getElementById('cprod-hasta').value;
+  var res    = document.getElementById('cprod-resultado');
+
+  if(!nombre){ alert('Selecciona un producto'); return; }
+  if(!desde || !hasta){ alert('Selecciona rango de fechas'); return; }
+  if(desde > hasta){ alert('La fecha de inicio debe ser anterior a la fecha de fin'); return; }
+
+  // Filtrar ventas en el rango (timestamp ISO o fecha dd/mm/yyyy)
+  var desdeTs = new Date(desde+'T00:00:00').getTime();
+  var hastaTs = new Date(hasta+'T23:59:59').getTime();
+
+  var itemsFiltrados = [];
+  (ventasFB||[]).forEach(function(v){
+    if(v.cancelado) return;
+    // Parsear fecha de la venta
+    var ts = v.timestamp ? new Date(v.timestamp).getTime()
+           : (function(){
+               var p=(v.fecha||'').split('/');
+               if(p.length===3) return new Date(p[2]+'-'+p[1]+'-'+p[0]+'T12:00:00').getTime();
+               return 0;
+             })();
+    if(!ts || ts < desdeTs || ts > hastaTs) return;
+
+    (v.items||[]).forEach(function(it){
+      if((it.nombre||'').trim() !== nombre) return;
+      itemsFiltrados.push({ venta:v, item:it });
+    });
+  });
+
+  if(!itemsFiltrados.length){
+    res.style.display='block';
+    res.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:20px;">Sin resultados para "'+nombre+'" en ese rango de fechas.<br><span style="font-size:11px;">Verifica que el período consultado esté cargado arriba.</span></p>';
+    return;
+  }
+
+  // Acumular estadísticas
+  var totalPesos=0, totalPaq=0;
+  var fotoH=0, fotoM=0;
+  var fotoNinoH=0,fotoNinoM=0,fotoJovenH=0,fotoJovenM=0,fotoAdultoH=0,fotoAdultoM=0,fotoAdultoPlusH=0,fotoAdultoPlusM=0;
+  var cColor=0, cBN=0, cAdh=0;
+  var cSexoPag={H:0,M:0};
+  var cEdadPag={'18-30':0,'30-50':0,'50+':0};
+  var sinDatos=0;
+
+  itemsFiltrados.forEach(function(r){
+    var it=r.item;
+    totalPesos += (it.precio||0);
+    totalPaq++;
+    var cd = it.clienteData || it.specs || null;
+    if(!cd){ sinDatos++; return; }
+    if(cd.sexo) cSexoPag[cd.sexo]=(cSexoPag[cd.sexo]||0)+1;
+    if(cd.edad) cEdadPag[cd.edad]=(cEdadPag[cd.edad]||0)+1;
+    if(cd.colorBN==='bn') cBN++; else cColor++;
+    if(cd.adherible) cAdh++;
+    if(cd.fotografiados){
+      var f=cd.fotografiados;
+      fotoNinoH+=(f.nino_h||0); fotoNinoM+=(f.nino_m||0);
+      fotoJovenH+=(f.joven_h||0); fotoJovenM+=(f.joven_m||0);
+      fotoAdultoH+=(f.adulto_h||0); fotoAdultoM+=(f.adulto_m||0);
+      fotoAdultoPlusH+=(f.adulto_plus_h||0); fotoAdultoPlusM+=(f.adulto_plus_m||0);
+    } else {
+      // specs de urgentes (sexo directo)
+      if(cd.sexo==='H') fotoH+=1; else if(cd.sexo==='M') fotoM+=1;
+    }
+  });
+
+  fotoH += fotoNinoH+fotoJovenH+fotoAdultoH+fotoAdultoPlusH;
+  fotoM += fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM;
+  var totalFotos = fotoH+fotoM || 1;
+
+  function barra(label, val, max, color){
+    if(!val) return '';
+    var pct = max>0 ? Math.round(val/max*100) : 0;
+    return '<div style="margin-bottom:6px;">'      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
+  }
+
+  var conDatos = totalPaq - sinDatos;
+  var html = '<div style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:10px;padding:14px;">';
+  html += '<p style="font-size:12px;font-weight:700;color:#0C447C;margin-bottom:12px;">'    +'📦 '+nombre+' &nbsp;·&nbsp; '    +desde.split('-').reverse().join('/')+' → '+hasta.split('-').reverse().join('/')+'</p>';
+
+  // Resumen general
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #c0d8f0;">'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Paquetes vendidos</div>'    +'<div style="font-size:22px;font-weight:700;color:#0C447C;">'+totalPaq+'</div></div>'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Total recaudado</div>'    +'<div style="font-size:22px;font-weight:700;color:#1D9E75;">$'+totalPesos.toLocaleString()+'</div></div>'    +(fotoH+fotoM>0?'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Personas fotografiadas</div>'    +'<div style="font-size:22px;font-weight:700;color:#085041;">'+(fotoH+fotoM)+'</div>'    +'<div style="font-size:10px;color:#555;">H: '+fotoH+' · M: '+fotoM+'</div></div>':'')    +(sinDatos>0?'<div style="align-self:flex-end;"><div style="font-size:10px;color:#aaa;">'+sinDatos+' sin datos de specs</div></div>':'')    +'</div>';
+
+  // Grids de detalle solo si hay datos
+  if(conDatos > 0){
+    html += '<div class="g2" style="gap:10px;">';
+
+    // Col izq: Sexo pagador + Edad
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexoPag.H, conDatos, '#0C447C')      +barra('Mujer', cSexoPag.M, conDatos, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdadPag['18-30'], conDatos, '#1D9E75')      +barra('30-50', cEdadPag['30-50'], conDatos, '#0C7ED6')      +barra('50+', cEdadPag['50+'], conDatos, '#BA7517')      +'</div>'      +(cColor+cBN>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor, cColor+cBN, '#1D9E75')          +barra('B/N', cBN, cColor+cBN, '#555')          +'</div>'        : '')      +(cAdh>0?'<div style="margin-top:6px;font-size:11px;color:#BA7517;">⊕ '+cAdh+' con adherible</div>':'')      +'</div>';
+
+    // Col der: Personas por rango de edad
+    var hayFotoDetalle = fotoNinoH+fotoNinoM+fotoJovenH+fotoJovenM+fotoAdultoH+fotoAdultoM+fotoAdultoPlusH+fotoAdultoPlusM;
+    html += '<div style="background:white;border-radius:8px;padding:10px;">';
+    if(hayFotoDetalle > 0){
+      html += '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'        +(fotoNinoH||fotoNinoM ? barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44') : '')        +(fotoJovenH||fotoJovenM ? barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44') : '')        +(fotoAdultoH||fotoAdultoM ? barra('Adulto H', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M', fotoAdultoM, totalFotos, '#7C0C44') : '')        +(fotoAdultoPlusH||fotoAdultoPlusM ? barra('Mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44') : '')        +'<div style="font-size:10px;color:#888;margin-top:4px;">Total: <strong>'+(fotoH+fotoM)+'</strong></div>';
+    } else if(fotoH+fotoM > 0){
+      html += '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'        +barra('Hombre', fotoH, fotoH+fotoM, '#0C447C')        +barra('Mujer', fotoM, fotoH+fotoM, '#7C0C44')        +'<div style="font-size:10px;color:#888;margin-top:4px;">Total: <strong>'+(fotoH+fotoM)+'</strong></div>';
+    } else {
+      html += '<p style="font-size:11px;color:#aaa;font-style:italic;">Sin desglose de fotografiados</p>';
+    }
+    html += '</div>';
+    html += '</div>'; // g2
+  }
+
+  html += '</div>';
+  res.style.display='block';
+  res.innerHTML=html;
 }
 
 function renderHistorialRows(sorted, elH){
@@ -4148,8 +4313,20 @@ function _guardarCambiosEscuela(nombre){
     descuento_pesos:descPesos, descuento_pct:descPct, ajuste:ajuste
   };
   Object.keys(calcState).forEach(function(k){
-    calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
-    if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
+    if(k==='digital'){
+      calcData[k]={
+        cant:calcState[k].cant||0,
+        color:calcState[k].color||'bn',
+        espec:document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:''
+      };
+    } else {
+      // Guardar variantes (estructura nueva) — esto es lo que precargarCalculadora espera
+      calcData[k]={
+        variantes: calcState[k].variantes.map(function(v){
+          return {cant:v.cant||0, color:v.color||'bn', adherible:v.adherible||false, tb:v.tb||false, forma:v.forma||'rect'};
+        })
+      };
+    }
   });
   var total=parseInt((document.getElementById('calc-total').textContent||'0').replace('$',''))||0;
   var idx=escuelaEditIdx;
@@ -4226,7 +4403,7 @@ function cobrarCalculadora(){
   var digVestM=calcSpecs.dig_vest_m||(document.getElementById('calc-dig-vest-m-txt')&&document.getElementById('calc-dig-vest-m-txt').value)||'';
   var digVest=(digVestH&&digVestM)?'H: '+digVestH+' / M: '+digVestM:(digVestH||digVestM||'');
   var specs=['Fondo: '+fondo,'Vestimenta: '+vest,'Cabello: '+cab,'Aretes: '+aretes,'Barba: '+barba,digVest?'Vestimenta digital: '+digVest:'',notas?'Notas: '+notas:''].filter(Boolean).join(' | ');
-  var descripcionCompleta=lineas.map(function(l){return l.nombre;}).join(', ')+descTxt+ajusteTxt;
+  var descripcionCompleta=lineas.map(function(l){return l.nombre;}).join(', ');
   // Recopilar specs por persona si existen
   var specsPersonas = [];
   if(escuelaPersonas && escuelaPersonas.length > 0){
