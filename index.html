@@ -731,9 +731,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
           <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0e0e0;display:flex;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:#0C7ED6;">⚡ <span id="rep-cnt-urg">0</span> urgentes</span>
-            <span style="font-size:11px;color:#0C447C;">📅 <span id="rep-cnt-ord">0</span> ordinarios</span>
-            <span style="font-size:11px;color:#1D9E75;">🖨 <span id="rep-cnt-imp">0</span> impresiones</span>
+            <span style="font-size:11px;color:#0C7ED6;">⚡ <span id="rep-cnt-urg">0</span> urg</span>
+            <span style="font-size:11px;color:#0C447C;">📅 <span id="rep-cnt-ord">0</span> ord</span>
+            <span style="font-size:11px;color:#1D9E75;">🖨 <span id="rep-cnt-imp">0</span> imp</span>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:#0C7ED6;font-weight:600;"><span id="rep-total-urg">$0</span> urgentes</span>
+            <span style="font-size:11px;color:#0C447C;font-weight:600;"><span id="rep-total-ord">$0</span> ordinarios</span>
           </div>
         </div>
       </div>
@@ -2474,7 +2478,6 @@ function renderSeccion(id,mapa){
     +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:600;color:#555;border-top:1px dashed #e0e0e0;margin-top:6px;padding-top:6px;">'
     +'<span>Total</span>'
     +'<span style="display:flex;align-items:center;gap:10px;">'
-    +'<span style="color:#1D9E75;">$'+totalSec.toLocaleString()+'</span>'
     +'<span style="color:#888;font-weight:400;">'+countSec+' paq.</span>'
     +(personasSec>0?'<span style="color:#0C447C;">👤'+personasSec+' personas</span>':'')
     +'</span>'
@@ -2504,6 +2507,14 @@ function renderReportes(){
   set('rep-cnt-urg', cntUrg);
   set('rep-cnt-ord', cntOrd);
   set('rep-cnt-imp', cntImp);
+  // Totales en $ por tipo
+  var sumUrg=0, sumOrd=0;
+  ventasActivas.forEach(function(v){
+    if(v.origen==='urgentes'||(v.folio||'').startsWith('F-U')) sumUrg+=v.total||0;
+    else if(v.origen==='escuelas') sumOrd+=v.total||0;
+  });
+  set('rep-total-urg', '$'+sumUrg.toLocaleString());
+  set('rep-total-ord', '$'+sumOrd.toLocaleString());
   const urg={},vis={},esc={},imp={};
   ventasActivas.forEach(v=>{
     (v.items||[]).forEach(item=>{
