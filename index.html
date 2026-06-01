@@ -1137,6 +1137,12 @@ function crAjFoto(tipo, delta){
   document.getElementById('cr-precio').textContent = '$'+precioFinal;
 }
 
+function crSelOtro(){
+  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro']);
+  document.getElementById('cr-otro-sec').style.display='block';
+  document.getElementById('cr-otro-txt').focus();
+}
+
 function crSelEscolar(){
   crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro']);
   document.getElementById('cr-escuela-sec').style.display='block';
@@ -1213,11 +1219,13 @@ function crActualizarBarba(){
 function confirmarClienteRapido(){
   var c = _clienteRapido;
   var escuela = c.proposito==='Escolar' ? (document.getElementById('cr-escuela-txt').value.trim()||'') : '';
+  var otroDesc = c.proposito==='Otro' ? (document.getElementById('cr-otro-txt').value.trim()||'') : '';
   var barbaPrecio = parseInt(document.getElementById('cr-barba-precio').value)||0;
   var clienteData = {
     sexo: c.sexo, edad: c.edad, proposito: c.proposito,
     colorBN: c.colorBN||'color',
     escuela: escuela,
+    otroDesc: otroDesc,
     camisa_blanca: c.camisa_blanca||false,
     adherible: c.adherible||false,
     barba: c.barba||'',
@@ -2499,7 +2507,11 @@ function renderDesgloseSpecs(ventas){
 
     if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
     if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
-    if(c.proposito) cProp[c.proposito]=(cProp[c.proposito]||0)+peso;
+    if(c.proposito){
+      // Si es "Otro" y tiene descripción, usar el texto real como clave en reportes
+      var propKey = (c.proposito==='Otro' && c.otroDesc) ? ('Otro: '+c.otroDesc) : c.proposito;
+      cProp[propKey]=(cProp[propKey]||0)+peso;
+    }
     if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
     if(c.colorBN==='bn') cBN+=peso; else cColor+=peso;
     if(c.adherible) cAdherible+=peso;
@@ -2564,8 +2576,8 @@ function renderDesgloseSpecs(ventas){
           +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'
           +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')
           +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')
-          +(fotoAdulto>0?barra('Adulto H (18-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (18-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')
-          +(fotoAdultoPlus>0?barra('Adulto+ H (51+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto+ M (51+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')
+          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')
+          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')
           +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'
           +'</div>'
         : '')
@@ -5228,11 +5240,14 @@ function mostrarEmailStatus(tipo, msg){
       <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trámite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Trámite gov.</button>
       <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">INAPAM</button>
       <button id="cr-personal" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Personal',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Personal</button>
-      <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-personal','cr-otro'])">Otro</button>
+      <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelOtro()">Otro</button>
     </div>
     <div id="cr-escuela-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-escuela-txt" placeholder="Nombre de la escuela..." style="font-size:12px;" oninput="crFiltrarEscuelas()" autocomplete="off">
       <div id="cr-escuela-sugs" style="background:white;border:1px solid #e0e0e0;border-radius:8px;margin-top:4px;max-height:120px;overflow-y:auto;display:none;"></div>
+    </div>
+    <div id="cr-otro-sec" style="display:none;margin-top:8px;">
+      <input type="text" id="cr-otro-txt" placeholder="Especifica el propósito..." style="font-size:12px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="_clienteRapido.otroDesc=this.value.trim()">
     </div>
   </div>
 
@@ -5251,7 +5266,7 @@ function mostrarEmailStatus(tipo, msg){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H <span style="font-weight:400;opacity:.7;">(0-12)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H <span style="font-weight:400;opacity:.7;">(0-17)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('nino_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-nino_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5260,7 +5275,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M <span style="font-weight:400;opacity:.7;">(0-12)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M <span style="font-weight:400;opacity:.7;">(0-17)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('nino_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-nino_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5269,7 +5284,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H <span style="font-weight:400;opacity:.7;">(13-17)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H <span style="font-weight:400;opacity:.7;">(18-30)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('joven_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-joven_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5278,7 +5293,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M <span style="font-weight:400;opacity:.7;">(13-17)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M <span style="font-weight:400;opacity:.7;">(18-30)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('joven_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-joven_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5287,7 +5302,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H <span style="font-weight:400;opacity:.7;">(18-50)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H <span style="font-weight:400;opacity:.7;">(30-50)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-adulto_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5296,7 +5311,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M <span style="font-weight:400;opacity:.7;">(18-50)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M <span style="font-weight:400;opacity:.7;">(30-50)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-adulto_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5305,7 +5320,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto+ H <span style="font-weight:400;opacity:.7;">(51+)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto mayor H <span style="font-weight:400;opacity:.7;">(60+)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_plus_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-adulto_plus_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5314,7 +5329,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto+ M <span style="font-weight:400;opacity:.7;">(51+)</span></span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto mayor M <span style="font-weight:400;opacity:.7;">(60+)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_plus_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-adulto_plus_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
