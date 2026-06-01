@@ -4545,17 +4545,7 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
   var specs = {};
   if(origen === 'escuelas'){
     // Info muestra nombre + personas/sexo de clienteData
-    info = items.map(function(i){
-      var base = i.nombre;
-      if(i.clienteData){
-        var cd = i.clienteData;
-        var extra = [];
-        if(cd.personas && cd.personas > 1) extra.push(cd.personas+' personas');
-        if(cd.sexo) extra.push(cd.sexo==='H'?'H':'M');
-        if(extra.length) base += ' ('+extra.join(', ')+')';
-      }
-      return base;
-    }).join(' + ');
+    info = items.map(function(i){ return i.nombre; }).join(' + ');
     if(window._calcSpecs){
       var cs = window._calcSpecs;
       specs = {
@@ -4799,7 +4789,7 @@ function renderArchivadas(lista){
     return '<tr style="border-bottom:1px solid #f0f0f0;background:#fafafa;">'
       + '<td style="padding:10px 12px;vertical-align:top;">'
       + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
-      + '<div style="font-size:11px;color:#333;margin-top:2px;max-width:240px;">'+o.info+'</div>'
+      + '<div style="font-size:11px;color:#333;margin-top:2px;max-width:240px;">'+(o.info||'').replace(/\s*\([HM](,\s*[^)]*)?\)/g,'').trim()+'</div>'
       + (o.fechaEntrega?'<div style="font-size:10px;color:#A32D2D;margin-top:2px;">📅 '+o.fechaEntrega+'</div>':'')
       + '</td>'
       + celdas
@@ -4952,7 +4942,7 @@ function renderProduccion(lista){
       + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
       + notaBtn
       + '</div>'
-      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:240px;">'+o.info+'</div>'
+      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:240px;">'+(o.info||'').replace(/\s*\([HM](,\s*[^)]*)?\)/g,'').trim()+'</div>'
       + (specsDetail?'<div style="font-size:10px;color:#555;margin-top:4px;max-width:240px;">'+specsDetail+'</div>':'')
       + notaDisplay
       + alertaBadge
@@ -5169,14 +5159,7 @@ function mostrarEmailStatus(tipo, msg){
     <input type="text" id="calc-nombre" placeholder="Ej: Primaria Benito Juárez">
   </div>
 
-  <!-- Sexo de la persona -->
-  <div class="frow">
-    <label>Sexo de la persona</label>
-    <div style="display:flex;gap:8px;">
-      <button id="calc-sexo-h" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="selCalcSexo('H')"><i class="ti ti-user"></i> Hombre</button>
-      <button id="calc-sexo-m" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="selCalcSexo('M')"><i class="ti ti-user"></i> Mujer</button>
-    </div>
-  </div>
+
 
   <!-- TIPOS CON VARIANTES (Infantil, Credencial, Diploma, Título) -->
   <p class="slabel" style="margin:10px 0 6px;">Cantidad de fotos</p>
