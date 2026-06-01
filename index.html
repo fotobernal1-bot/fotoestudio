@@ -1037,7 +1037,7 @@ var _clienteRapido = {};
 function abrirClienteRapido(nombre, precio, tipo){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     sexo:'', edad:'', proposito:'', colorBN:'color',
-    foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0};
+    foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0, foto_adulto_plus_h:0, foto_adulto_plus_m:0};
   document.getElementById('cr-titulo').textContent = nombre;
   document.getElementById('cr-precio').textContent = '$'+precio;
   // Reset Color/BN — default Color
@@ -1066,7 +1066,7 @@ function abrirClienteRapido(nombre, precio, tipo){
   document.getElementById('cr-barba-editar-btn').className='btn bgray';
   var barbaPrecioEl=document.getElementById('cr-barba-precio'); if(barbaPrecioEl){barbaPrecioEl.style.display='none';barbaPrecioEl.value='';}
   _clienteRapido.barba=''; _clienteRapido.barba_edicion=0;
-  ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
+  ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].forEach(function(k){
     var el=document.getElementById('cr-foto-'+k); if(el) el.textContent='0';
   });
   openM('m-cliente-rapido');
@@ -1127,7 +1127,7 @@ function crAjFoto(tipo, delta){
   _clienteRapido[key] = Math.max(0, (_clienteRapido[key]||0) + delta);
   document.getElementById('cr-foto-'+tipo).textContent = _clienteRapido[key];
   // Precio = precioBase × total fotografiados
-  var total = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m']
+  var total = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m']
     .reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0);
   var adhExtra = _clienteRapido.adherible ? 20 : 0;
   var precioFinal = total > 0 ? (_clienteRapido.precioBase + adhExtra) * total : _clienteRapido.precioBase + adhExtra;
@@ -1193,7 +1193,7 @@ function crToggleEditarBarba(){
   if(activo){
     inp.style.display='none'; inp.value='';
     _clienteRapido.barba_edicion=0;
-    _clienteRapido.precio = _clienteRapido.precioBase * (['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].reduce(function(s,k){return s+(_clienteRapido['foto_'+k]||0);},0)||1);
+    _clienteRapido.precio = _clienteRapido.precioBase * (['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].reduce(function(s,k){return s+(_clienteRapido['foto_'+k]||0);},0)||1);
     btn.className='btn bgray';
   } else {
     inp.style.display='block'; inp.focus();
@@ -1205,7 +1205,7 @@ function crToggleEditarBarba(){
 function crActualizarBarba(){
   var p = parseInt(document.getElementById('cr-barba-precio').value)||0;
   _clienteRapido.barba_edicion = p;
-  var total = _clienteRapido.precioBase*(['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].reduce(function(s,k){return s+(_clienteRapido['foto_'+k]||0);},0)||1)+p;
+  var total = _clienteRapido.precioBase*(['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].reduce(function(s,k){return s+(_clienteRapido['foto_'+k]||0);},0)||1)+p;
   _clienteRapido.precio = total;
   document.getElementById('cr-precio').textContent='$'+total;
 }
@@ -1225,7 +1225,8 @@ function confirmarClienteRapido(){
     fotografiados: {
       nino_h: c.foto_nino_h||0, nino_m: c.foto_nino_m||0,
       joven_h: c.foto_joven_h||0, joven_m: c.foto_joven_m||0,
-      adulto_h: c.foto_adulto_h||0, adulto_m: c.foto_adulto_m||0
+      adulto_h: c.foto_adulto_h||0, adulto_m: c.foto_adulto_m||0,
+      adulto_plus_h: c.foto_adulto_plus_h||0, adulto_plus_m: c.foto_adulto_plus_m||0
     }
   };
   carrito.push({nombre:c.nombre, precio:c.precio, tipo:c.tipo, clienteData:clienteData});
@@ -1368,10 +1369,15 @@ function renderCarrito(){
       if(cd.barba_edicion>0) extras.push('Editar barba');
       var f=cd.fotografiados;
       if(f){
-        var nH=f.nino_h||0,nM=f.nino_m||0,jH=f.joven_h||0,jM=f.joven_m||0,aH=f.adulto_h||0,aM=f.adulto_m||0;
-        if(nH||nM) extras.push('Niño'+(nH?' H:'+nH:'')+(nM?' M:'+nM:''));
-        if(jH||jM) extras.push('Joven'+(jH?' H:'+jH:'')+(jM?' M:'+jM:''));
-        if(aH||aM) extras.push('Adulto'+(aH?' H:'+aH:'')+(aM?' M:'+aM:''));
+        var totalH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var totalM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        if(totalH||totalM){
+          var fStr='';
+          if(totalH) fStr+='H:'+totalH;
+          if(totalH&&totalM) fStr+='  ';
+          if(totalM) fStr+='M:'+totalM;
+          extras.push(fStr);
+        }
       }
     }
     var tipoBadge = '';
@@ -2479,8 +2485,8 @@ function renderDesgloseSpecs(ventas){
   var cSexo={H:0,M:0};
   var cEdad={'18-30':0,'30-50':0,'50+':0};
   var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Personal':0,'Otro':0};
-  var fotoNino=0, fotoJoven=0, fotoAdulto=0;
-  var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0;
+  var fotoNino=0, fotoJoven=0, fotoAdulto=0, fotoAdultoPlus=0;
+  var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0, fotoAdultoPlusH=0, fotoAdultoPlusM=0;
   var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
   var cColor=0, cBN=0;
   var cEscuelas={};
@@ -2497,13 +2503,15 @@ function renderDesgloseSpecs(ventas){
       fotoNino+=(c.fotografiados.nino_h||0)+(c.fotografiados.nino_m||0);
       fotoJoven+=(c.fotografiados.joven_h||0)+(c.fotografiados.joven_m||0);
       fotoAdulto+=(c.fotografiados.adulto_h||0)+(c.fotografiados.adulto_m||0);
+      fotoAdultoPlus+=(c.fotografiados.adulto_plus_h||0)+(c.fotografiados.adulto_plus_m||0);
       fotoNinoH+=(c.fotografiados.nino_h||0); fotoNinoM+=(c.fotografiados.nino_m||0);
       fotoJovenH+=(c.fotografiados.joven_h||0); fotoJovenM+=(c.fotografiados.joven_m||0);
       fotoAdultoH+=(c.fotografiados.adulto_h||0); fotoAdultoM+=(c.fotografiados.adulto_m||0);
+      fotoAdultoPlusH+=(c.fotografiados.adulto_plus_h||0); fotoAdultoPlusM+=(c.fotografiados.adulto_plus_m||0);
     }
   });
   var totalClientes = clientesData.length || 1;
-  var totalFotos = fotoNino+fotoJoven+fotoAdulto || 1;
+  var totalFotos = fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus || 1;
 
   // --- Análisis specs (mini calculadora) ---
   var color=0, bn=0, adh=0, sinAdh=0;
@@ -2546,10 +2554,11 @@ function renderDesgloseSpecs(ventas){
       +(fotoNino+fotoJoven+fotoAdulto > 0
         ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'
           +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'
-          +(fotoNino>0?barra('Niño H', fotoNinoH, fotoNino+fotoJoven+fotoAdulto, '#0C447C')+barra('Niño M', fotoNinoM, fotoNino+fotoJoven+fotoAdulto, '#7C0C44'):'')
-          +(fotoJoven>0?barra('Joven H', fotoJovenH, fotoNino+fotoJoven+fotoAdulto, '#0C447C')+barra('Joven M', fotoJovenM, fotoNino+fotoJoven+fotoAdulto, '#7C0C44'):'')
-          +(fotoAdulto>0?barra('Adulto H', fotoAdultoH, fotoNino+fotoJoven+fotoAdulto, '#0C447C')+barra('Adulto M', fotoAdultoM, fotoNino+fotoJoven+fotoAdulto, '#7C0C44'):'')
-          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto)+'</strong></div>'
+          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')
+          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')
+          +(fotoAdulto>0?barra('Adulto H (18-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (18-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')
+          +(fotoAdultoPlus>0?barra('Adulto+ H (51+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto+ M (51+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')
+          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'
           +'</div>'
         : '')
       +'</div>';
@@ -2667,12 +2676,22 @@ function renderHistorialRows(sorted, elH){
       const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
       const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
       const detalle=(v.items||[]).map(i=>i.nombre).join(', ')||'—';
+      // Calcular fotografiados totales H y M sumando todos los items
+      let fotoH=0, fotoM=0;
+      (v.items||[]).forEach(function(it){
+        const f=it.clienteData&&it.clienteData.fotografiados;
+        if(f){
+          fotoH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+          fotoM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        }
+      });
+      const fotoTag=(fotoH||fotoM)?`<div style="font-size:9px;color:#085041;margin-top:2px;">👤 ${fotoH?'H×'+fotoH:''}${(fotoH&&fotoM)?' ':''}${fotoM?'M×'+fotoM:''}</div>`:'';
       const metodo=v.metodoPago||'efectivo';
       const iconMetodo=metodo==='transferencia'?'🔄':metodo==='tarjeta'?'💳':'💵';
       const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">CANCELADA</span>'+(v.canceladoFecha?'<div style="font-size:9px;color:#A32D2D;margin-top:2px;">'+v.canceladoFecha+(v.canceladoPor?' · '+v.canceladoPor:'')+'</div>':''):'';
       const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:2px 7px;cursor:pointer;">✕ Cancelar</button>`;
       const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:2px 7px;cursor:pointer;margin-top:3px;">🖨 Reimprimir</button>`;
-      return `<tr style="${v.cancelado?'opacity:0.5;text-decoration:line-through;':''}"><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'} ${cancelBadge}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}<br><span style="font-size:9px;">${iconMetodo} ${metodo}</span></td><td style="font-size:11px;">${detalle}</td><td style="color:${color};font-weight:600;">$${v.total}<br>${cancelBtn}<br>${reimpBtn}</td></tr>`;
+      return `<tr style="${v.cancelado?'opacity:0.5;text-decoration:line-through;':''}"><td style="color:${color};font-weight:700;font-size:11px;">${v.folio||'—'} ${cancelBadge}</td><td style="font-size:10px;color:#888;">${v.fecha||'—'} ${v.hora||''}<br><span style="font-size:9px;">${iconMetodo} ${metodo}</span></td><td style="font-size:11px;">${detalle}${fotoTag}</td><td style="color:${color};font-weight:600;">$${v.total}<br>${cancelBtn}<br>${reimpBtn}</td></tr>`;
     }).join('')+'</tbody></table>';
 }
 
@@ -3327,11 +3346,13 @@ window.addEventListener('load',function(){
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
 var _calcPendiente = {}; // pagador ordinarios
+// calcState ahora usa variantes: cada tipo tiene un array de variantes independientes
+// Digital mantiene estructura plana (sin variantes)
 let calcState = {
-  infantil:   {cant:0, color:'bn', adherible:false, tb:false},
-  credencial: {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
-  diploma:    {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
-  titulo:     {cant:0, color:'bn', adherible:false, tb:false, forma:'rect'},
+  infantil:   {variantes:[{cant:0,color:'bn',adherible:false,tb:false,forma:'rect'}]},
+  credencial: {variantes:[{cant:0,color:'bn',adherible:false,tb:false,forma:'rect'}]},
+  diploma:    {variantes:[{cant:0,color:'bn',adherible:false,tb:false,forma:'rect'}]},
+  titulo:     {variantes:[{cant:0,color:'bn',adherible:false,tb:false,forma:'rect'}]},
   digital:    {cant:0, color:'bn', espec:'', vestimenta:''},
 };
 const CALC_CFG = {
@@ -3343,6 +3364,89 @@ const CALC_CFG = {
 };
 let calcSpecs={fondo:'',vestimenta_h:'',vestimenta_m:'',cabello:'',aretes:'',barba:'',dig_vest_h:'',dig_vest_m:''};
 let calcSexo = ''; // 'H' o 'M'
+
+// ── SISTEMA DE VARIANTES ─────────────────────────────────────────────────────
+function renderVariantes(k){
+  var cfg = CALC_CFG[k];
+  var container = document.getElementById('variantes-'+k);
+  if(!container) return;
+  container.innerHTML = calcState[k].variantes.map(function(v, idx){
+    var colorBtn = function(val){
+      return '<button onclick="setVariante(\''+k+'\','+idx+',\'color\',\''+val+'\')" '
+        +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
+        +(v.color===val?'background:#1D9E75;color:white;':'background:white;color:#333;')
+        +'">'+( val==='bn'?'B/N':'Color')+'</button>';
+    };
+    var formBtn = function(val,label){
+      return '<button onclick="setVariante(\''+k+'\','+idx+',\'forma\',\''+val+'\')" '
+        +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
+        +(v.forma===val?'background:#1D9E75;color:white;':'background:white;color:#333;')
+        +'">'+label+'</button>';
+    };
+    var adhBtn = function(val,label){
+      return '<button onclick="setVariante(\''+k+'\','+idx+',\'adherible\','+val+')" '
+        +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
+        +((v.adherible===val)?'background:#1D9E75;color:white;':'background:white;color:#333;')
+        +'">'+label+'</button>';
+    };
+    var tbBtn = '<button onclick="setVariante(\''+k+'\','+idx+',\'tb\','+!v.tb+')" '
+        +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
+        +(v.tb?'background:#1D9E75;color:white;':'background:white;color:#333;')
+        +'">TB</button>';
+    var precio = cfg.tieneAdh && v.adherible ? cfg.precioAdh : cfg.precioBase;
+    var paq = v.cant > 0 ? Math.ceil(v.cant/cfg.xPaq)*precio : 0;
+    var delBtn = calcState[k].variantes.length > 1
+      ? '<button onclick="eliminarVariante(\''+k+'\','+idx+')" title="Eliminar variante" '
+        +'style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px;padding:2px 4px;">✕</button>'
+      : '';
+    return '<div style="background:#f7f7f5;border-radius:6px;padding:7px 8px;margin-bottom:6px;">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">'
+      +'<button onclick="ajVariante(\''+k+'\','+idx+',-1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:5px;background:white;cursor:pointer;font-size:15px;">−</button>'
+      +'<input type="number" min="0" value="'+v.cant+'" oninput="syncVariante(\''+k+'\','+idx+',this.value)" '
+        +'style="width:46px;font-size:14px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:5px;padding:2px;">'
+      +'<button onclick="ajVariante(\''+k+'\','+idx+',1)" style="width:26px;height:26px;border:1px solid #e0e0e0;border-radius:5px;background:white;cursor:pointer;font-size:15px;">+</button>'
+      +(paq>0?'<span style="font-size:11px;color:#1D9E75;font-weight:600;margin-left:4px;">$'+paq+'</span>':'')
+      +'<div style="margin-left:auto;">'+delBtn+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+      +colorBtn('color')+colorBtn('bn')
+      +adhBtn(false,'Sin adh')+adhBtn(true,'Con adh')
+      +tbBtn
+      +formBtn('rect','Rect')+formBtn('oval','Oval')
+      +'</div>'
+      +'</div>';
+  }).join('')
+  +'<button onclick="agregarVariante(\''+k+'\')" style="width:100%;padding:4px;font-size:11px;background:none;'
+  +'border:1px dashed #1D9E75;border-radius:6px;color:#1D9E75;cursor:pointer;margin-top:2px;">+ variante</button>';
+  calcTotal();
+}
+
+function setVariante(k, idx, campo, valor){
+  if(campo==='tb') valor = (valor==='true'||valor===true);
+  if(campo==='adherible') valor = (valor==='true'||valor===true);
+  calcState[k].variantes[idx][campo] = valor;
+  renderVariantes(k);
+}
+
+function ajVariante(k, idx, delta){
+  calcState[k].variantes[idx].cant = Math.max(0, (calcState[k].variantes[idx].cant||0)+delta);
+  renderVariantes(k);
+}
+
+function syncVariante(k, idx, val){
+  calcState[k].variantes[idx].cant = Math.max(0, parseInt(val)||0);
+  calcTotal();
+}
+
+function agregarVariante(k){
+  calcState[k].variantes.push({cant:0, color:'bn', adherible:false, tb:false, forma:'rect'});
+  renderVariantes(k);
+}
+
+function eliminarVariante(k, idx){
+  calcState[k].variantes.splice(idx, 1);
+  renderVariantes(k);
+}
 
 function selCalcSexo(sexo){
   calcSexo = sexo;
@@ -3362,37 +3466,16 @@ function abrirCalculadora(){
     var btn = document.getElementById('btn-calc-action');
     if(btn){ btn.innerHTML = '<i class="ti ti-shopping-cart"></i> Agregar al carrito'; }
   }
-  // Reset estado
-  Object.keys(calcState).forEach(k=>{
-    calcState[k].cant=0;
-    calcState[k].color='bn';
-    calcState[k].adherible=false;
-    if(k==='digital') calcState[k].espec='';
-    if(calcState[k].forma!==undefined) calcState[k].forma='rect';
-  });
-  // Reset contadores en pantalla
-  ['infantil','credencial','diploma','titulo','digital'].forEach(k=>{
-    document.getElementById('cant-'+k).value='0';
-    document.getElementById('sub-'+k).textContent='';
-    // Activar B/N por defecto
-    var bc=document.getElementById('opt-'+k+'-color'); if(bc){bc.className='btn bgray';bc.style.cssText='font-size:11px;padding:4px 9px;';}
-    var bb=document.getElementById('opt-'+k+'-bn'); if(bb){bb.className='btn bgreen';bb.style.cssText='font-size:11px;padding:4px 9px;';}
-  });
-  // Reset adherible buttons
+  // Reset estado con variantes
   ['infantil','credencial','diploma','titulo'].forEach(k=>{
-    document.getElementById('opt-'+k+'-sad').className='btn bgreen';
-    document.getElementById('opt-'+k+'-sad').style.cssText='font-size:11px;padding:4px 9px;';
-    document.getElementById('opt-'+k+'-cad').className='btn bgray';
-    document.getElementById('opt-'+k+'-cad').style.cssText='font-size:11px;padding:4px 9px;';
-    var tb=document.getElementById('opt-'+k+'-tb');
-    if(tb){tb.className='btn bgray';tb.style.cssText='font-size:11px;padding:4px 9px;';}
-    calcState[k].tb=false;
-    // Reset forma
-    var fr=document.getElementById('opt-'+k+'-rect');
-    var fo=document.getElementById('opt-'+k+'-oval');
-    if(fr){fr.className='btn bgreen';fr.style.cssText='font-size:11px;padding:4px 9px;';}
-    if(fo){fo.className='btn bgray';fo.style.cssText='font-size:11px;padding:4px 9px;';}
+    calcState[k].variantes = [{cant:0, color:'bn', adherible:false, tb:false, forma:'rect'}];
   });
+  calcState.digital.cant=0; calcState.digital.color='bn'; calcState.digital.espec='';
+  // Renderizar secciones con variantes
+  ['infantil','credencial','diploma','titulo'].forEach(k=>renderVariantes(k));
+  // Reset digital
+  document.getElementById('cant-digital').value='0';
+  document.getElementById('sub-digital').textContent='';
   // Reset campo digital
   document.getElementById('calc-dig-espec').value='';
   var dvh=document.getElementById('calc-dig-vest-h-txt'); if(dvh) dvh.value='';
@@ -3541,14 +3624,19 @@ function selSpec(tipo, valor){
 
 function calcTotal(){
   var subtotal=0;
-  Object.keys(calcState).forEach(function(k){
-    var s=calcState[k];
+  ['infantil','credencial','diploma','titulo'].forEach(function(k){
     var cfg=CALC_CFG[k];
-    if(s.cant>0){
-      var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
-      subtotal+=Math.ceil(s.cant/cfg.xPaq)*precio;
-    }
+    calcState[k].variantes.forEach(function(v){
+      if(v.cant>0){
+        var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
+        subtotal+=Math.ceil(v.cant/cfg.xPaq)*precio;
+      }
+    });
   });
+  // Digital (sin variantes)
+  if(calcState.digital.cant>0){
+    subtotal+=Math.ceil(calcState.digital.cant/CALC_CFG.digital.xPaq)*CALC_CFG.digital.precioBase;
+  }
   var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
   var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
   var ajuste=parseFloat(document.getElementById('calc-ajuste').value)||0;
@@ -3633,21 +3721,25 @@ function precargarCalculadora(e){
   if(e.calcData){
     // Precarga estructurada desde calcData
     var cd = e.calcData;
-    Object.keys(calcState).forEach(function(k){
+    ['infantil','credencial','diploma','titulo'].forEach(function(k){
       if(cd[k]){
-        var cant = cd[k].cant || 0;
-        var el = document.getElementById('cant-'+k);
-        if(el){ el.value = cant; syncCant(k); }
-        if(cd[k].color) setColor(k, cd[k].color);
-        if(k!=='digital' && cd[k].adherible !== undefined) setAdh(k, cd[k].adherible);
-        if(k!=='digital' && cd[k].tb) setTB(k, cd[k].tb);
-        if(k!=='digital' && cd[k].forma) setForma(k, cd[k].forma);
-        if(k==='digital' && cd[k].espec){
-          var especEl = document.getElementById('calc-dig-espec');
-          if(especEl) especEl.value = cd[k].espec;
+        // Soporte para variantes (nuevo) y estructura antigua (compat)
+        if(cd[k].variantes && cd[k].variantes.length){
+          calcState[k].variantes = cd[k].variantes.map(function(v){
+            return {cant:v.cant||0, color:v.color||'bn', adherible:v.adherible||false, tb:v.tb||false, forma:v.forma||'rect'};
+          });
+        } else if(cd[k].cant !== undefined){
+          // Estructura antigua — convertir a variante única
+          calcState[k].variantes = [{cant:cd[k].cant||0, color:cd[k].color||'bn', adherible:cd[k].adherible||false, tb:cd[k].tb||false, forma:cd[k].forma||'rect'}];
         }
+        renderVariantes(k);
       }
     });
+    if(cd.digital){
+      calcState.digital.cant=cd.digital.cant||0;
+      var el=document.getElementById('cant-digital'); if(el) el.value=calcState.digital.cant; syncCant('digital');
+      if(cd.digital.espec){ var especEl=document.getElementById('calc-dig-espec'); if(especEl) especEl.value=cd.digital.espec; }
+    }
     if(cd.specs){
       if(cd.specs.fondo) selSpec('fondo', cd.specs.fondo);
       if(cd.specs.vestimenta_h) selSpec('vestimenta_h', cd.specs.vestimenta_h);
@@ -3856,25 +3948,28 @@ function cobrarCalculadora(){
     return;
   }
   var lineas=[];
-  Object.keys(calcState).forEach(function(k){
-    var s=calcState[k];
-    // Sync desde input por si acaso
-    var inputEl=document.getElementById('cant-'+k);
-    if(inputEl) s.cant=Math.max(0,parseInt(inputEl.value)||0);
+  ['infantil','credencial','diploma','titulo'].forEach(function(k){
     var cfg=CALC_CFG[k];
-    if(s.cant>0){
-      var precio=cfg.tieneAdh&&s.adherible?cfg.precioAdh:cfg.precioBase;
-      var paq=Math.ceil(s.cant/cfg.xPaq);
-      var colorTxt=s.color==='bn'?'B/N':'Color';
-      var adhTxt=cfg.tieneAdh?(s.adherible?' adherible':''):'';
-      var tbTxt=(cfg.tieneAdh&&s.tb)?' TB':'';
-      var formaTxt=(s.forma&&s.forma==='oval')?' ovalada':'';
-      var especTxt=k==='digital'?(document.getElementById('calc-dig-espec').value.trim()||''):'';
-      var linea=s.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt;
-      if(especTxt) linea+=' ('+especTxt+')';
-      lineas.push({nombre:linea, precio:paq*precio});
-    }
+    calcState[k].variantes.forEach(function(v){
+      if(v.cant>0){
+        var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
+        var paq=Math.ceil(v.cant/cfg.xPaq);
+        var colorTxt=v.color==='bn'?'B/N':'Color';
+        var adhTxt=cfg.tieneAdh?(v.adherible?' adherible':''):'';
+        var tbTxt=v.tb?' TB':'';
+        var formaTxt=v.forma==='oval'?' Oval':' Rect';
+        var linea=v.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt;
+        lineas.push({nombre:linea, precio:paq*precio});
+      }
+    });
   });
+  if(calcState.digital.cant>0){
+    var dCfg=CALC_CFG.digital;
+    var dPaq=Math.ceil(calcState.digital.cant/dCfg.xPaq);
+    var especTxt=document.getElementById('calc-dig-espec').value.trim();
+    var dLinea=calcState.digital.cant+' Digital'+(especTxt?' ('+especTxt+')':'');
+    lineas.push({nombre:dLinea, precio:dPaq*dCfg.precioBase});
+  }
   if(!lineas.length){alert('Agrega al menos un producto');return;}
   // Calcular total desde el estado, no desde el DOM
   calcTotal();
@@ -3916,10 +4011,11 @@ function cobrarCalculadora(){
   var descPesos=parseFloat(document.getElementById('calc-desc-pesos').value)||0;
   var descPct=parseFloat(document.getElementById('calc-desc-pct').value)||0;
   var calcData={specs:{fondo:fondo,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,cabello:cab,aretes:aretes,barba:barba||'',notas:notas},descuento_pesos:descPesos,descuento_pct:descPct,ajuste:parseFloat(document.getElementById('calc-ajuste').value)||0};
-  Object.keys(calcState).forEach(function(k){
-    calcData[k]={cant:calcState[k].cant,color:calcState[k].color,adherible:calcState[k].adherible||false,tb:calcState[k].tb||false,forma:calcState[k].forma||'rect'};
-    if(k==='digital') calcData[k].espec=document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:'';
+  // Guardar variantes en calcData para cada tipo
+  ['infantil','credencial','diploma','titulo'].forEach(function(k){
+    calcData[k]={variantes: calcState[k].variantes.map(function(v){return {cant:v.cant,color:v.color,adherible:v.adherible||false,tb:v.tb||false,forma:v.forma||'rect'};})};
   });
+  calcData.digital={cant:calcState.digital.cant,color:calcState.digital.color,espec:document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:''};
 
   if(!escuelaActual){
     // Escuela nueva — guardar automáticamente
@@ -4671,103 +4767,51 @@ function mostrarEmailStatus(tipo, msg){
     </div>
   </div>
 
-  <!-- INFANTIL -->
+  <!-- TIPOS CON VARIANTES (Infantil, Credencial, Diploma, Título) -->
   <p class="slabel" style="margin:10px 0 6px;">Cantidad de fotos</p>
+
+  <!-- INFANTIL -->
   <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <div>
         <div style="font-size:13px;font-weight:600;">Infantil</div>
-        <div style="font-size:10px;color:#888;">$80 sin adh · $100 con adh · paq de 8</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCant('infantil',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <input id="cant-infantil" type="number" min="0" value="0" oninput="syncCant('infantil')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
-        <button onclick="ajCant('infantil',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+        <div style="font-size:10px;color:#888;" id="info-infantil">$80 sin adh · $100 con adh · paq de 8</div>
       </div>
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-infantil-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','color')">Color</button>
-      <button id="opt-infantil-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('infantil','bn')">B/N</button>
-      <button id="opt-infantil-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',false)">Sin adherible</button>
-      <button id="opt-infantil-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('infantil',true)">Con adherible</button>
-      <button id="opt-infantil-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('infantil',!calcState.infantil.tb)">TB</button>
-    </div>
-    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-infantil"></div>
+    <div id="variantes-infantil"></div>
   </div>
-
 
   <!-- CREDENCIAL -->
   <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <div>
         <div style="font-size:13px;font-weight:600;">Credencial</div>
-        <div style="font-size:10px;color:#888;">$100 sin adh · $120 con adh · paq de 6</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCant('credencial',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <input id="cant-credencial" type="number" min="0" value="0" oninput="syncCant('credencial')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
-        <button onclick="ajCant('credencial',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+        <div style="font-size:10px;color:#888;" id="info-credencial">$100 sin adh · $120 con adh · paq de 6</div>
       </div>
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-credencial-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','color')">Color</button>
-      <button id="opt-credencial-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('credencial','bn')">B/N</button>
-      <button id="opt-credencial-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',false)">Sin adherible</button>
-      <button id="opt-credencial-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('credencial',true)">Con adherible</button>
-      <button id="opt-credencial-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('credencial',!calcState.credencial.tb)">TB</button>
-      <button id="opt-credencial-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('credencial','rect')">Rectangular</button>
-      <button id="opt-credencial-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('credencial','oval')">Ovalada</button>
-    </div>
-    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-credencial"></div>
+    <div id="variantes-credencial"></div>
   </div>
+
   <!-- DIPLOMA -->
   <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <div>
         <div style="font-size:13px;font-weight:600;">Diploma</div>
-        <div style="font-size:10px;color:#888;">$150 sin adh · $200 con adh · paq de 3</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCant('diploma',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <input id="cant-diploma" type="number" min="0" value="0" oninput="syncCant('diploma')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
-        <button onclick="ajCant('diploma',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+        <div style="font-size:10px;color:#888;" id="info-diploma">$150 sin adh · $200 con adh · paq de 3</div>
       </div>
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-diploma-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','color')">Color</button>
-      <button id="opt-diploma-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('diploma','bn')">B/N</button>
-      <button id="opt-diploma-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',false)">Sin adherible</button>
-      <button id="opt-diploma-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('diploma',true)">Con adherible</button>
-      <button id="opt-diploma-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('diploma',!calcState.diploma.tb)">TB</button>
-      <button id="opt-diploma-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('diploma','rect')">Rectangular</button>
-      <button id="opt-diploma-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('diploma','oval')">Ovalada</button>
-    </div>
-    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-diploma"></div>
+    <div id="variantes-diploma"></div>
   </div>
 
   <!-- TÍTULO -->
   <div style="border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <div>
         <div style="font-size:13px;font-weight:600;">Título</div>
-        <div style="font-size:10px;color:#888;">$150 sin adh · $200 con adh · paq de 3</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button onclick="ajCant('titulo',-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
-        <input id="cant-titulo" type="number" min="0" value="0" oninput="syncCant('titulo')" style="width:48px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
-        <button onclick="ajCant('titulo',1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+        <div style="font-size:10px;color:#888;" id="info-titulo">$150 sin adh · $200 con adh · paq de 3</div>
       </div>
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="opt-titulo-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','color')">Color</button>
-      <button id="opt-titulo-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('titulo','bn')">B/N</button>
-      <button id="opt-titulo-sad" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',false)">Sin adherible</button>
-      <button id="opt-titulo-cad" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setAdh('titulo',true)">Con adherible</button>
-      <button id="opt-titulo-tb" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setTB('titulo',!calcState.titulo.tb)">TB</button>
-      <button id="opt-titulo-rect" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setForma('titulo','rect')">Rectangular</button>
-      <button id="opt-titulo-oval" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setForma('titulo','oval')">Ovalada</button>
-    </div>
-    <div style="text-align:right;font-size:11px;color:#1D9E75;font-weight:600;margin-top:4px;" id="sub-titulo"></div>
+    <div id="variantes-titulo"></div>
   </div>
 
   <!-- Especificaciones del cliente -->
@@ -5199,7 +5243,7 @@ function mostrarEmailStatus(tipo, msg){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H</span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Niño H <span style="font-weight:400;opacity:.7;">(0-12)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('nino_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-nino_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5208,7 +5252,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M</span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Niño M <span style="font-weight:400;opacity:.7;">(0-12)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('nino_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-nino_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5217,7 +5261,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H</span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Joven H <span style="font-weight:400;opacity:.7;">(13-17)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('joven_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-joven_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5226,7 +5270,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M</span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Joven M <span style="font-weight:400;opacity:.7;">(13-17)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('joven_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-joven_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5235,7 +5279,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H</span>
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto H <span style="font-weight:400;opacity:.7;">(18-50)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
         <span id="cr-foto-adulto_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
@@ -5244,7 +5288,7 @@ function mostrarEmailStatus(tipo, msg){
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
-      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M</span>
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto M <span style="font-weight:400;opacity:.7;">(18-50)</span></span>
       <div style="display:flex;align-items:center;gap:6px;">
         <button onclick="crAjFoto('adulto_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
         <span id="cr-foto-adulto_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
@@ -5252,8 +5296,25 @@ function mostrarEmailStatus(tipo, msg){
       </div>
     </div>
 
-  </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#EBF3FF;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#0C447C;">Adulto+ H <span style="font-weight:400;opacity:.7;">(51+)</span></span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('adulto_plus_h',-1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">−</button>
+        <span id="cr-foto-adulto_plus_h" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#0C447C;">0</span>
+        <button onclick="crAjFoto('adulto_plus_h',1)" style="width:24px;height:24px;border:1px solid #90BEFF;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#0C447C;">+</button>
+      </div>
+    </div>
 
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#FFEEF5;border-radius:8px;padding:6px 8px;">
+      <span style="font-size:11px;font-weight:600;color:#7C0C44;">Adulto+ M <span style="font-weight:400;opacity:.7;">(51+)</span></span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button onclick="crAjFoto('adulto_plus_m',-1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">−</button>
+        <span id="cr-foto-adulto_plus_m" style="font-size:14px;font-weight:700;min-width:16px;text-align:center;color:#7C0C44;">0</span>
+        <button onclick="crAjFoto('adulto_plus_m',1)" style="width:24px;height:24px;border:1px solid #FFB3D4;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#7C0C44;">+</button>
+      </div>
+    </div>
+
+  </div>
   <div style="background:#f7f7f5;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:4px;">
     <span style="font-size:11px;color:#888;">Total </span>
     <span id="cr-precio" style="font-size:18px;font-weight:700;color:#1D9E75;"></span>
