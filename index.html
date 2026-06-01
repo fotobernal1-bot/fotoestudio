@@ -722,7 +722,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
         </div>
       </div>
-      <div class="g2" style="margin-bottom:14px;">
+      <div class="g2" style="margin-bottom:8px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
           <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
           <div class="ss" id="rep-periodo">—</div>
@@ -730,6 +730,23 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         <div class="stat">
           <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
           <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
+          <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0e0e0;display:flex;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:#0C7ED6;">⚡ <span id="rep-cnt-urg">0</span> urgentes</span>
+            <span style="font-size:11px;color:#0C447C;">📅 <span id="rep-cnt-ord">0</span> ordinarios</span>
+            <span style="font-size:11px;color:#1D9E75;">🖨 <span id="rep-cnt-imp">0</span> impresiones</span>
+          </div>
+        </div>
+      </div>
+      <div class="g2" style="margin-bottom:14px;">
+        <div class="stat" style="background:#EBF3FF;border-color:#90BEFF;">
+          <div class="sl">Personas fotografiadas (urgentes)</div>
+          <div class="sv" style="color:#0C447C;" id="rep-fotos-urg">—</div>
+          <div class="ss" id="rep-fotos-urg-hm" style="color:#555;">—</div>
+        </div>
+        <div class="stat" style="background:#f7f7f5;border-color:#e0e0e0;">
+          <div class="sl">Fotografiados (ordinarios)</div>
+          <div class="sv" style="color:#0C447C;" id="rep-fotos-ord">—</div>
+          <div class="ss" id="rep-fotos-ord-hm" style="color:#555;">—</div>
         </div>
       </div>
       <p class="slabel">Urgentes</p>
@@ -2464,6 +2481,17 @@ function renderReportes(){
   set('rep-numventas',num);
   set('rep-periodo',labels[periodoActual]||'—');
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  // Conteo por tipo
+  var cntUrg=0, cntOrd=0, cntImp=0;
+  ventasActivas.forEach(function(v){
+    if(v.origen==='urgentes'||(v.folio||'').startsWith('F-U')) cntUrg++;
+    else if(v.origen==='escuelas') cntOrd++;
+    else if(v.origen==='impresiones'||(v.folio||'').startsWith('IMP')) cntImp++;
+    else if(v.origen==='visas') {} // visas no cuenta en estos 3
+  });
+  set('rep-cnt-urg', cntUrg);
+  set('rep-cnt-ord', cntOrd);
+  set('rep-cnt-imp', cntImp);
   const urg={},vis={},esc={},imp={};
   ventasActivas.forEach(v=>{
     (v.items||[]).forEach(item=>{
@@ -2481,6 +2509,38 @@ function renderReportes(){
   renderSeccion('rep-urgentes',urg);
   renderSeccion('rep-visas',vis);
   renderSeccion('rep-escuelas',esc);
+
+  // Contador fotografiados urgentes
+  var fUrgH=0, fUrgM=0;
+  ventasActivas.forEach(function(v){
+    if(v.origen!=='urgentes' && v.origen!=='visas') return;
+    (v.items||[]).forEach(function(it){
+      if(it.clienteData && it.clienteData.fotografiados){
+        var f=it.clienteData.fotografiados;
+        fUrgH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        fUrgM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+      }
+    });
+  });
+  var fUrgTotal = fUrgH+fUrgM;
+  set('rep-fotos-urg', fUrgTotal>0 ? fUrgTotal+' personas' : '—');
+  set('rep-fotos-urg-hm', fUrgTotal>0 ? 'H: '+fUrgH+' · M: '+fUrgM : 'Sin datos aún');
+
+  // Contador fotografiados ordinarios
+  var fOrdH=0, fOrdM=0;
+  ventasActivas.forEach(function(v){
+    if(v.origen!=='escuelas') return;
+    (v.items||[]).forEach(function(it){
+      if(it.clienteData && it.clienteData.fotografiados){
+        var f=it.clienteData.fotografiados;
+        fOrdH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        fOrdM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+      }
+    });
+  });
+  var fOrdTotal = fOrdH+fOrdM;
+  set('rep-fotos-ord', fOrdTotal>0 ? fOrdTotal+' personas' : '—');
+  set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
   renderSeccion('rep-impresiones',imp);
   renderDesgloseSpecs(ventasActivas);
   renderDesgloseOrdinarios(ventasActivas);
@@ -2600,8 +2660,8 @@ function renderDesgloseSpecs(ventas){
 
   // Sexo pagador
   if(clientesData.length){
-    // Columna izquierda: Sexo + Edad
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +'</div>';
+    // Columna izquierda: Sexo + Edad (del pagador) + resumen total fotografiados
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:9px;color:#bbb;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +((fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Total fotografiados (real)</p>'          +barra('Hombre', (fotoNinoH+fotoJovenH+fotoAdultoH+fotoAdultoPlusH), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#0C447C')          +barra('Mujer', (fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#7C0C44')          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong> personas fotografiadas</div>'          +'</div>'        : '')      +'</div>';
 
     // Columna derecha: Personas fotografiadas + Color/B&N
     html += '<div style="background:white;border-radius:8px;padding:10px;">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
