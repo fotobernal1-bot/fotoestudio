@@ -2687,10 +2687,15 @@ function renderDesgloseSpecs(ventas){
       // Extraer nombre base de la escuela (sin " — H" o " — M")
       var nombre = it.nombre.replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim();
       if(!nombre) return;
-      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0};
+      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0, personas:0};
       escuelasTemporales[nombre].ventas++;
       escuelasTemporales[nombre].total+=(it.precio||0);
       if(mes) escuelasTemporales[nombre].meses[mes]=(escuelasTemporales[nombre].meses[mes]||0)+1;
+      // Sumar personas fotografiadas
+      if(it.clienteData && it.clienteData.fotografiados){
+        var f=it.clienteData.fotografiados;
+        escuelasTemporales[nombre].personas+=(f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)+(f.adulto_h||0)+(f.adulto_m||0)+(f.adulto_plus_h||0)+(f.adulto_plus_m||0);
+      }
     });
   });
 
@@ -2851,7 +2856,8 @@ function renderDesgloseSpecs(ventas){
       +'<table style="width:100%;border-collapse:collapse;font-size:11px;">'
       +'<thead><tr style="border-bottom:1px solid #e0e0e0;">'
       +'<th style="padding:5px 8px;text-align:left;color:#888;font-size:10px;">Escuela</th>'
-      +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Ventas</th>'
+      +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Paquetes</th>'
+      +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Personas</th>'
       +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Total</th>'
       +'<th style="padding:5px 8px;text-align:left;color:#888;font-size:10px;">Meses activos</th>'
       +'</tr></thead><tbody>'
@@ -2859,9 +2865,11 @@ function renderDesgloseSpecs(ventas){
         var mesesStr = Object.entries(e[1].meses)
           .sort(function(a,b){return MESES_NOMBRE.indexOf(a[0])-MESES_NOMBRE.indexOf(b[0]);})
           .map(function(m){ return '<span style="background:#E1F5EE;color:#085041;padding:1px 5px;border-radius:4px;margin-right:3px;font-size:10px;">'+m[0]+(m[1]>1?' x'+m[1]:'')+'</span>'; }).join('');
+        var personasStr = e[1].personas > 0 ? '<span style="color:#0C447C;font-weight:600;">'+e[1].personas+'</span>' : '<span style="color:#ccc;">—</span>';
         return '<tr style="border-bottom:1px solid #f5f5f5;">'
           +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+e[0]+'</td>'
           +'<td style="padding:6px 8px;text-align:center;">'+e[1].ventas+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;">'+personasStr+'</td>'
           +'<td style="padding:6px 8px;text-align:center;color:#1D9E75;font-weight:600;">$'+e[1].total+'</td>'
           +'<td style="padding:6px 8px;">'+mesesStr+'</td>'
           +'</tr>';
