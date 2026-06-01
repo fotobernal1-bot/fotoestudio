@@ -1454,6 +1454,31 @@ function cobrarSpecsUrgente(){
   renderCarrito();
   closeM('m-specs-urgente');
 }
+
+function cobrarSpecsUrgenteYOtro(){
+  // Agrega al carrito igual que cobrarSpecsUrgente pero reabre el popup
+  // para el mismo producto con specs reseteadas
+  var s = _specUrg;
+  var vestFinal = s.vestimenta || document.getElementById('su-vest-txt').value.trim();
+  var barbaPrecio = parseInt(document.getElementById('su-barba-precio').value) || 0;
+  var specs = {
+    sexo: s.sexo, color: s.color, adherible: s.adherible,
+    fondo: s.fondo, vestimenta: vestFinal,
+    cabello: s.cabello, aretes: s.aretes, barba: s.barba,
+    barba_edicion: barbaPrecio > 0 ? barbaPrecio : 0
+  };
+  var extras = [];
+  if(s.adherible) extras.push('adh');
+  if(s.sexo) extras.push(s.sexo);
+  if(barbaPrecio > 0) extras.push('barba $'+barbaPrecio);
+  var nombreDisplay = s.nombre + (extras.length ? ' ('+extras.join(', ')+')' : '');
+  carrito.push({nombre:nombreDisplay, precio:s.precio, tipo:s.tipo, specs:specs});
+  renderCarrito();
+  // Mostrar toast y reabrir el mismo producto desde cero
+  showToast('✅ Agregado — configura el siguiente');
+  // Reabrir el mismo producto
+  abrirSpecsUrgente(s.cat, s.idx);
+}
 function delItem(i){carrito.splice(i,1);renderCarrito();}
 function limpiar(){carrito=[];document.getElementById('pago').value='';renderCarrito();}
 function showToast(msg){
@@ -5787,9 +5812,10 @@ function mostrarEmailStatus(tipo, msg){
     <div id="su-precio" style="font-size:22px;font-weight:700;color:#1D9E75;">$0</div>
   </div>
 
-  <div class="modal-btns">
+  <div class="modal-btns" style="flex-wrap:wrap;gap:6px;">
     <button class="btn bgray" onclick="closeM('m-specs-urgente')">Cancelar</button>
-    <button class="btn bgreen" onclick="cobrarSpecsUrgente()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+    <button class="btn bgray" style="color:#0C447C;border-color:#90BEFF;" onclick="cobrarSpecsUrgenteYOtro()"><i class="ti ti-plus"></i> Agregar y otro</button>
+    <button class="btn bgreen" onclick="cobrarSpecsUrgente()"><i class="ti ti-shopping-cart"></i> Listo</button>
   </div>
 </div></div>
 
