@@ -65,14 +65,23 @@ header span{font-size:.7rem;color:var(--txt2);}
 .drop-zone strong{color:var(--acc);}
 .prev{width:100%;max-height:110px;object-fit:cover;border-radius:4px;display:none;margin-top:8px;border:1px solid var(--brd);}
 .photo-types{display:flex;flex-direction:column;gap:6px;}
-.photo-row{display:grid;grid-template-columns:1fr 68px 30px;align-items:center;gap:5px;}
+.photo-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px;}
+.qty-ctrl{display:flex;align-items:center;gap:3px;}
+.qb{background:none;border:1px solid var(--brd);border-radius:4px;color:var(--acc);cursor:pointer;width:24px;height:28px;font-size:.9rem;font-weight:700;transition:all .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.qb:hover{border-color:var(--acc);background:rgba(200,168,75,.12);}
+/* Zoom controls */
+.zoom-bar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--sur);border-bottom:1px solid var(--brd);width:100%;position:sticky;top:0;z-index:10;}
+.zoom-label{font-size:.68rem;color:var(--txt2);white-space:nowrap;}
+.zoom-val{font-size:.75rem;color:var(--acc);width:38px;text-align:center;}
+.zb{background:none;border:1px solid var(--brd);border-radius:4px;color:var(--acc);cursor:pointer;width:28px;height:28px;font-size:1rem;font-weight:700;transition:all .15s;display:flex;align-items:center;justify-content:center;}
+.zb:hover{border-color:var(--acc);background:rgba(200,168,75,.15);}
+.zoom-slider{flex:1;accent-color:var(--acc);cursor:pointer;}
 .pl{font-size:.74rem;font-weight:500;}
 .ps{font-size:.61rem;color:var(--txt2);}
 .pg{font-size:.59rem;color:var(--grn);min-height:13px;}
 .qi{background:var(--sur2);border:1px solid var(--brd);border-radius:4px;color:var(--txt);font-family:'DM Mono',monospace;font-size:.82rem;padding:5px 6px;text-align:center;width:100%;transition:border-color .15s;}
 .qi:focus{outline:none;border-color:var(--acc);}
-.xb{background:none;border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;padding:4px;font-size:.7rem;transition:all .15s;}
-.xb:hover{border-color:var(--red);color:var(--red);}
+
 .wf,.og{display:flex;flex-direction:column;gap:6px;}
 .fr{display:grid;grid-template-columns:68px 1fr;align-items:center;gap:6px;}
 .fl{font-size:.69rem;color:var(--txt2);}
@@ -93,7 +102,8 @@ select.fi{cursor:pointer;}
 .bs{background:transparent;color:var(--txt2);border:1px solid var(--brd);border-radius:6px;font-family:'DM Mono',monospace;font-size:.74rem;padding:8px 14px;cursor:pointer;transition:all .2s;width:100%;margin-top:5px;}
 .bs:hover{border-color:var(--acc);color:var(--acc);}
 /* Canvas area */
-.ca{background:var(--bg);padding:18px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:20px;max-height:calc(100vh - 72px);}
+.ca-wrap{display:flex;flex-direction:column;max-height:calc(100vh - 72px);overflow:hidden;}
+.ca{background:var(--bg);padding:18px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:20px;flex:1;}
 .cph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;color:var(--txt2);font-size:.76rem;gap:10px;text-align:center;}
 .cph .bi{font-size:2.6rem;opacity:.22;}
 .sw{display:flex;flex-direction:column;align-items:center;gap:0;}
@@ -144,28 +154,43 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
       <div class="photo-types">
         <div class="photo-row">
           <div><div class="pl">Credencial R</div><div class="ps">3.5 × 4.5 cm</div><div class="pg" id="g_credR"></div></div>
-          <input class="qi" type="number" id="q_credR" min="0" value="0">
-          <button class="xb" onclick="sq('credR',0)">✕</button>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="adj('credR',-1)">−</button>
+            <input class="qi" type="number" id="q_credR" min="0" value="0" style="width:46px">
+            <button class="qb" onclick="adj('credR',1)">+</button>
+          </div>
         </div>
         <div class="photo-row">
           <div><div class="pl">Credencial Oval</div><div class="ps">3.5 × 5.0 cm</div><div class="pg" id="g_credO"></div></div>
-          <input class="qi" type="number" id="q_credO" min="0" value="0">
-          <button class="xb" onclick="sq('credO',0)">✕</button>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="adj('credO',-1)">−</button>
+            <input class="qi" type="number" id="q_credO" min="0" value="0" style="width:46px">
+            <button class="qb" onclick="adj('credO',1)">+</button>
+          </div>
         </div>
         <div class="photo-row">
           <div><div class="pl">Infantil R</div><div class="ps">2.5 × 3.0 cm</div><div class="pg" id="g_inf"></div></div>
-          <input class="qi" type="number" id="q_inf" min="0" value="0">
-          <button class="xb" onclick="sq('inf',0)">✕</button>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="adj('inf',-1)">−</button>
+            <input class="qi" type="number" id="q_inf" min="0" value="0" style="width:46px">
+            <button class="qb" onclick="adj('inf',1)">+</button>
+          </div>
         </div>
         <div class="photo-row">
           <div><div class="pl">Diploma</div><div class="ps">5.0 × 7.0 cm</div><div class="pg" id="g_dip"></div></div>
-          <input class="qi" type="number" id="q_dip" min="0" value="0">
-          <button class="xb" onclick="sq('dip',0)">✕</button>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="adj('dip',-1)">−</button>
+            <input class="qi" type="number" id="q_dip" min="0" value="0" style="width:46px">
+            <button class="qb" onclick="adj('dip',1)">+</button>
+          </div>
         </div>
         <div class="photo-row">
           <div><div class="pl">Título</div><div class="ps">6.0 × 9.0 cm</div><div class="pg" id="g_tit"></div></div>
-          <input class="qi" type="number" id="q_tit" min="0" value="0">
-          <button class="xb" onclick="sq('tit',0)">✕</button>
+          <div class="qty-ctrl">
+            <button class="qb" onclick="adj('tit',-1)">−</button>
+            <input class="qi" type="number" id="q_tit" min="0" value="0" style="width:46px">
+            <button class="qb" onclick="adj('tit',1)">+</button>
+          </div>
         </div>
       </div>
     </div>
@@ -193,12 +218,22 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
     </div>
   </div>
   <!-- CANVAS -->
+  <div class="ca-wrap">
+    <div class="zoom-bar">
+      <span class="zoom-label">🔍 Zoom plantilla:</span>
+      <button class="zb" id="zOut">−</button>
+      <input type="range" class="zoom-slider" id="zSlider" min="20" max="150" value="100">
+      <button class="zb" id="zIn">+</button>
+      <span class="zoom-val" id="zVal">100%</span>
+      <button class="zb" style="margin-left:4px;font-size:.65rem;width:auto;padding:0 8px;" id="zReset">↺</button>
+    </div>
   <div class="ca" id="ca">
     <div class="cph" id="cph">
       <span class="bi">🖨</span>
       <div>Ingresa el pedido y haz clic en<br><strong style="color:var(--acc)">CALCULAR Y GENERAR</strong></div>
     </div>
   </div>
+  </div><!-- end ca-wrap -->
 </div>
 <div class="toast" id="toast"></div>
 
@@ -258,6 +293,24 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if
 function lp(f){if(!f)return;const r=new FileReader();r.onload=ev=>li(ev.target.result).then(img=>{cImg=img;pv.src=ev.target.result;pv.style.display='block';toast('📷 '+f.name);});r.readAsDataURL(f);}
 
 function sq(t,v){document.getElementById('q_'+t).value=v;ug();}
+function adj(t,d){const el=document.getElementById('q_'+t);el.value=Math.max(0,(parseInt(el.value)||0)+d);ug();}
+
+// =====================================================
+// ZOOM INDEPENDIENTE DEL CANVAS
+// =====================================================
+let zoomLevel=100;
+function applyZoom(){
+  document.querySelectorAll('.sw canvas').forEach(cv=>{
+    cv.style.width=Math.round(cv.dataset.baseW*(zoomLevel/100))+'px';
+    cv.style.height=Math.round(cv.dataset.baseH*(zoomLevel/100))+'px';
+  });
+  document.getElementById('zVal').textContent=zoomLevel+'%';
+  document.getElementById('zSlider').value=zoomLevel;
+}
+document.getElementById('zIn').addEventListener('click',()=>{zoomLevel=Math.min(150,zoomLevel+10);applyZoom();});
+document.getElementById('zOut').addEventListener('click',()=>{zoomLevel=Math.max(20,zoomLevel-10);applyZoom();});
+document.getElementById('zReset').addEventListener('click',()=>{zoomLevel=100;applyZoom();});
+document.getElementById('zSlider').addEventListener('input',e=>{zoomLevel=parseInt(e.target.value);applyZoom();});
 ['credR','credO','inf','dip','tit'].forEach(t=>document.getElementById('q_'+t).addEventListener('input',ug));
 
 // =====================================================
@@ -515,10 +568,11 @@ function renderPlan(plan,wm){
 
     const cv=document.createElement('canvas');
     cv.width=cw; cv.height=ch;
-    const maxW=ca.clientWidth-50;
-    const ds=Math.min(1,maxW/cw);
-    cv.style.width=Math.round(cw*ds)+'px';
-    cv.style.height=Math.round(ch*ds)+'px';
+    const baseScale=Math.min(1,(ca.clientWidth-50)/cw);
+    cv.dataset.baseW=Math.round(cw*baseScale);
+    cv.dataset.baseH=Math.round(ch*baseScale);
+    cv.style.width=Math.round(cw*baseScale*(zoomLevel/100))+'px';
+    cv.style.height=Math.round(ch*baseScale*(zoomLevel/100))+'px';
     wrap.appendChild(cv);
 
     const dlr=document.createElement('div');
