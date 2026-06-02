@@ -581,13 +581,19 @@ function layoutInSheet(sw,sh,types){
     const pw=f.rot?pt.h:pt.w,ph=f.rot?pt.w:pt.h;
     const cols=f.rot?f.cols_r:f.cols_n;
     if(cols===0) return null;
-    const need=t.need+1;
+    const need=t.need+1; // mínimo pedido+1 sin marca
     const rowsNeed=Math.ceil(need/cols);
     const rowsMax=Math.floor((remH+GAP)/(ph+GAP));
     const rows=Math.max(1,Math.min(rowsNeed,rowsMax));
-    const count=cols*rows;
-    const zh=rows*ph+(rows-1)*GAP;
-    zones.push({type:t.type,x:0,y:usedY,w:sw,h:zh,cols,rows,count,rot:f.rot,pw,ph,paqId:t.paqId});
+    // Llenar toda la hoja disponible para este tipo (máximo aprovechamiento)
+    const rowsFull=Math.floor((remH+GAP)/(ph+GAP));
+    const rowsFinal=Math.max(rows,Math.min(rowsFull,rows+1)); // una fila extra si cabe
+    const count=cols*rowsFinal;
+    const zh=rowsFinal*ph+(rowsFinal-1)*GAP;
+    // La última foto siempre lleva marca de agua (publicidad)
+    // Si count > need → hay extras → última lleva marca
+    const wmPhotoIdx=count>need?count-1:-1;
+    zones.push({type:t.type,x:0,y:usedY,w:sw,h:zh,cols,rows:rowsFinal,count,rot:f.rot,pw,ph,paqId:t.paqId,need,wmPhotoIdx});
     usedY+=zh+GAP;
   }
   const remH=sh-usedY+GAP;
@@ -823,12 +829,18 @@ function drawSheet(cv,sd,wm,paqs){
     const zxp=Math.round(z.x*C2P),zyp=Math.round(z.y*C2P);
     const pwp=Math.round(z.pw*C2P),php=Math.round(z.ph*C2P);
     const gp=Math.round(GAP*C2P);
-    let idx=0;
+    let photoIdx=0;
     for(let r=0;r<z.rows;r++){
       for(let c=0;c<z.cols;c++){
-        if(idx>=z.count) break;
-        drawPhoto(ctx,zxp+c*(pwp+gp),zyp+r*(php+gp),pwp,php,z.rot,img);
-        idx++;
+        if(photoIdx>=z.count) break;
+        const px=zxp+c*(pwp+gp), py=zyp+r*(php+gp);
+        drawPhoto(ctx,px,py,pwp,php,z.rot,img);
+        // Marca de agua en la foto extra (wmPhotoIdx)
+        if(photoIdx===z.wmPhotoIdx){
+          const folio=paq?paq.folio:'';
+          drawWM(ctx,px,py,pwp,php,{...wm,folio});
+        }
+        photoIdx++;
       }
     }
   }
@@ -953,7 +965,7 @@ document.getElementById('btnGen').addEventListener('click',()=>{
       <div class="rsheet-title">Hoja ${i+1} — ${sd.sh.id}" $${sd.sh.price} ${paqNombres?'· '+paqNombres:''}</div>`;
     for(const z of sd.layout.zones){
       const paq=paquetes.find(p=>p.id===z.paqId);
-      html+=`<div class="rline">· ${PT[z.type].label}: <b>${z.count}</b>${paq?' ('+paq.nombre+')':''}</div>`;
+      html+=`<div class="rline">· ${PT[z.type].label}: <b>${z.count}</b>${paq?' ('+paq.nombre+')':''}${z.wmPhotoIdx>=0?` <span style="color:var(--acc)">✓ 1 con marca</span>`:''}</div>`;
     }
     if(sd.layout.giftZone){
       const g=sd.layout.giftZone;
