@@ -751,15 +751,19 @@ function layoutInSheet(sw,sh,types){
     const pw=f.rot?pt.h:pt.w,ph=f.rot?pt.w:pt.h;
     const cols=f.rot?f.cols_r:f.cols_n;
     if(cols===0) return null;
-    const need=t.need+1; // mínimo pedido+1 sin marca
+    const ordered=t.need;           // lo que pidió el cliente
+    const need=ordered+1;           // mínimo a entregar (pedido+1)
     const rowsNeed=Math.ceil(need/cols);
     const rowsMax=Math.floor((remH+GAP)/(ph+GAP));
-    // Máximo: filas necesarias + 1 fila extra (no llenar toda la hoja)
-    const rowsFinal=Math.min(rowsNeed+1, rowsMax);
+    // Extra: máximo 1 fila adicional Y nunca más del doble de lo pedido
+    const rowsWithExtra=Math.min(rowsNeed+1, rowsMax);
+    const countWithExtra=cols*rowsWithExtra;
+    // Si la fila extra supera 2× el pedido, no agregarla
+    const maxAllowed=Math.max(need, ordered*2);
+    const rowsFinal=countWithExtra<=maxAllowed ? rowsWithExtra : rowsNeed;
     const count=cols*rowsFinal;
     const zh=rowsFinal*ph+(rowsFinal-1)*GAP;
-    // La última foto siempre lleva marca de agua (publicidad)
-    // Si count > need → hay extras → última lleva marca
+    // La última foto extra lleva marca de agua
     const wmPhotoIdx=count>need?count-1:-1;
     zones.push({type:t.type,x:0,y:usedY,w:sw,h:zh,cols,rows:rowsFinal,count,rot:f.rot,pw,ph,paqId:t.paqId,need,wmPhotoIdx});
     usedY+=zh+GAP;
@@ -830,12 +834,13 @@ function optimizeSinglePaq(paq){
       const sheetArea=sw*shh;
       const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
       const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
-      const score=sh.price*(1+wasteRatio*0.5);
+      const score=sh.price*(1+wasteRatio*1.5);
       if(score<bestC){bestC=score;best={sheets:[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:[paq.id]}],cost:sh.price};}
     }
   }
   // Múltiples hojas (auto)
   if(sepMode!=='mixto'){
+    // Opción A: dividir tipos entre hojas (para pedidos con múltiples tipos)
     const n=types.length;
     for(let mask=1;mask<(1<<n)-1;mask++){
       const g1=[],g2=[];
@@ -848,6 +853,38 @@ function optimizeSinglePaq(paq){
         {...r1,paqIds:[paq.id]},
         {...r2,paqIds:[paq.id]}
       ],cost:c};}
+    }
+
+    // Opción B: mismo tipo en múltiples hojas (ej: 6 título → 2 hojas 6×8)
+    // Probar dividir el pedido en 2, 3 partes iguales
+    for(const t of types){
+      const totalNeed=t.need;
+      for(let numSheets=2; numSheets<=4; numSheets++){
+        const perSheet=Math.ceil(totalNeed/numSheets);
+        const subTypes=[{...t, need:perSheet}];
+        // Primera hoja necesita regalo
+        const r1=bestSheet(subTypes,true);
+        if(!r1) continue;
+        // Hojas adicionales sin regalo
+        const otherSheets=[];
+        let totalCost=r1.cost;
+        let valid=true;
+        for(let s=1;s<numSheets;s++){
+          const remaining=totalNeed-perSheet*s;
+          if(remaining<=0) break;
+          const subR=[{...t, need:Math.min(perSheet,remaining)}];
+          const rs=bestSheet(subR,false);
+          if(!rs){valid=false;break;}
+          otherSheets.push({...rs,paqIds:[paq.id]});
+          totalCost+=rs.cost;
+        }
+        if(!valid) continue;
+        if(totalCost<bestC){
+          bestC=totalCost;
+          const allSheets=[{...r1,paqIds:[paq.id]},...otherSheets];
+          best={sheets:allSheets,cost:totalCost};
+        }
+      }
     }
   }
   return best;
@@ -873,7 +910,7 @@ function bestSheet(types,needGift){
       const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
       const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
       // Penalizar hojas caras con mucho desperdicio
-      const score=sh.price*(1+wasteRatio*0.5);
+      const score=sh.price*(1+wasteRatio*1.5);
       if(score<bestScore){bestScore=score;best={sh,ori,sw,shh,layout,cost:sh.price};}
     }
   }
@@ -1233,7 +1270,8 @@ function openCropModal(paqId, fotoIdx){
   document.getElementById('cropModal').classList.add('open');
   document.getElementById('multEsternon').value=MULT_ESTERNON;
   document.getElementById('multAbdomen').value=MULT_ABDOMEN;
-  renderModalCanvas();
+  // Esperar a que el modal sea visible (display:flex) antes de medir clientWidth
+  requestAnimationFrame(()=>requestAnimationFrame(()=>renderModalCanvas()));
 }
 
 function closeCropModal(){
@@ -1278,11 +1316,19 @@ function renderModalCanvas(){
   const img=f.img;
   const wrap=document.getElementById('modalCanvasWrap');
   const cv=document.getElementById('modalCanvas');
-  const maxW=Math.min(640, wrap.clientWidth||600);
+
+  // Medir el ancho real del contenedor; si aún es 0, usar el ancho del modal-box
+  let availW=wrap.clientWidth;
+  if(!availW){
+    const box=document.querySelector('.modal-box');
+    availW=box?box.clientWidth-40:600; // 40 = padding 20px * 2
+  }
+  const maxW=Math.min(640, availW||600);
   const scale=maxW/img.width;
+
   cv.width=img.width;
   cv.height=img.height;
-  cv.style.width=Math.round(img.width*scale)+'px';
+  cv.style.width=maxW+'px';
   cv.style.height=Math.round(img.height*scale)+'px';
 
   const ctx=cv.getContext('2d');
@@ -1301,36 +1347,38 @@ function renderModalCanvas(){
   const faceBottom=faceTop+faceH;
   const topPad=faceH*0.22;
   const sy=Math.max(0,faceTop-topPad+offset*img.height);
+  const cutE=faceBottom+faceH*MULT_ESTERNON;
+  const cutA=faceBottom+faceH*MULT_ABDOMEN;
 
-  // Línea de cara
+  // Overlay oscuro PRIMERO (debajo de las líneas y etiquetas)
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(0,0,img.width,sy); // arriba del encuadre
+  if(cutA<img.height) ctx.fillRect(0,cutA,img.width,img.height-cutA); // debajo del corte
+
+  // Línea inicio encuadre (azul punteada)
   ctx.strokeStyle='rgba(75,139,200,0.9)';
   ctx.lineWidth=3;
   ctx.setLineDash([8,4]);
   ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(img.width,sy);ctx.stroke();
 
-  // Línea esternón
-  const cutE=faceBottom+faceH*MULT_ESTERNON;
+  // Línea esternón (roja)
   ctx.strokeStyle='rgba(255,107,107,0.9)';
   ctx.lineWidth=3;
   ctx.setLineDash([]);
   ctx.beginPath();ctx.moveTo(0,cutE);ctx.lineTo(img.width,cutE);ctx.stroke();
 
-  // Línea abdomen
-  const cutA=faceBottom+faceH*MULT_ABDOMEN;
+  // Línea abdomen (verde)
   ctx.strokeStyle='rgba(75,200,122,0.9)';
   ctx.lineWidth=3;
   ctx.beginPath();ctx.moveTo(0,cutA);ctx.lineTo(img.width,cutA);ctx.stroke();
   ctx.setLineDash([]);
 
-  // Overlay oscuro fuera del encuadre abdomen (para visualizar el recorte)
-  ctx.fillStyle='rgba(0,0,0,0.45)';
-  ctx.fillRect(0,0,img.width,sy); // arriba
-  if(cutA<img.height) ctx.fillRect(0,cutA,img.width,img.height-cutA); // abajo
-
-  // Etiquetas
-  ctx.font=`bold ${Math.round(img.height*0.025)}px monospace`;
+  // Etiquetas (encima del overlay)
+  const fontSize=Math.round(img.height*0.025);
+  ctx.font=`bold ${fontSize}px monospace`;
+  const labelY_sy=sy>fontSize+8 ? sy-6 : sy+fontSize+4; // evitar salirse por arriba
   ctx.fillStyle='rgba(75,139,200,1)';
-  ctx.fillText('► inicio encuadre',8,sy-6);
+  ctx.fillText('► inicio encuadre',8,labelY_sy);
   ctx.fillStyle='rgba(255,107,107,1)';
   ctx.fillText('► esternón',8,Math.min(cutE-6,img.height-4));
   ctx.fillStyle='rgba(75,200,122,1)';
@@ -1347,6 +1395,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(modal) modal.addEventListener('click',e=>{
     if(e.target===modal) closeCropModal();
   });
+  // Re-renderizar canvas si el ancho del modal cambia (p.ej. resize de ventana)
+  const wrap=document.getElementById('modalCanvasWrap');
+  if(wrap && window.ResizeObserver){
+    new ResizeObserver(()=>{
+      if(modal && modal.classList.contains('open')) renderModalCanvas();
+    }).observe(wrap);
+  }
 });
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
