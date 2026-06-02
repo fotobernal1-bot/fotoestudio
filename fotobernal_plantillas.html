@@ -276,6 +276,7 @@ function createPaquete(){
     orden:{credR:0,credO:0,inf:0,dip:0,tit:0},
     fotoAsign:{credR:0,credO:0,inf:0,dip:0,tit:0},
     folio:'',
+    sepMode:'auto', // 'auto','separar','mixto'
     collapsed:false,
   };
 }
@@ -285,7 +286,14 @@ function setFotoAsign(id,type,val){
   if(!p) return;
   if(!p.fotoAsign) p.fotoAsign={};
   p.fotoAsign[type]=parseInt(val)||0;
-  // Refresh body to update tag colors
+  const body=document.querySelector(`#paq_${id} .paq-body`);
+  if(body) body.innerHTML=buildPaqBody(p);
+}
+
+function setSepMode(id,mode){
+  const p=paquetes.find(p=>p.id===id);
+  if(!p) return;
+  p.sepMode=mode;
   const body=document.querySelector(`#paq_${id} .paq-body`);
   if(body) body.innerHTML=buildPaqBody(p);
 }
@@ -376,6 +384,24 @@ function buildPaqBody(paq){
 
     <div class="stitle" style="margin-top:10px">📋 Cantidades pedidas</div>
     <div class="photo-types">${tiposHTML}</div>
+
+    ${paq.fotos.length>1?`
+    <div class="sep-mode" style="margin-top:8px;padding:8px 10px;background:var(--sur);border:1px solid var(--brd);border-radius:5px;">
+      <div style="font-size:.62rem;color:var(--txt2);margin-bottom:6px;">🗂 Hojas por foto fuente:</div>
+      <div style="display:flex;gap:6px;">
+        ${['auto','separar','mixto'].map(m=>`
+          <button onclick="setSepMode(${paq.id},'${m}')"
+            style="flex:1;padding:5px 4px;border-radius:4px;font-family:'DM Mono',monospace;font-size:.62rem;cursor:pointer;border:1px solid ${paq.sepMode===m?'var(--acc)':'var(--brd)'};background:${paq.sepMode===m?'rgba(200,168,75,.18)':'var(--sur2)'};color:${paq.sepMode===m?'var(--acc)':'var(--txt2)'};">
+            ${m==='auto'?'🤖 Auto':m==='separar'?'📄 Separar':'🔀 Mixto'}
+          </button>
+        `).join('')}
+      </div>
+      <div style="font-size:.6rem;color:var(--txt2);margin-top:5px;">
+        ${paq.sepMode==='separar'?'Cada foto en su propia hoja':
+          paq.sepMode==='mixto'?'Todas las fotos pueden ir en la misma hoja':
+          'El algoritmo decide lo más económico'}
+      </div>
+    </div>`:''}
 
     <div class="paq-folio">
       <label>Folio #</label>
@@ -585,6 +611,34 @@ function layoutInSheet(sw,sh,types){
 function optimizeSinglePaq(paq){
   const types=TORD.filter(t=>(paq.orden[t]||0)>0).map(t=>({type:t,need:paq.orden[t],paqId:paq.id}));
   if(types.length===0) return null;
+
+  const sepMode=paq.sepMode||'auto';
+  const multiFoto=paq.fotos.length>1;
+
+  // MODO SEPARAR: agrupar tipos por foto fuente asignada, cada grupo en su hoja
+  if(sepMode==='separar'&&multiFoto){
+    // Agrupar types por fotoAsign
+    const groups={};
+    for(const t of types){
+      const fi=(paq.fotoAsign&&paq.fotoAsign[t.type])||0;
+      if(!groups[fi]) groups[fi]=[];
+      groups[fi].push(t);
+    }
+    const groupKeys=Object.keys(groups);
+    let allSheets=[],totalCost=0;
+    // Primera hoja del primer grupo necesita regalo
+    for(let gi=0;gi<groupKeys.length;gi++){
+      const grp=groups[groupKeys[gi]];
+      const needGift=gi===0; // solo primera hoja tiene regalo
+      const res=bestSheet(grp,needGift);
+      if(!res) return null;
+      allSheets.push({...res,paqIds:[paq.id]});
+      totalCost+=res.cost;
+    }
+    return{sheets:allSheets,cost:totalCost};
+  }
+
+  // MODO MIXTO o AUTO: optimizar normalmente
   let best=null,bestC=Infinity;
   // Una hoja
   for(const sh of SH){
@@ -601,19 +655,21 @@ function optimizeSinglePaq(paq){
       if(sh.price<bestC){bestC=sh.price;best={sheets:[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:[paq.id]}],cost:sh.price};}
     }
   }
-  // Múltiples hojas
-  const n=types.length;
-  for(let mask=1;mask<(1<<n)-1;mask++){
-    const g1=[],g2=[];
-    for(let i=0;i<n;i++){if(mask&(1<<i))g1.push(types[i]);else g2.push(types[i]);}
-    if(!g1.length||!g2.length) continue;
-    const r1=bestSheet(g1,true),r2=bestSheet(g2,false);
-    if(!r1||!r2) continue;
-    const c=r1.cost+r2.cost;
-    if(c<bestC){bestC=c;best={sheets:[
-      {...r1,paqIds:[paq.id]},
-      {...r2,paqIds:[paq.id]}
-    ],cost:c};}
+  // Múltiples hojas (auto)
+  if(sepMode!=='mixto'){
+    const n=types.length;
+    for(let mask=1;mask<(1<<n)-1;mask++){
+      const g1=[],g2=[];
+      for(let i=0;i<n;i++){if(mask&(1<<i))g1.push(types[i]);else g2.push(types[i]);}
+      if(!g1.length||!g2.length) continue;
+      const r1=bestSheet(g1,true),r2=bestSheet(g2,false);
+      if(!r1||!r2) continue;
+      const c=r1.cost+r2.cost;
+      if(c<bestC){bestC=c;best={sheets:[
+        {...r1,paqIds:[paq.id]},
+        {...r2,paqIds:[paq.id]}
+      ],cost:c};}
+    }
   }
   return best;
 }
