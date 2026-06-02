@@ -754,10 +754,8 @@ function layoutInSheet(sw,sh,types){
     const need=t.need+1; // mínimo pedido+1 sin marca
     const rowsNeed=Math.ceil(need/cols);
     const rowsMax=Math.floor((remH+GAP)/(ph+GAP));
-    const rows=Math.max(1,Math.min(rowsNeed,rowsMax));
-    // Llenar toda la hoja disponible para este tipo (máximo aprovechamiento)
-    const rowsFull=Math.floor((remH+GAP)/(ph+GAP));
-    const rowsFinal=Math.max(rows,Math.min(rowsFull,rows+1)); // una fila extra si cabe
+    // Máximo: filas necesarias + 1 fila extra (no llenar toda la hoja)
+    const rowsFinal=Math.min(rowsNeed+1, rowsMax);
     const count=cols*rowsFinal;
     const zh=rowsFinal*ph+(rowsFinal-1)*GAP;
     // La última foto siempre lleva marca de agua (publicidad)
@@ -828,7 +826,12 @@ function optimizeSinglePaq(paq){
         if(!z||z.count<t.need+1){ok=false;break;}
       }
       if(!ok||!layout.giftZone) continue;
-      if(sh.price<bestC){bestC=sh.price;best={sheets:[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:[paq.id]}],cost:sh.price};}
+      // Score con penalización por desperdicio
+      const sheetArea=sw*shh;
+      const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
+      const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
+      const score=sh.price*(1+wasteRatio*0.5);
+      if(score<bestC){bestC=score;best={sheets:[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:[paq.id]}],cost:sh.price};}
     }
   }
   // Múltiples hojas (auto)
@@ -851,7 +854,7 @@ function optimizeSinglePaq(paq){
 }
 
 function bestSheet(types,needGift){
-  let best=null,bestC=Infinity;
+  let best=null,bestScore=Infinity;
   for(const sh of SH){
     for(const ori of ['portrait','landscape']){
       const sw=ori==='landscape'?sh.h:sh.w,shh=ori==='landscape'?sh.w:sh.h;
@@ -864,7 +867,14 @@ function bestSheet(types,needGift){
       }
       if(!ok) continue;
       if(needGift&&!layout.giftZone) continue;
-      if(sh.price<bestC){bestC=sh.price;best={sh,ori,sw,shh,layout,cost:sh.price};}
+      // Score = price + penalización por espacio desperdiciado
+      // Área usada vs área total
+      const sheetArea=sw*shh;
+      const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
+      const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
+      // Penalizar hojas caras con mucho desperdicio
+      const score=sh.price*(1+wasteRatio*0.5);
+      if(score<bestScore){bestScore=score;best={sh,ori,sw,shh,layout,cost:sh.price};}
     }
   }
   return best;
@@ -1233,6 +1243,16 @@ function closeCropModal(){
   if(p) setTimeout(()=>renderAllPreviews(p),50);
 }
 
+function modalResetOffset(){
+  const p=paquetes.find(p=>p.id===modalState.paqId);
+  if(!p) return;
+  const f=p.fotos[modalState.fotoIdx];
+  if(!f) return;
+  f.manualOffset=0;
+  modalState.foto=f;
+  renderModalCanvas();
+}
+
 function modalAdjOffset(delta){
   const p=paquetes.find(p=>p.id===modalState.paqId);
   if(!p) return;
@@ -1342,48 +1362,34 @@ refreshPaquetesUI();
   <div class="modal-box">
     <div class="modal-title">
       <span id="modalTitle">Encuadre de foto</span>
-      <button class="modal-close" onclick="closeCropModal()">✕ Cerrar</button>
+      <button class="modal-close" onclick="closeCropModal()">&#10005; Cerrar</button>
     </div>
-
-    <!-- Leyenda de líneas -->
     <div class="type-lines-legend">
-      <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternón (Inf, Cred.R)</span></div>
-      <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Cred.Oval, Dip, Tít, Regalo)</span></div>
-      <div class="tleg"><div class="tleg-dot" style="background:#4b8bc8"></div><span style="color:var(--txt2)">Inicio de cara</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternon (Inf, Cred.R)</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Cred.Oval, Dip, Tit, Regalo)</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#4b8bc8"></div><span style="color:var(--txt2)">Inicio encuadre</span></div>
     </div>
-
-    <!-- Canvas grande -->
     <div class="modal-canvas-wrap" id="modalCanvasWrap">
       <canvas id="modalCanvas"></canvas>
-      <div class="crop-line" id="lineTop"    style="border-top:2px dashed #4b8bc8;"></div>
-      <div class="crop-line" id="lineEsternon" style="border-top:2px solid #ff6b6b;"></div>
-      <div class="crop-line" id="lineAbdomen"  style="border-top:2px solid #4bc87a;"></div>
     </div>
-
-    <!-- Ajuste manual -->
     <div class="modal-controls">
       <span style="font-size:.72rem;color:var(--txt2);">Ajustar encuadre:</span>
-      <button class="modal-btn big" onclick="modalAdjOffset(-0.05)">▲ Subir</button>
-      <button class="modal-btn big" onclick="modalAdjOffset(0.05)">▼ Bajar</button>
-      <button class="modal-btn" onclick="modalAdjOffset(-(modalState.foto?.manualOffset||0))">↺ Reset</button>
+      <button class="modal-btn big" onclick="modalAdjOffset(-0.05)">&#9650; Subir</button>
+      <button class="modal-btn big" onclick="modalAdjOffset(0.05)">&#9660; Bajar</button>
+      <button class="modal-btn" onclick="modalResetOffset()">&#8635; Reset</button>
       <span id="modalOffsetVal" style="font-size:.72rem;color:var(--acc);">offset: 0%</span>
     </div>
-
-    <!-- Calibración de multiplicadores -->
-    <div style="font-size:.65rem;color:var(--txt2);margin-top:2px;">⚙️ Calibración de encuadre (afecta a todos los paquetes):</div>
+    <div style="font-size:.65rem;color:var(--txt2);margin-top:2px;">Calibracion (afecta a todos los paquetes):</div>
     <div class="calib-row">
-      <span class="calib-label">✂ Esternón — multiplicador (Inf, Cred.R)<br><span style="font-size:.6rem;opacity:.7">Mayor = más cuerpo visible</span></span>
-      <input class="calib-input" type="number" id="multEsternon" min="0.5" max="3" step="0.1" value="1.4"
-        onchange="updateMult('esternon',this.value)">
+      <span class="calib-label">Esternon - Inf, Cred.R<br><span style="font-size:.6rem;opacity:.7">Mayor = mas cuerpo</span></span>
+      <input class="calib-input" type="number" id="multEsternon" min="0.5" max="3" step="0.1" value="1.4" onchange="updateMult('esternon',this.value)">
     </div>
     <div class="calib-row">
-      <span class="calib-label">✂ Abdomen — multiplicador (Cred.Oval, Dip, Tít, Regalo)<br><span style="font-size:.6rem;opacity:.7">Mayor = más cuerpo visible</span></span>
-      <input class="calib-input" type="number" id="multAbdomen" min="0.5" max="4" step="0.1" value="2.2"
-        onchange="updateMult('abdomen',this.value)">
+      <span class="calib-label">Abdomen - Cred.Oval, Dip, Tit, Regalo<br><span style="font-size:.6rem;opacity:.7">Mayor = mas cuerpo</span></span>
+      <input class="calib-input" type="number" id="multAbdomen" min="0.5" max="4" step="0.1" value="2.2" onchange="updateMult('abdomen',this.value)">
     </div>
-
     <div style="font-size:.63rem;color:var(--txt2);padding:6px 10px;background:var(--sur2);border-radius:4px;border-left:2px solid var(--acc);">
-      💡 La línea azul muestra dónde empieza la cara. Las líneas de corte muestran dónde termina cada tipo de foto. Usa ▲▼ si el encuadre no quedó bien.
+      Linea azul = inicio encuadre. Roja = corte esternon. Verde = corte abdomen. Usa los botones para ajustar.
     </div>
   </div>
 </div>
