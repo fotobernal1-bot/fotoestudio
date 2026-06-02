@@ -838,7 +838,8 @@ function drawSheet(cv,sd,wm,paqs){
         // Marca de agua en la foto extra (wmPhotoIdx)
         if(photoIdx===z.wmPhotoIdx){
           const folio=paq?paq.folio:'';
-          drawWM(ctx,px,py,pwp,php,{...wm,folio});
+          // Si foto está rotada, la marca de agua también va rotada
+          drawWM(ctx,px,py,pwp,php,{...wm,folio},z.rot);
         }
         photoIdx++;
       }
@@ -896,8 +897,36 @@ function drawPhoto(ctx,px,py,pw,ph,rot,img){
   ctx.strokeRect(px,py,pw,ph);
 }
 
-function drawWM(ctx,px,py,pw,ph,wm){
+function drawWM(ctx,px,py,pw,ph,wm,rotated){
   const logo=wm.logo==='color'?lc:lb;
+
+  if(rotated){
+    // Rotar el contexto 90° para que la marca salga orientada correctamente
+    ctx.save();
+    ctx.translate(px+pw/2,py+ph/2);
+    ctx.rotate(Math.PI/2);
+    // Ahora pw y ph están intercambiados desde la perspectiva visual
+    const rw=ph,rh=pw;
+    const wmW=rw*0.54,wmH=rh*0.36;
+    const wmX=rw/2-wmW,wmY=rh/2-wmH;
+    ctx.fillStyle='rgba(255,255,255,0.62)';
+    ctx.fillRect(wmX,wmY,wmW,wmH);
+    if(logo){
+      const maxW=wmW*0.58,maxH=wmH*0.44,ar=logo.width/logo.height;
+      let lw,lh;
+      if(maxW/maxH>ar){lh=maxH;lw=lh*ar;}else{lw=maxW;lh=lw/ar;}
+      const lx=wmX+(wmW-lw)/2,ly=wmY+wmH*0.04;
+      ctx.globalAlpha=0.88;ctx.drawImage(logo,lx,ly,lw,lh);ctx.globalAlpha=1;
+      const fs=Math.max(11,wmH*0.14);
+      ctx.font=`bold ${fs}px serif`;ctx.fillStyle='rgba(8,8,8,0.85)';
+      ctx.textAlign='center';ctx.textBaseline='top';
+      const lines=[wm.mes?wm.mes.toUpperCase():'',wm.anio||'',wm.folio?'# '+wm.folio:''].filter(Boolean);
+      lines.forEach((l,i)=>ctx.fillText(l,wmX+wmW/2,ly+lh+wmH*0.04+i*fs*1.22));
+    }
+    ctx.restore();
+    return;
+  }
+
   const wmW=pw*0.54,wmH=ph*0.36;
   const wmX=px+pw-wmW,wmY=py+ph-wmH;
   ctx.fillStyle='rgba(255,255,255,0.62)';
@@ -965,7 +994,7 @@ document.getElementById('btnGen').addEventListener('click',()=>{
       <div class="rsheet-title">Hoja ${i+1} — ${sd.sh.id}" $${sd.sh.price} ${paqNombres?'· '+paqNombres:''}</div>`;
     for(const z of sd.layout.zones){
       const paq=paquetes.find(p=>p.id===z.paqId);
-      html+=`<div class="rline">· ${PT[z.type].label}: <b>${z.count}</b>${paq?' ('+paq.nombre+')':''}${z.wmPhotoIdx>=0?` <span style="color:var(--acc)">✓ 1 con marca</span>`:''}</div>`;
+      html+=`<div class="rline">· ${PT[z.type].label}: <b>${z.count}</b> total${paq?' ('+paq.nombre+')':''} — pedidas <b>${z.need-1}</b> · entregadas <b>${z.count}</b> · extras <b>${z.count-(z.need-1)}</b>${z.wmPhotoIdx>=0?` · <span style="color:var(--acc)">1 con marca (regalo)</span>`:''}</div>`;
     }
     if(sd.layout.giftZone){
       const g=sd.layout.giftZone;
