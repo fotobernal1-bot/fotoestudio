@@ -72,8 +72,9 @@ header span{font-size:.68rem;color:var(--txt2);}
 .foto-label-input{background:transparent;border:none;color:var(--txt2);font-family:'DM Mono',monospace;font-size:.65rem;width:100%;outline:none;margin-bottom:2px;}
 .foto-label-input::placeholder{color:var(--brd);}
 .foto-name{font-size:.65rem;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.foto-del{background:none;border:none;color:var(--txt2);cursor:pointer;font-size:.75rem;padding:2px;flex-shrink:0;}
-.foto-del:hover{color:var(--red);}
+.foto-sel{background:var(--sur);border:1px solid var(--brd);border-radius:3px;color:var(--txt2);font-family:'DM Mono',monospace;font-size:.62rem;padding:2px 4px;cursor:pointer;max-width:120px;}
+.foto-sel:focus{outline:none;border-color:var(--acc);}
+.foto-tag{vertical-align:middle;}
 .btn-add-foto{background:none;border:1px dashed var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;font-family:'DM Mono',monospace;font-size:.68rem;padding:5px 8px;width:100%;transition:all .15s;text-align:left;}
 .btn-add-foto:hover{border-color:var(--acc);color:var(--acc);}
 
@@ -271,12 +272,22 @@ function createPaquete(){
   return {
     id,
     nombre:`Cliente ${id}`,
-    fotos:[],    // [{img, label, name}]
+    fotos:[],
     orden:{credR:0,credO:0,inf:0,dip:0,tit:0},
+    fotoAsign:{credR:0,credO:0,inf:0,dip:0,tit:0},
     folio:'',
-    colorMode:'auto', // 'color','bn','auto'
     collapsed:false,
   };
+}
+
+function setFotoAsign(id,type,val){
+  const p=paquetes.find(p=>p.id===id);
+  if(!p) return;
+  if(!p.fotoAsign) p.fotoAsign={};
+  p.fotoAsign[type]=parseInt(val)||0;
+  // Refresh body to update tag colors
+  const body=document.querySelector(`#paq_${id} .paq-body`);
+  if(body) body.innerHTML=buildPaqBody(p);
 }
 
 function getPaqColor(idx){return PAQ_COLORS[idx%PAQ_COLORS.length];}
@@ -328,11 +339,23 @@ function buildPaqBody(paq){
     </div>
   `).join('');
 
-  const tiposHTML=TORD.map(t=>`
+  const multiPhoto=paq.fotos.length>1;
+  const tiposHTML=TORD.map(t=>{
+    const fotoIdx=paq.fotoAsign&&paq.fotoAsign[t]!==undefined?paq.fotoAsign[t]:0;
+    const selectorHTML=multiPhoto?`
+      <select class="foto-sel" id="fsel_${paq.id}_${t}"
+        onchange="setFotoAsign(${paq.id},'${t}',this.value)">
+        ${paq.fotos.map((f,fi)=>`
+          <option value="${fi}" ${fi===fotoIdx?'selected':''}>${f.label||'Foto '+(fi+1)}</option>
+        `).join('')}
+      </select>`:'';
+    return `
     <div class="photo-row">
       <div>
-        <div class="pl">${PT[t].label}</div>
+        <div class="pl">${PT[t].label}${multiPhoto&&paq.fotos[fotoIdx]?` <span class="foto-tag" style="background:${fotoIdx===0?'rgba(200,168,75,.2)':'rgba(75,200,122,.2)'};color:${fotoIdx===0?'var(--acc)':'var(--grn)'};border-radius:3px;padding:0 4px;font-size:.58rem">${paq.fotos[fotoIdx].label}</span>`:''}
+        </div>
         <div class="ps">${PT[t].w}×${PT[t].h} cm</div>
+        ${multiPhoto?`<div style="margin-top:3px">${selectorHTML}</div>`:''}
         <div class="pg" id="gift_${paq.id}_${t}"></div>
       </div>
       <div class="qty-ctrl">
@@ -342,8 +365,8 @@ function buildPaqBody(paq){
           onchange="setPaqQty(${paq.id},'${t}',this.value)">
         <button class="qb" onclick="adjPaq(${paq.id},'${t}',1)">+</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   return `
     <div class="stitle">📷 Fotos fuente</div>
@@ -736,9 +759,10 @@ function drawSheet(cv,sd,wm,paqs){
   const{layout}=sd;
 
   for(const z of layout.zones){
-    // Encontrar la foto fuente correcta para esta zona
     const paq=paqs.find(p=>p.id===z.paqId)||paqs[0];
-    const img=paq&&paq.fotos.length>0?paq.fotos[0].img:null;
+    // Use fotoAsign to pick correct source photo for this type
+    const fotoIdx=paq&&paq.fotoAsign&&paq.fotoAsign[z.type]!==undefined?paq.fotoAsign[z.type]:0;
+    const img=paq&&paq.fotos.length>0?(paq.fotos[fotoIdx]||paq.fotos[0]).img:null;
 
     const zxp=Math.round(z.x*C2P),zyp=Math.round(z.y*C2P);
     const pwp=Math.round(z.pw*C2P),php=Math.round(z.ph*C2P);
@@ -756,7 +780,11 @@ function drawSheet(cv,sd,wm,paqs){
   if(layout.giftZone){
     const g=layout.giftZone;
     const paq=paqs[paqs.length-1];
-    const img=paq&&paq.fotos.length>0?paq.fotos[0].img:null;
+    // Gift uses the foto of the last zone type, or first foto
+    const lastZone=layout.zones[layout.zones.length-1];
+    const giftFotoIdx=paq&&paq.fotoAsign&&lastZone?
+      (paq.fotoAsign[lastZone.type]||0):0;
+    const img=paq&&paq.fotos.length>0?(paq.fotos[giftFotoIdx]||paq.fotos[0]).img:null;
     const gx=Math.round(g.x*C2P),gy=Math.round(g.y*C2P);
     const gw=Math.round(g.w*C2P),gh=Math.round(g.h*C2P);
     drawPhoto(ctx,gx,gy,gw,gh,false,img);
