@@ -342,15 +342,18 @@ function buildPaqBody(paq){
         <input class="foto-label-input" value="${f.label}" placeholder="ej: Color, BN, Uniforme..."
           onchange="updateFotoLabel(${paq.id},${fi},this.value)">
         <div class="foto-name">${f.name||'Sin foto'}</div>
-        <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
-          <span style="font-size:.58rem;color:var(--txt2);">↕</span>
-          <input type="range" min="-30" max="30" value="${Math.round((f.manualOffset||0)*100)}"
-            style="flex:1;accent-color:var(--acc);height:14px;cursor:pointer;"
-            oninput="setManualOffset(${paq.id},${fi},this.value)"
-            title="Ajuste vertical del encuadre">
-          <span style="font-size:.58rem;color:${f.faceBox?'var(--grn)':'var(--acc)'};">
-            ${f.faceBox?'✓ cara':'⚠ manual'}
-          </span>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+          <div style="position:relative;width:32px;height:40px;background:#222;border-radius:3px;overflow:hidden;border:1px solid var(--brd);flex-shrink:0;" id="cropPrev_${paq.id}_${fi}">
+            <canvas width="32" height="40" id="cropCanvas_${paq.id}_${fi}" style="width:32px;height:40px;display:block;"></canvas>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <button onclick="adjOffset(${paq.id},${fi},-0.05)" style="background:var(--sur2);border:1px solid var(--brd);border-radius:3px;color:var(--acc);cursor:pointer;padding:1px 6px;font-size:.7rem;" title="Mover encuadre arriba">▲</button>
+            <button onclick="adjOffset(${paq.id},${fi},0.05)" style="background:var(--sur2);border:1px solid var(--brd);border-radius:3px;color:var(--acc);cursor:pointer;padding:1px 6px;font-size:.7rem;" title="Mover encuadre abajo">▼</button>
+          </div>
+          <div style="font-size:.58rem;color:${f.faceBox?'var(--grn)':'var(--acc)'};">
+            ${f.faceBox?'✓ cara det.':'⚠ sin detect.'}<br>
+            <span style="color:var(--txt2);">offset: ${Math.round((f.manualOffset||0)*100)}%</span>
+          </div>
         </div>
       </div>
       <button class="foto-del" onclick="deleteFoto(${paq.id},${fi})">✕</button>
@@ -543,16 +546,16 @@ const CROP_GROUPS={
 // Dado el resultado de face detection, calcula {sy, sh} en píxeles de la imagen original
 // sy = inicio del recorte, sh = altura del recorte
 // sw siempre = img.width (luego se escala proporcionalmente)
-function calcCrop(imgW, imgH, faceBox, group, manualOffset){
-  // faceBox = {top, left, width, height} en píxeles de la imagen
-  // manualOffset = desplazamiento vertical en fracción [-0.3 .. 0.3]
+// calcCrop: calcula el recorte en pixeles de la imagen original
+// group: 'esternon' | 'abdomen'
+// manualOffset: fraccion -1.0 a 1.0 del alto de imagen
+// destAR: aspecto del destino (w/h) para evitar cortar cabeza en foto de regalo
+function calcCrop(imgW, imgH, faceBox, group, manualOffset, destAR){
   const offset = manualOffset || 0;
 
   if(!faceBox){
-    // Sin detección: usar valores por defecto razonables
-    // Cara ocupa ~30% del alto, centrada en el 30% superior
     const faceTop = imgH * 0.08;
-    const faceH   = imgH * 0.30;
+    const faceH   = imgH * 0.28;
     faceBox = {top: faceTop, left: imgW*0.2, width: imgW*0.6, height: faceH};
   }
 
@@ -560,25 +563,39 @@ function calcCrop(imgW, imgH, faceBox, group, manualOffset){
   const faceBottom = faceBox.top + faceBox.height;
   const faceH      = faceBox.height;
 
-  // Espacio arriba de la cara: ~12% del alto del encuadre final
-  // El encuadre final empieza topPad arriba de la cara
-  const topPad = faceH * 0.18;
+  // Espacio arriba: siempre al menos 22% de faceH para no cortar cabeza
+  const topPad = faceH * 0.22;
   const sy = Math.max(0, faceTop - topPad + offset * imgH);
 
-  // Corte inferior según grupo
-  let cutBelowFace;
-  if(group === 'esternon'){
-    // Esternón: ~1.4× la altura de la cara debajo del mentón
-    cutBelowFace = faceH * 1.4;
-  } else {
-    // Abdomen: ~2.2× la altura de la cara debajo del mentón
-    cutBelowFace = faceH * 2.2;
+  // Corte inferior segun grupo
+  let cutBelowFace = (group === 'esternon') ? faceH * 1.4 : faceH * 2.2;
+  let syEnd = Math.min(imgH, faceBottom + cutBelowFace);
+  let sh = Math.max(faceH * 1.5, syEnd - sy);
+
+  // Si destAR (foto de regalo), asegurar que sh cubra el ancho completo
+  // y que la cabeza jamas se corte
+  if(destAR && destAR > 0){
+    const shNeeded = imgW / destAR;
+    if(sh < shNeeded){
+      // Ampliar hacia abajo primero
+      syEnd = Math.min(imgH, sy + shNeeded);
+      sh = syEnd - sy;
+      // Si aun no alcanza, ampliar hacia arriba
+      if(sh < shNeeded){
+        const newSy = Math.max(0, syEnd - shNeeded);
+        sh = syEnd - newSy;
+        // Verificar que la cabeza no quede cortada
+        const safeTopY = Math.max(0, faceTop - topPad);
+        if(newSy > safeTopY){
+          sh = sh + (newSy - safeTopY);
+          return {sx:0, sy:Math.round(safeTopY), sw:imgW, sh:Math.round(Math.min(imgH-safeTopY, sh))};
+        }
+        return {sx:0, sy:Math.round(newSy), sw:imgW, sh:Math.round(Math.min(imgH-newSy, sh))};
+      }
+    }
   }
 
-  const syEnd = Math.min(imgH, faceBottom + cutBelowFace);
-  const sh = Math.max(1, syEnd - sy);
-
-  return {sy: Math.round(sy), sh: Math.round(sh), sw: imgW, sx: 0};
+  return {sx:0, sy:Math.round(sy), sw:imgW, sh:Math.round(Math.min(imgH-sy, sh))};
 }
 
 async function detectFace(img){
@@ -618,6 +635,7 @@ function onFotoFile(id,input){
       p.fotos.push({img, name:file.name, label, src:ev.target.result, faceBox, manualOffset:0});
       const body=document.querySelector(`#paq_${id} .paq-body`);
       if(body) body.innerHTML=buildPaqBody(p);
+      setTimeout(()=>renderAllPreviews(p),80);
     });
   };
   reader.readAsDataURL(file);
@@ -630,6 +648,39 @@ function deleteFoto(id,fi){
   p.fotos.splice(fi,1);
   const body=document.querySelector(`#paq_${id} .paq-body`);
   if(body) body.innerHTML=buildPaqBody(p);
+}
+
+function adjOffset(id,fi,delta){
+  const p=paquetes.find(p=>p.id===id);
+  if(!p||!p.fotos[fi]) return;
+  p.fotos[fi].manualOffset=Math.max(-0.4,Math.min(0.4,(p.fotos[fi].manualOffset||0)+delta));
+  // Update preview canvas and offset label
+  renderCropPreview(p,fi);
+  // Update offset display
+  const body=document.querySelector(`#paq_${id} .paq-body`);
+  if(body) body.innerHTML=buildPaqBody(p);
+  // Re-render previews after rebuild
+  setTimeout(()=>renderAllPreviews(p),50);
+}
+
+function renderCropPreview(p,fi){
+  const f=p.fotos[fi];
+  if(!f||!f.img) return;
+  const cv=document.getElementById(`cropCanvas_${p.id}_${fi}`);
+  if(!cv) return;
+  const ctx=cv.getContext('2d');
+  // Show abdomen crop as default preview
+  const crop=calcCrop(f.img.width,f.img.height,f.faceBox,'abdomen',f.manualOffset||0);
+  ctx.clearRect(0,0,32,40);
+  const cropAR=crop.sw/crop.sh, boxAR=32/40;
+  let sx=crop.sx,sy=crop.sy,sw=crop.sw,sh=crop.sh;
+  if(cropAR>boxAR){sw=sh*boxAR;sx=crop.sx+(crop.sw-sw)/2;}
+  else{sh=sw/boxAR;sy=crop.sy+(crop.sh-sh)/2;}
+  ctx.drawImage(f.img,sx,sy,sw,sh,0,0,32,40);
+}
+
+function renderAllPreviews(p){
+  p.fotos.forEach((_,fi)=>renderCropPreview(p,fi));
 }
 
 function setManualOffset(id,fi,val){
@@ -947,7 +998,7 @@ function drawSheet(cv,sd,wm,paqs){
     const fotoSrc=paq&&paq.fotos.length>0?(paq.fotos[giftFotoIdx]||paq.fotos[0]):null;
     const img=fotoSrc?fotoSrc.img:null;
     // Foto de regalo siempre usa encuadre abdomen
-    const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,'abdomen',fotoSrc.manualOffset||0):null;
+    const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,'abdomen',fotoSrc.manualOffset||0, g.w/g.h):null;
     const gx=Math.round(g.x*C2P),gy=Math.round(g.y*C2P);
     const gw=Math.round(g.w*C2P),gh=Math.round(g.h*C2P);
     drawPhoto(ctx,gx,gy,gw,gh,false,img,crop);
