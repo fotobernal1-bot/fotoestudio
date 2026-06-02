@@ -150,6 +150,27 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
 .toast.on{transform:translateY(0);opacity:1;}
 ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px;}
+/* Modal de encuadre */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--sur);border:1px solid var(--acc);border-radius:10px;padding:20px;max-width:680px;width:95vw;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--acc);display:flex;align-items:center;justify-content:space-between;}
+.modal-close{background:none;border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;padding:4px 10px;font-size:.8rem;transition:all .15s;}
+.modal-close:hover{border-color:var(--red);color:var(--red);}
+.modal-canvas-wrap{position:relative;width:100%;background:#111;border-radius:6px;overflow:hidden;border:1px solid var(--brd);}
+.modal-canvas-wrap canvas{display:block;width:100%;height:auto;}
+.crop-line{position:absolute;left:0;right:0;height:2px;pointer-events:none;}
+.modal-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.modal-btn{background:var(--sur2);border:1px solid var(--brd);border-radius:5px;color:var(--acc);cursor:pointer;font-family:'DM Mono',monospace;font-size:.8rem;padding:7px 14px;transition:all .15s;}
+.modal-btn:hover{border-color:var(--acc);background:rgba(200,168,75,.12);}
+.modal-btn.big{font-size:1rem;padding:8px 18px;}
+.calib-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--sur2);border-radius:6px;border:1px solid var(--brd);}
+.calib-label{font-size:.7rem;color:var(--txt2);flex:1;}
+.calib-input{background:var(--sur);border:1px solid var(--brd);border-radius:4px;color:var(--txt);font-family:'DM Mono',monospace;font-size:.82rem;padding:4px 8px;width:60px;text-align:center;}
+.calib-input:focus{outline:none;border-color:var(--acc);}
+.type-lines-legend{display:flex;gap:8px;flex-wrap:wrap;}
+.tleg{font-size:.63rem;display:flex;align-items:center;gap:4px;}
+.tleg-dot{width:12px;height:3px;border-radius:2px;}
 </style>
 </head>
 <body>
@@ -228,6 +249,9 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
 // =====================================================
 const DPI=300, C2P=DPI/2.54;
 const GAP=0.05;
+// Multiplicadores de encuadre — editables desde el pop-up de calibración
+let MULT_ESTERNON=1.4; // cuántas veces la altura de cara hacia abajo (esternón)
+let MULT_ABDOMEN=2.2;  // cuántas veces la altura de cara hacia abajo (abdomen)
 const PT={
   credR:{label:'Cred.R',    w:3.5,h:4.5},
   credO:{label:'Cred.Oval', w:3.5,h:5.0},
@@ -343,8 +367,12 @@ function buildPaqBody(paq){
           onchange="updateFotoLabel(${paq.id},${fi},this.value)">
         <div class="foto-name">${f.name||'Sin foto'}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-          <div style="position:relative;width:32px;height:40px;background:#222;border-radius:3px;overflow:hidden;border:1px solid var(--brd);flex-shrink:0;" id="cropPrev_${paq.id}_${fi}">
-            <canvas width="32" height="40" id="cropCanvas_${paq.id}_${fi}" style="width:32px;height:40px;display:block;"></canvas>
+          <div style="position:relative;width:32px;height:40px;background:#222;border-radius:3px;overflow:hidden;border:1px solid var(--acc);flex-shrink:0;cursor:pointer;title='Ver encuadre'" 
+            id="cropPrev_${paq.id}_${fi}"
+            onclick="openCropModal(${paq.id},${fi})"
+            title="Clic para ver y ajustar encuadre">
+            <canvas width="32" height="40" id="cropCanvas_${paq.id}_${fi}" style="width:32px;height:40px;display:block;pointer-events:none;"></canvas>
+            <div style="position:absolute;bottom:1px;right:1px;font-size:7px;color:var(--acc);line-height:1;">🔍</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
             <button onclick="adjOffset(${paq.id},${fi},-0.05)" style="background:var(--sur2);border:1px solid var(--brd);border-radius:3px;color:var(--acc);cursor:pointer;padding:1px 6px;font-size:.7rem;" title="Mover encuadre arriba">▲</button>
@@ -568,7 +596,7 @@ function calcCrop(imgW, imgH, faceBox, group, manualOffset, destAR){
   const sy = Math.max(0, faceTop - topPad + offset * imgH);
 
   // Corte inferior segun grupo
-  let cutBelowFace = (group === 'esternon') ? faceH * 1.4 : faceH * 2.2;
+  let cutBelowFace = (group === 'esternon') ? faceH * MULT_ESTERNON : faceH * MULT_ABDOMEN;
   let syEnd = Math.min(imgH, faceBottom + cutBelowFace);
   let sh = Math.max(faceH * 1.5, syEnd - sy);
 
@@ -1179,6 +1207,128 @@ document.getElementById('btnClr').addEventListener('click',()=>{
   toast('🗑 Limpiado');
 });
 
+// =====================================================
+// MODAL DE ENCUADRE
+// =====================================================
+const modalState={paqId:null, fotoIdx:null, foto:null};
+
+function openCropModal(paqId, fotoIdx){
+  const p=paquetes.find(p=>p.id===paqId);
+  if(!p||!p.fotos[fotoIdx]) return;
+  modalState.paqId=paqId;
+  modalState.fotoIdx=fotoIdx;
+  modalState.foto=p.fotos[fotoIdx];
+
+  document.getElementById('modalTitle').textContent=`Encuadre — ${p.nombre} · ${modalState.foto.label}`;
+  document.getElementById('cropModal').classList.add('open');
+  document.getElementById('multEsternon').value=MULT_ESTERNON;
+  document.getElementById('multAbdomen').value=MULT_ABDOMEN;
+  renderModalCanvas();
+}
+
+function closeCropModal(){
+  document.getElementById('cropModal').classList.remove('open');
+  // Refresh previews
+  const p=paquetes.find(p=>p.id===modalState.paqId);
+  if(p) setTimeout(()=>renderAllPreviews(p),50);
+}
+
+function modalAdjOffset(delta){
+  const p=paquetes.find(p=>p.id===modalState.paqId);
+  if(!p) return;
+  const f=p.fotos[modalState.fotoIdx];
+  if(!f) return;
+  f.manualOffset=Math.max(-0.4,Math.min(0.4,(f.manualOffset||0)+delta));
+  modalState.foto=f;
+  renderModalCanvas();
+}
+
+function updateMult(type,val){
+  const v=parseFloat(val);
+  if(isNaN(v)||v<0.3) return;
+  if(type==='esternon') MULT_ESTERNON=v;
+  else MULT_ABDOMEN=v;
+  renderModalCanvas();
+}
+
+function renderModalCanvas(){
+  const f=modalState.foto;
+  if(!f||!f.img) return;
+
+  const img=f.img;
+  const wrap=document.getElementById('modalCanvasWrap');
+  const cv=document.getElementById('modalCanvas');
+  const maxW=Math.min(640, wrap.clientWidth||600);
+  const scale=maxW/img.width;
+  cv.width=img.width;
+  cv.height=img.height;
+  cv.style.width=Math.round(img.width*scale)+'px';
+  cv.style.height=Math.round(img.height*scale)+'px';
+
+  const ctx=cv.getContext('2d');
+  ctx.drawImage(img,0,0);
+
+  // Calcular faceBox
+  const fb=f.faceBox;
+  const offset=f.manualOffset||0;
+
+  let faceTop,faceH;
+  if(fb){
+    faceTop=fb.top; faceH=fb.height;
+  } else {
+    faceTop=img.height*0.08; faceH=img.height*0.28;
+  }
+  const faceBottom=faceTop+faceH;
+  const topPad=faceH*0.22;
+  const sy=Math.max(0,faceTop-topPad+offset*img.height);
+
+  // Línea de cara
+  ctx.strokeStyle='rgba(75,139,200,0.9)';
+  ctx.lineWidth=3;
+  ctx.setLineDash([8,4]);
+  ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(img.width,sy);ctx.stroke();
+
+  // Línea esternón
+  const cutE=faceBottom+faceH*MULT_ESTERNON;
+  ctx.strokeStyle='rgba(255,107,107,0.9)';
+  ctx.lineWidth=3;
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(0,cutE);ctx.lineTo(img.width,cutE);ctx.stroke();
+
+  // Línea abdomen
+  const cutA=faceBottom+faceH*MULT_ABDOMEN;
+  ctx.strokeStyle='rgba(75,200,122,0.9)';
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(0,cutA);ctx.lineTo(img.width,cutA);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Overlay oscuro fuera del encuadre abdomen (para visualizar el recorte)
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(0,0,img.width,sy); // arriba
+  if(cutA<img.height) ctx.fillRect(0,cutA,img.width,img.height-cutA); // abajo
+
+  // Etiquetas
+  ctx.font=`bold ${Math.round(img.height*0.025)}px monospace`;
+  ctx.fillStyle='rgba(75,139,200,1)';
+  ctx.fillText('► inicio encuadre',8,sy-6);
+  ctx.fillStyle='rgba(255,107,107,1)';
+  ctx.fillText('► esternón',8,Math.min(cutE-6,img.height-4));
+  ctx.fillStyle='rgba(75,200,122,1)';
+  ctx.fillText('► abdomen',8,Math.min(cutA-6,img.height-4));
+
+  // Update offset display
+  document.getElementById('modalOffsetVal').textContent=
+    `offset: ${Math.round(offset*100)}% · cara ${fb?'detectada ✓':'no detectada ⚠'}`;
+}
+
+// Cerrar modal al hacer clic fuera — esperar a que el DOM esté listo
+document.addEventListener('DOMContentLoaded',()=>{
+  const modal=document.getElementById('cropModal');
+  if(modal) modal.addEventListener('click',e=>{
+    if(e.target===modal) closeCropModal();
+  });
+});
+
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 
 // =====================================================
@@ -1187,5 +1337,55 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 addPaqSilent();
 refreshPaquetesUI();
 </script>
+<!-- MODAL DE ENCUADRE -->
+<div class="modal-overlay" id="cropModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="modalTitle">Encuadre de foto</span>
+      <button class="modal-close" onclick="closeCropModal()">✕ Cerrar</button>
+    </div>
+
+    <!-- Leyenda de líneas -->
+    <div class="type-lines-legend">
+      <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternón (Inf, Cred.R)</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Cred.Oval, Dip, Tít, Regalo)</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#4b8bc8"></div><span style="color:var(--txt2)">Inicio de cara</span></div>
+    </div>
+
+    <!-- Canvas grande -->
+    <div class="modal-canvas-wrap" id="modalCanvasWrap">
+      <canvas id="modalCanvas"></canvas>
+      <div class="crop-line" id="lineTop"    style="border-top:2px dashed #4b8bc8;"></div>
+      <div class="crop-line" id="lineEsternon" style="border-top:2px solid #ff6b6b;"></div>
+      <div class="crop-line" id="lineAbdomen"  style="border-top:2px solid #4bc87a;"></div>
+    </div>
+
+    <!-- Ajuste manual -->
+    <div class="modal-controls">
+      <span style="font-size:.72rem;color:var(--txt2);">Ajustar encuadre:</span>
+      <button class="modal-btn big" onclick="modalAdjOffset(-0.05)">▲ Subir</button>
+      <button class="modal-btn big" onclick="modalAdjOffset(0.05)">▼ Bajar</button>
+      <button class="modal-btn" onclick="modalAdjOffset(-(modalState.foto?.manualOffset||0))">↺ Reset</button>
+      <span id="modalOffsetVal" style="font-size:.72rem;color:var(--acc);">offset: 0%</span>
+    </div>
+
+    <!-- Calibración de multiplicadores -->
+    <div style="font-size:.65rem;color:var(--txt2);margin-top:2px;">⚙️ Calibración de encuadre (afecta a todos los paquetes):</div>
+    <div class="calib-row">
+      <span class="calib-label">✂ Esternón — multiplicador (Inf, Cred.R)<br><span style="font-size:.6rem;opacity:.7">Mayor = más cuerpo visible</span></span>
+      <input class="calib-input" type="number" id="multEsternon" min="0.5" max="3" step="0.1" value="1.4"
+        onchange="updateMult('esternon',this.value)">
+    </div>
+    <div class="calib-row">
+      <span class="calib-label">✂ Abdomen — multiplicador (Cred.Oval, Dip, Tít, Regalo)<br><span style="font-size:.6rem;opacity:.7">Mayor = más cuerpo visible</span></span>
+      <input class="calib-input" type="number" id="multAbdomen" min="0.5" max="4" step="0.1" value="2.2"
+        onchange="updateMult('abdomen',this.value)">
+    </div>
+
+    <div style="font-size:.63rem;color:var(--txt2);padding:6px 10px;background:var(--sur2);border-radius:4px;border-left:2px solid var(--acc);">
+      💡 La línea azul muestra dónde empieza la cara. Las líneas de corte muestran dónde termina cada tipo de foto. Usa ▲▼ si el encuadre no quedó bien.
+    </div>
+  </div>
+</div>
 </body>
 </html>
