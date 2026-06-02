@@ -249,6 +249,7 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
 // =====================================================
 const DPI=300, C2P=DPI/2.54;
 const GAP=0.05;
+const MARGIN=0.5; // margen exterior por lado en cm
 // Multiplicadores de encuadre — editables desde el pop-up de calibración
 let MULT_ESTERNON=1.4; // cuántas veces la altura de cara hacia abajo (esternón)
 let MULT_ABDOMEN=2.2;  // cuántas veces la altura de cara hacia abajo (abdomen)
@@ -740,47 +741,49 @@ function validGift(w,h){
 }
 
 function layoutInSheet(sw,sh,types){
+  // Descontar márgenes exteriores
+  const uw=sw-2*MARGIN; // ancho útil
+  const uh=sh-2*MARGIN; // alto útil
   const zones=[];
   let usedY=0;
   for(let i=0;i<types.length;i++){
     const t=types[i];
     const pt=PT[t.type];
-    const remH=sh-usedY;
+    const remH=uh-usedY;
     if(remH<pt.h) return null;
-    const f=fitN(sw,remH,pt.w,pt.h);
+    const f=fitN(uw,remH,pt.w,pt.h);
     const pw=f.rot?pt.h:pt.w,ph=f.rot?pt.w:pt.h;
     const cols=f.rot?f.cols_r:f.cols_n;
     if(cols===0) return null;
-    const ordered=t.need;           // lo que pidió el cliente
-    const need=ordered+1;           // mínimo a entregar (pedido+1)
+    const ordered=t.need;
+    const need=ordered+1;
     const rowsNeed=Math.ceil(need/cols);
     const rowsMax=Math.floor((remH+GAP)/(ph+GAP));
-    // Extra: máximo 1 fila adicional Y nunca más del doble de lo pedido
     const rowsWithExtra=Math.min(rowsNeed+1, rowsMax);
     const countWithExtra=cols*rowsWithExtra;
-    // Si la fila extra supera 2× el pedido, no agregarla
     const maxAllowed=Math.max(need, ordered*2);
     const rowsFinal=countWithExtra<=maxAllowed ? rowsWithExtra : rowsNeed;
     const count=cols*rowsFinal;
     const zh=rowsFinal*ph+(rowsFinal-1)*GAP;
     // La última foto extra lleva marca de agua
     const wmPhotoIdx=count>need?count-1:-1;
-    zones.push({type:t.type,x:0,y:usedY,w:sw,h:zh,cols,rows:rowsFinal,count,rot:f.rot,pw,ph,paqId:t.paqId,need,wmPhotoIdx});
+    // Posición x/y incluye el margen exterior
+    zones.push({type:t.type,x:MARGIN,y:MARGIN+usedY,w:uw,h:zh,cols,rows:rowsFinal,count,rot:f.rot,pw,ph,paqId:t.paqId,need,wmPhotoIdx});
     usedY+=zh+GAP;
   }
-  const remH=sh-usedY+GAP;
+  const remH=uh-usedY+GAP;
   let giftZone=null;
   if(remH>=GIFT_MIN_H){
-    const gw=Math.min(sw,GIFT_MAX_W),gh=Math.min(remH,GIFT_MAX_H);
-    if(validGift(gw,gh)) giftZone={x:0,y:usedY,w:gw,h:gh};
+    const gw=Math.min(uw,GIFT_MAX_W),gh=Math.min(remH,GIFT_MAX_H);
+    if(validGift(gw,gh)) giftZone={x:MARGIN,y:MARGIN+usedY,w:gw,h:gh};
   }
   if(!giftZone&&zones.length>0){
     const lz=zones[zones.length-1];
     const usedW=lz.cols*(lz.pw+GAP)-GAP;
-    const remW=sw-usedW-GAP;
+    const remW=uw-usedW-GAP;
     if(remW>=GIFT_MIN_W){
       const gh=Math.min(lz.h,GIFT_MAX_H),gw=Math.min(remW,GIFT_MAX_W);
-      if(validGift(gw,gh)) giftZone={x:usedW+GAP,y:lz.y,w:gw,h:gh};
+      if(validGift(gw,gh)) giftZone={x:MARGIN+usedW+GAP,y:lz.y,w:gw,h:gh};
     }
   }
   return{zones,giftZone,usedY};
