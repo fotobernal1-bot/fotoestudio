@@ -855,83 +855,157 @@ function intentarHoja(sh, tipos, orden, paqId){
   if(tipos.length === 1){
     const t = tipos[0];
     const pt = PT[t];
-    const cap = capacidad(hojaW, hojaH, pt.w, pt.h);
-    if(cap.total === 0) return null;
-
     const clientePide = orden[t];
-    const totalDisp = cap.total;
 
-    // Distribuir: cliente + 1 extra + resto con/sin marca
-    if(clientePide + 1 > totalDisp) return null; // no cabe ni el pedido + extra
+    // Estrategia de distribución:
+    // A) Tipo acepta marca: llenar hoja, sobrante con marca de agua
+    // B) Tipo NO acepta marca: reservar espacio para regalo primero, luego calcular fotos
+    //    B1) Espacio sobrante natural >= mínimo regalo
+    //    B2) Reservar fila/columna de regalo, calcular fotos en espacio restante
 
-    let clienteSinMarca = clientePide;
-    let extraSinMarca = 1;
-    let conMarca = 0;
+    const combosHoja = [
+      {hw: hojaW, hh: hojaH, horiz: false},
+      {hw: hojaH, hh: hojaW, horiz: true},
+    ];
+    const combosFoto = [
+      {fw: pt.w, fh: pt.h, rota: false},
+      {fw: pt.h, fh: pt.w, rota: true},
+    ];
 
-    if(!SIN_MARCA.has(t)){
-      // Este tipo puede llevar marca
-      conMarca = totalDisp - clienteSinMarca - extraSinMarca;
-      if(conMarca < 1) conMarca = 1; // mínimo 1 con marca si hay espacio
-      extraSinMarca = totalDisp - clienteSinMarca - conMarca;
-      if(extraSinMarca < 0){ extraSinMarca=0; conMarca = totalDisp - clienteSinMarca; }
-    } else {
-      // No acepta marca, agregar regalo con marca en espacio sobrante
-      extraSinMarca = totalDisp - clienteSinMarca;
-      // Calcular espacio sobrante para regalo
-      const usadoW = cap.rota ? cap.cols * pt.h : cap.cols * pt.w;
-      const usadoH = cap.rota ? cap.rows * pt.w : cap.rows * pt.h;
-      const sobranteW = (cap.horiz ? hojaH : hojaW) - 2*MARGIN - usadoW;
-      const sobranteH = (cap.horiz ? hojaW : hojaH) - 2*MARGIN - usadoH;
+    let mejorConfig = null;
 
-      if(sobranteW >= GIFT_MIN_W && sobranteH >= GIFT_MIN_H){
-        const rs = calcRegaloSize(sobranteW, sobranteH);
-        zonas.push({
-          type:'regalo', x:MARGIN + usadoW, y:MARGIN,
-          cols:1, rows:1, count:1,
-          pw:rs.w, ph:rs.h, w:rs.w, h:rs.h,
-          rot:false, paqId, need:0, regalo:true
-        });
-        tieneRegalo = true;
-      } else if(sobranteH >= GIFT_MIN_H && sobranteW >= GIFT_MIN_W){
-        const rs = calcRegaloSize(sobranteH, sobranteW);
-        zonas.push({
-          type:'regalo', x:MARGIN, y:MARGIN + usadoH,
-          cols:1, rows:1, count:1,
-          pw:rs.w, ph:rs.h, w:rs.w, h:rs.h,
-          rot:false, paqId, need:0, regalo:true
-        });
-        tieneRegalo = true;
+    for(const ch of combosHoja){
+      for(const cf of combosFoto){
+        const aw = ch.hw - 2*MARGIN;
+        const ah = ch.hh - 2*MARGIN;
+
+        if(!SIN_MARCA.has(t)){
+          // ESTRATEGIA A: tipo acepta marca
+          const cols = Math.floor(aw / cf.fw);
+          const rows = Math.floor(ah / cf.fh);
+          if(cols < 1 || rows < 1) continue;
+          const total = cols * rows;
+          if(total < clientePide + 1) continue;
+          const conMarca = Math.max(1, total - clientePide - 1);
+          const extraSinMarca = Math.max(0, total - clientePide - conMarca);
+          const cfg = {cols, rows, total, fw:cf.fw, fh:cf.fh, rota:cf.rota,
+                       horiz:ch.horiz, tieneRegalo:true, regaloCfg:null,
+                       conMarca, extraSinMarca, fotosY: MARGIN};
+          if(!mejorConfig || cfg.total > mejorConfig.total) mejorConfig = cfg;
+
+        } else {
+          // ESTRATEGIA B: tipo NO acepta marca — necesitamos espacio para regalo
+
+          // B1: espacio sobrante natural
+          const cols0 = Math.floor(aw / cf.fw);
+          const rows0 = Math.floor(ah / cf.fh);
+          if(cols0 >= 1 && rows0 >= 1 && cols0*rows0 >= clientePide + 1){
+            const total0 = cols0 * rows0;
+            const usadoW = cols0 * cf.fw + (cols0-1)*GAP;
+            const usadoH = rows0 * cf.fh + (rows0-1)*GAP;
+            const sobW = aw - usadoW;
+            const sobH = ah - usadoH;
+            let rc = null;
+            if(sobW >= GIFT_MIN_W && ah >= GIFT_MIN_H){
+              const rw = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, sobW/2));
+              const rh = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, ah));
+              rc = {x: MARGIN + usadoW, y: MARGIN, w: rw, h: rh, cols:1};
+            } else if(sobH >= GIFT_MIN_H && aw >= GIFT_MIN_W){
+              const rw = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, aw/2));
+              const rh = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, sobH));
+              rc = {x: MARGIN, y: MARGIN + usadoH, w: rw, h: rh, cols: Math.floor(aw/rw)};
+            }
+            if(rc && !mejorConfig){
+              mejorConfig = {cols:cols0, rows:rows0, total:total0, fw:cf.fw, fh:cf.fh,
+                             rota:cf.rota, horiz:ch.horiz, tieneRegalo:true, regaloCfg:rc,
+                             conMarca:0, extraSinMarca:total0-clientePide, fotosY:MARGIN};
+            }
+          }
+
+          // B2: reservar fila de regalo arriba/abajo
+          for(const giftPos of ['top','bottom']){
+            for(const gCols of [1, 2]){
+              const gW = aw / gCols;
+              if(gW < GIFT_MIN_W || gW > GIFT_MAX_W + 0.5) continue;
+              const gH = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, ah * 0.40));
+              const areaFH = ah - gH - GAP;
+              if(areaFH < cf.fh) continue;
+              const fCols = Math.floor(aw / cf.fw);
+              const fRows = Math.floor(areaFH / cf.fh);
+              if(fCols < 1 || fRows < 1) continue;
+              const total = fCols * fRows;
+              if(total < clientePide + 1) continue;
+              const usadoH = fRows * cf.fh + (fRows-1)*GAP;
+              const fotosY = giftPos==='top' ? MARGIN + gH + GAP : MARGIN;
+              const gY    = giftPos==='top' ? MARGIN : MARGIN + usadoH + GAP;
+              const rc = {x: MARGIN, y: gY, w: gW, h: gH, cols: gCols};
+              if(!mejorConfig || !mejorConfig.tieneRegalo){
+                mejorConfig = {cols:fCols, rows:fRows, total, fw:cf.fw, fh:cf.fh,
+                               rota:cf.rota, horiz:ch.horiz, tieneRegalo:true, regaloCfg:rc,
+                               conMarca:0, extraSinMarca:total-clientePide, fotosY};
+              }
+            }
+          }
+
+          // B3: reservar columna de regalo a la derecha
+          for(const gRows of [1, 2]){
+            const gH = ah / gRows;
+            if(gH < GIFT_MIN_H || gH > GIFT_MAX_H + 0.5) continue;
+            const gW = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, aw * 0.45));
+            const areaFW = aw - gW - GAP;
+            if(areaFW < cf.fw) continue;
+            const fCols = Math.floor(areaFW / cf.fw);
+            const fRows = Math.floor(ah / cf.fh);
+            if(fCols < 1 || fRows < 1) continue;
+            const total = fCols * fRows;
+            if(total < clientePide + 1) continue;
+            const rc = {x: MARGIN + areaFW + GAP, y: MARGIN, w: gW, h: gH, cols:1};
+            if(!mejorConfig || !mejorConfig.tieneRegalo){
+              mejorConfig = {cols:fCols, rows:fRows, total, fw:cf.fw, fh:cf.fh,
+                             rota:cf.rota, horiz:ch.horiz, tieneRegalo:true, regaloCfg:rc,
+                             conMarca:0, extraSinMarca:total-clientePide, fotosY:MARGIN};
+            }
+          }
+        }
       }
     }
 
-    if(!SIN_MARCA.has(t) && conMarca > 0) tieneRegalo = true;
+    if(!mejorConfig || !mejorConfig.tieneRegalo) return null;
 
-    // Posición de la zona principal
-    const fw = cap.rota ? pt.h : pt.w;
-    const fh = cap.rota ? pt.w : pt.h;
-    const zw = cap.cols * fw + (cap.cols-1)*GAP;
-    const zh = cap.rows * fh + (cap.rows-1)*GAP;
-    const xBase = MARGIN, yBase = MARGIN;
+    const {cols, rows, total, fw, fh, rota, horiz, regaloCfg, conMarca, extraSinMarca, fotosY} = mejorConfig;
+    const sw = horiz ? sh.h : sh.w;
+    const shh = horiz ? sh.w : sh.h;
+    const zw = cols * fw + (cols-1)*GAP;
+    const zh = rows * fh + (rows-1)*GAP;
 
-    zonas.unshift({
-      type:t,
-      x: xBase, y: yBase,
-      cols: cap.cols, rows: cap.rows,
-      count: totalDisp,
+    zonas = [{
+      type: t, x: MARGIN, y: fotosY,
+      cols, rows, count: total,
       pw: fw, ph: fh, w: zw, h: zh,
-      rot: cap.rota, paqId,
-      need: clienteSinMarca,
-      sinMarca: clienteSinMarca + extraSinMarca,
+      rot: rota, paqId,
+      need: clientePide,
+      sinMarca: clientePide + (extraSinMarca||0),
       regalo: false
-    });
+    }];
 
-    if(!tieneRegalo) return null; // sin regalo no es válido
+    if(regaloCfg){
+      const nR = regaloCfg.cols || 1;
+      for(let i = 0; i < nR; i++){
+        zonas.push({
+          type:'regalo',
+          x: regaloCfg.x + i * (regaloCfg.w + GAP),
+          y: regaloCfg.y,
+          cols:1, rows:1, count:1,
+          pw: regaloCfg.w, ph: regaloCfg.h, w: regaloCfg.w, h: regaloCfg.h,
+          rot: false, paqId, need:0, sinMarca:0, regalo:true
+        });
+      }
+    }
 
     return {
       sheets:[{
-        sh, ori: cap.horiz ? 'landscape':'portrait',
-        sw: cap.horiz ? sh.h : sh.w,
-        shh: cap.horiz ? sh.w : sh.h,
+        sh, ori: horiz ? 'landscape':'portrait',
+        sw, shh,
         layout:{zones: zonas},
         cost: sh.price, paqIds:[paqId]
       }],
