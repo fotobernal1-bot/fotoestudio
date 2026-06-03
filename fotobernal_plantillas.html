@@ -828,6 +828,9 @@ function calcRegaloSize(espacioW, espacioH){
   return {w, h};
 }
 
+// Helper: buscar hoja por id
+function getSH(id){ return SH.find(s=>s.id===id); }
+
 // Construir resultado desde un layout verificado de escuela
 function buildFromLayout(layout, orden, paqId){
   let allSheets = [], totalCost = 0;
@@ -1441,7 +1444,16 @@ document.getElementById('btnGen').addEventListener('click',()=>{
   };
 
   const plan=optimizeAll();
-  if(!plan){toast('❌ No se encontró distribución válida');return;}
+  if(!plan){
+    // Diagnóstico: mostrar por qué falló
+    const paqsConFoto = paqsActivos.filter(p=>p.fotos.length>0);
+    if(paqsConFoto.length === 0){
+      toast('❌ Sube al menos una foto antes de generar');
+    } else {
+      toast('❌ No se encontró distribución válida — revisa las cantidades');
+    }
+    return;
+  }
 
   // Resumen
   const rb=document.getElementById('rbox'),rc=document.getElementById('rc');
