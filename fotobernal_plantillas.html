@@ -759,21 +759,34 @@ function updateFotoLabel(id,fi,val){
 }
 
 // =====================================================
-// ESCUELAS — pedido típico por escuela
-// El algoritmo calcula la distribución óptima en tiempo real
+// ESCUELAS — pedido típico + layout verificado por escuela
+// layout: hoja y distribución exacta definida y verificada manualmente
+// Si no hay layout, el algoritmo calcula automáticamente
 // =====================================================
 const ESCUELAS = [
-  {id:'UACH',              nombre:'UACH',                          pedido:{dip:5}},
-  {id:'SERV_ALEXIA',       nombre:'Servicio Social (Alexia/Flor.)',pedido:{credR:2,inf:3}},
-  {id:'TIT_ALEXIA',        nombre:'Titulación (Alexia/Flor.)',     pedido:{tit:2,credR:2,inf:6}},
-  {id:'TEC1',              nombre:'TEC 1',                         pedido:{credO:6}},
-  {id:'JERUEL',            nombre:'JERUEL',                        pedido:{dip:6,inf:6}},
-  {id:'CESCIJUC',          nombre:'CESCIJUC',                      pedido:{tit:6}},
-  {id:'UNIDEP',            nombre:'UNIDEP',                        pedido:{tit:6}},
-  {id:'NORMAL_SUP',        nombre:'Normal Superior',               pedido:{inf:4,credO:3,tit:2}},
-  {id:'INFORAJ',           nombre:'INFORAJ',                       pedido:{credO:6,credR:6,dip:6,inf:6}},
-  {id:'UNAM',              nombre:'UNAM',                          pedido:{tit:6,credO:6}},
-  {id:'CBTCH',             nombre:'CBTCH',                         pedido:{dip:6,tit:4,inf:8}},
+  {id:'UACH', nombre:'UACH', pedido:{dip:5},
+   layout:{
+     hojas:[{
+       sh:'6x9',
+       zonas:[
+         // 4×2 = 8 diplomas rotados. 5 cliente + 1 extra sin marca + 2 con marca
+         // need=5, sinMarca=6 (5 cliente + 1 extra), conMarca=2
+         {type:'dip', cols:4, rows:2, rot:true, x:0, y:0,
+          cliente:5, extra:1, conMarca:2}
+       ]
+     }]
+   }
+  },
+  {id:'SERV_ALEXIA', nombre:'Servicio Social (Alexia/Flor.)', pedido:{credR:2,inf:3}},
+  {id:'TIT_ALEXIA',  nombre:'Titulación (Alexia/Flor.)',      pedido:{tit:2,credR:2,inf:6}},
+  {id:'TEC1',        nombre:'TEC 1',                          pedido:{credO:6}},
+  {id:'JERUEL',      nombre:'JERUEL',                         pedido:{dip:6,inf:6}},
+  {id:'CESCIJUC',    nombre:'CESCIJUC',                       pedido:{tit:6}},
+  {id:'UNIDEP',      nombre:'UNIDEP',                         pedido:{tit:6}},
+  {id:'NORMAL_SUP',  nombre:'Normal Superior',                pedido:{inf:4,credO:3,tit:2}},
+  {id:'INFORAJ',     nombre:'INFORAJ',                        pedido:{credO:6,credR:6,dip:6,inf:6}},
+  {id:'UNAM',        nombre:'UNAM',                           pedido:{tit:6,credO:6}},
+  {id:'CBTCH',       nombre:'CBTCH',                          pedido:{dip:6,tit:4,inf:8}},
 ];
 
 // =====================================================
@@ -816,12 +829,70 @@ function calcRegaloSize(espacioW, espacioH){
   return {w, h};
 }
 
+// Construir resultado desde un layout verificado de escuela
+function buildFromLayout(layout, orden, paqId){
+  let allSheets = [], totalCost = 0;
+  for(const hojaSpec of layout.hojas){
+    const sh = getSH(hojaSpec.sh);
+    if(!sh) continue;
+    const zones = [];
+    for(const z of hojaSpec.zonas){
+      const pt = PT[z.type];
+      if(!pt) continue;
+      const fw = z.rot ? pt.h : pt.w;
+      const fh = z.rot ? pt.w : pt.h;
+      const uw = sh.w - 2*MARGIN, uh = sh.h - 2*MARGIN;
+      const xAbs = MARGIN + (z.x || 0) * uw;
+      const yAbs = MARGIN + (z.y || 0) * uh;
+      const w = z.cols * fw + (z.cols-1)*GAP;
+      const h = z.rows * fh + (z.rows-1)*GAP;
+      const count = z.cols * z.rows;
+      const need = z.cliente || (orden[z.type]||0);
+      const sinMarca = need + (z.extra||0);
+      zones.push({
+        type:z.type, x:xAbs, y:yAbs, w, h,
+        cols:z.cols, rows:z.rows, count,
+        rot:z.rot||false, pw:fw, ph:fh,
+        paqId, need, sinMarca,
+        regalo: false
+      });
+    }
+    // Agregar zonas de regalo si están definidas
+    if(hojaSpec.regalo){
+      for(const r of hojaSpec.regalo){
+        const xAbs = MARGIN + (r.x||0) * (sh.w-2*MARGIN);
+        const yAbs = MARGIN + (r.y||0) * (sh.h-2*MARGIN);
+        zones.push({
+          type:'regalo', x:xAbs, y:yAbs,
+          cols:r.cols||1, rows:r.rows||1,
+          count:(r.cols||1)*(r.rows||1),
+          pw:r.w, ph:r.h, w:r.w*(r.cols||1)+(Math.max(0,(r.cols||1)-1))*GAP,
+          h:r.h*(r.rows||1)+(Math.max(0,(r.rows||1)-1))*GAP,
+          rot:false, paqId, need:0, sinMarca:0, regalo:true
+        });
+      }
+    }
+    allSheets.push({sh, ori:'portrait', sw:sh.w, shh:sh.h,
+                    layout:{zones}, cost:sh.price, paqIds:[paqId]});
+    totalCost += sh.price;
+  }
+  if(!allSheets.length) return null;
+  return {sheets:allSheets, cost:totalCost};
+}
+
 // Optimizar un paquete usando el nuevo algoritmo
 function optimizeSinglePaqV2(paq){
   const orden = paq.orden;
   const paqId = paq.id;
 
-  // Tipos con cantidad > 0
+  // Si la escuela tiene un layout verificado, usarlo directamente
+  if(paq.escuela){
+    const esc = ESCUELAS.find(e=>e.id===paq.escuela);
+    if(esc && esc.layout){
+      return buildFromLayout(esc.layout, orden, paqId);
+    }
+  }
+
   const tipos = Object.keys(orden).filter(t => orden[t] > 0);
   if(!tipos.length) return null;
 
@@ -1228,7 +1299,8 @@ function drawSheet(cv,sd,wm,paqs){
         const px=zxp+c*(pwp+gp), py=zyp+r*(php+gp);
         drawPhoto(ctx,px,py,pwp,php,z.rot,img,crop);
         // Marca de agua: zona de regalo siempre, o fotos que exceden el pedido
-        const esExtra = photoIdx >= z.need;
+        const marcaDesde = z.sinMarca !== undefined ? z.sinMarca : z.need;
+        const esExtra = photoIdx >= marcaDesde;
         if(z.regalo || esExtra){
           drawWM(ctx,px,py,pwp,php,{...wm,folio},z.rot);
         }
