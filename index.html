@@ -2723,10 +2723,16 @@ function renderDesgloseSpecs(ventas){
       // Extraer nombre base de la escuela (sin " — H" o " — M")
       var nombre = it.nombre.replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim();
       if(!nombre) return;
-      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0, personas:0};
+      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0, personas:0, modificaciones:{}};
       escuelasTemporales[nombre].ventas++;
       escuelasTemporales[nombre].total+=(it.precio||0);
       if(mes) escuelasTemporales[nombre].meses[mes]=(escuelasTemporales[nombre].meses[mes]||0)+1;
+      // Registrar modificaciones al paquete
+      if(it.modData && it.modData.modificaciones){
+        var mods = it.modData.modificaciones;
+        (mods.agregados||[]).forEach(function(a){ escuelasTemporales[nombre].modificaciones['+ '+a]=(escuelasTemporales[nombre].modificaciones['+ '+a]||0)+1; });
+        (mods.quitados||[]).forEach(function(q){ escuelasTemporales[nombre].modificaciones['- '+q]=(escuelasTemporales[nombre].modificaciones['- '+q]||0)+1; });
+      }
       // Sumar personas fotografiadas
       if(it.clienteData && it.clienteData.fotografiados){
         var f=it.clienteData.fotografiados;
@@ -2933,14 +2939,18 @@ function renderDesgloseSpecs(ventas){
           .sort(function(a,b){return MESES_NOMBRE.indexOf(a[0])-MESES_NOMBRE.indexOf(b[0]);})
           .map(function(m){ return '<span style="background:#E1F5EE;color:#085041;padding:1px 5px;border-radius:4px;margin-right:3px;font-size:10px;">'+m[0]+(m[1]>1?' x'+m[1]:'')+'</span>'; }).join('');
         var personasStr = e[1].personas > 0 ? '<span style="color:#0C447C;font-weight:600;">'+e[1].personas+'</span>' : '<span style="color:#ccc;">—</span>';
+        var modsEntries = Object.entries(e[1].modificaciones||{}).sort(function(a,b){return b[1]-a[1];});
+        var modsStr = modsEntries.map(function(m){
+          var color = m[0].startsWith('+') ? '#1D9E75' : '#A32D2D';
+          return '<span style="font-size:9px;background:#f5f5f5;border-radius:4px;padding:1px 5px;color:'+color+';margin-right:3px;">'+m[0]+' ('+m[1]+'×)</span>';
+        }).join('');
         return '<tr style="border-bottom:1px solid #f5f5f5;">'
-          +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+e[0]+'</td>'
+          +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+e[0]+(modsStr?'<div style="margin-top:3px;">'+modsStr+'</div>':'')+'</td>'
           +'<td style="padding:6px 8px;text-align:center;">'+e[1].ventas+'</td>'
           +'<td style="padding:6px 8px;text-align:center;">'+personasStr+'</td>'
           +'<td style="padding:6px 8px;text-align:center;color:#1D9E75;font-weight:600;">$'+e[1].total+'</td>'
           +'<td style="padding:6px 8px;">'+mesesStr+'</td>'
-          +'</tr>';
-      }).join('')
+          +'</tr>';      }).join('')
       +'</tbody></table></div>';
   }
 
@@ -3497,6 +3507,14 @@ function renderHistorialRows(sorted, elH){
         if(cd.camisa_blanca) extras.push('Camisa blanca');
         if(cd.barba_edicion>0) extras.push('Editar barba');
         if(extras.length) linea+='<div style="font-size:10px;color:#BA7517;padding-left:10px;">+ '+extras.join(', ')+'</div>';
+      // Mostrar modificaciones al paquete base
+      if(it.modData && it.modData.modificaciones){
+        var mods = it.modData.modificaciones;
+        if(mods.agregados && mods.agregados.length)
+          linea+='<div style="font-size:10px;color:#1D9E75;padding-left:10px;">+ Agregado: '+mods.agregados.join(', ')+'</div>';
+        if(mods.quitados && mods.quitados.length)
+          linea+='<div style="font-size:10px;color:#A32D2D;padding-left:10px;">− Quitado: '+mods.quitados.join(', ')+'</div>';
+      }
       }
       return linea;
     }).join('');
@@ -4864,29 +4882,49 @@ function cobrarCalculadora(){
     return;
   }
 
-  // Detectar si hubo cambios respecto al paquete original
-  var _huboCambios = false;
-  if(escuelaActual){
-    var escOrig = escuelas[escuelaActual.idx];
-    var totalOrig = parseInt((escOrig.p||'').replace('$',''))||0;
-    if(total !== totalOrig) _huboCambios = true;
-    if(!_huboCambios){
-      var lineasOrig = (escOrig.calcData && escOrig.calcData.lineas) ? escOrig.calcData.lineas.map(function(l){return l.nombre;}).join('|') : '';
-      var lineasNuev = lineas.map(function(l){return l.nombre;}).join('|');
-      if(lineasOrig !== lineasNuev) _huboCambios = true;
+  var _huboCambios = false; // se setea abajo después de calcular modificaciones
+
+  // Calcular items base del paquete original para detectar diferencias
+  var itemsBase = [];
+  if(escuelaActual && escuelas[escuelaActual.idx] && escuelas[escuelaActual.idx].calcData){
+    var cdOrig = escuelas[escuelaActual.idx].calcData;
+    ['infantil','credencial','diploma','titulo'].forEach(function(k){
+      if(cdOrig[k] && cdOrig[k].variantes){
+        cdOrig[k].variantes.forEach(function(v){
+          if(v.cant>0){
+            var cfg=CALC_CFG[k];
+            var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
+            var paq=Math.ceil(v.cant/cfg.xPaq);
+            itemsBase.push({nombre:v.cant+' '+cfg.nombre+(v.color==='bn'?' B/N':' Color')+(v.adherible?' adherible':'')+(v.forma==='oval'?' Oval':' Rect'), precio:paq*precio});
+          }
+        });
+      }
+    });
+    if(cdOrig.digital && cdOrig.digital.cant>0){
+      var dCfg=CALC_CFG.digital;
+      itemsBase.push({nombre:cdOrig.digital.cant+' Digital', precio:Math.ceil(cdOrig.digital.cant/dCfg.xPaq)*dCfg.precioBase});
     }
-  } else {
-    // Escuela nueva — siempre hay "cambios" (no existe aún)
-    _huboCambios = true;
   }
+
+  // Detectar qué se agregó y qué se quitó
+  var nombresBase = itemsBase.map(function(i){return i.nombre;});
+  var nombresVendidos = lineas.map(function(i){return i.nombre;});
+  var agregados = nombresVendidos.filter(function(n){ return !nombresBase.includes(n); });
+  var quitados = nombresBase.filter(function(n){ return !nombresVendidos.includes(n); });
+  var hayModificaciones = agregados.length > 0 || quitados.length > 0;
 
   // Guardar referencia para uso en callbacks
   window._calcPendienteGuardar = {
     nombre: nombre, descripcionCompleta: descripcionCompleta,
     specs: specs, total: total, calcData: calcData,
     esNueva: !escuelaActual,
-    idxExistente: escuelaActual ? escuelaActual.idx : -1
+    idxExistente: escuelaActual ? escuelaActual.idx : -1,
+    itemsBase: itemsBase,
+    itemsVendidos: lineas.slice(),
+    modificaciones: hayModificaciones ? {agregados: agregados, quitados: quitados} : null,
+    escuelaBase: nombre
   };
+  _huboCambios = hayModificaciones || !escuelaActual;
 
   if(_huboCambios){
     // Pre-fill nombre field with current school name
@@ -4999,7 +5037,14 @@ function confirmarCalcPagador(){
       adulto_h:foto.adulto_h||0, adulto_m:foto.adulto_m||0
     }
   };
-  carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData});
+  var modData = (window._calcPendienteGuardar && window._calcPendienteGuardar.modificaciones)
+    ? { escuelaBase: window._calcPendienteGuardar.escuelaBase,
+        itemsBase: window._calcPendienteGuardar.itemsBase,
+        modificaciones: window._calcPendienteGuardar.modificaciones }
+    : null;
+  carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', clienteData:clienteData,
+    calcData: window._calcPendienteGuardar ? window._calcPendienteGuardar.calcData : null,
+    modData: modData});
   renderCarrito();
   closeM('m-calc-pagador');
 }
