@@ -618,6 +618,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <div style="display:flex;gap:0;border-bottom:2px solid #e0e0e0;margin-bottom:16px;align-items:center;">
         <button id="prod-tab-activas" onclick="showProdTab('activas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid #0C447C;color:#0C447C;margin-bottom:-2px;">Activas</button>
         <button id="prod-tab-archivadas" onclick="showProdTab('archivadas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Archivadas</button>
+        <button id="prod-tab-urgentes" onclick="showProdTab('urgentes')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">⚡ Urgentes</button>
         <button id="btn-silenciar-alerta" onclick="silenciarAlerta()" style="display:none;margin-left:auto;margin-right:4px;padding:5px 10px;font-size:11px;background:#FCEBEB;color:#A32D2D;border:1px solid #f5c0c0;border-radius:8px;cursor:pointer;"><i class="ti ti-bell-off"></i> Silenciar</button>
       </div>
 
@@ -664,6 +665,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Panel: Urgentes (solo tickets, sin precios) -->
+      <div id="prod-panel-urgentes" style="display:none;">
+        <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+          <div style="position:relative;flex:1;">
+            <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+            <input type="text" id="urg-prod-buscar" placeholder="Buscar por folio o propósito..." oninput="filtrarUrgProd()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;box-sizing:border-box;">
+          </div>
+        </div>
+        <div id="urg-prod-body"></div>
       </div>
 
       <!-- Panel: Archivadas -->
@@ -1137,6 +1149,9 @@ function abrirClienteRapido(nombre, precio, tipo){
   var tramiteSec=document.getElementById('cr-tramite-sec'); if(tramiteSec) tramiteSec.style.display='none';
   var tramiteTxt=document.getElementById('cr-tramite-txt'); if(tramiteTxt) tramiteTxt.value='';
   _clienteRapido.tramiteDesc='';
+  var inscSec=document.getElementById('cr-inscripcion-sec'); if(inscSec) inscSec.style.display='none';
+  var inscTxt=document.getElementById('cr-inscripcion-txt'); if(inscTxt) inscTxt.value='';
+  _clienteRapido.inscripcionEscuela='';
   // Reset camisa y barba
   var camisa=document.getElementById('cr-camisa'); if(camisa) camisa.className='btn bgray';
   _clienteRapido.camisa_blanca=false;
@@ -1202,6 +1217,13 @@ function crSet(campo, val, btnIds){
       if(tramiteTxtEl) tramiteTxtEl.value='';
       _clienteRapido.tramiteDesc='';
     }
+    if(val!=='Inscripción'){
+      var inscSec=document.getElementById('cr-inscripcion-sec');
+      if(inscSec) inscSec.style.display='none';
+      var inscTxtEl=document.getElementById('cr-inscripcion-txt');
+      if(inscTxtEl) inscTxtEl.value='';
+      _clienteRapido.inscripcionEscuela='';
+    }
   }
   // Activar el correcto
   var _crEl = document.getElementById('cr-'+val.toLowerCase()
@@ -1233,19 +1255,25 @@ function crAjFoto(tipo, delta){
 }
 
 function crSelOtro(){
-  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
+  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
   document.getElementById('cr-otro-sec').style.display='block';
   document.getElementById('cr-otro-txt').focus();
 }
 
+function crSelInscripcion(){
+  crSet('proposito','Inscripción',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  document.getElementById('cr-inscripcion-sec').style.display='block';
+  document.getElementById('cr-inscripcion-txt').focus();
+}
+
 function crSelEscolar(){
-  crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
+  crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
   document.getElementById('cr-escuela-sec').style.display='block';
   document.getElementById('cr-escuela-txt').focus();
 }
 
 function crSelTramite(){
-  crSet('proposito','Tr\u00e1mite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro']);
+  crSet('proposito','Tr\u00e1mite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
   document.getElementById('cr-tramite-sec').style.display='block';
   document.getElementById('cr-tramite-txt').focus();
 }
@@ -1329,6 +1357,7 @@ function confirmarClienteRapido(){
     escuela: escuela,
     otroDesc: otroDesc,
     tramiteDesc: tramiteDesc,
+    inscripcionEscuela: c.proposito==='Inscripción' ? (document.getElementById('cr-inscripcion-txt').value.trim()||'') : '',
     camisa_blanca: c.camisa_blanca||false,
     adherible: c.adherible||false,
     barba: c.barba||'',
@@ -1519,10 +1548,13 @@ function renderCarrito(){
     var tipoBadge = '';
     if(c.tipo==='escuela') tipoBadge='<span style="font-size:9px;background:#E8F0FE;color:#0C447C;border-radius:4px;padding:1px 5px;margin-right:4px;">ESC</span>';
     else if(c.tipo==='impresion') tipoBadge='<span style="font-size:9px;background:#FFF3E0;color:#7A4500;border-radius:4px;padding:1px 5px;margin-right:4px;">IMP</span>';
+        var editBtn = (c.tipo==='escuela' && c.calcData && c.calcData.lineas && c.calcData.lineas.length)
+      ? '<span onclick="abrirModificarItemCarrito('+i+')" style="cursor:pointer;color:#0C7ED6;font-size:16px;margin-right:6px;" title="Modificar para esta venta"><i class="ti ti-edit"></i></span>'
+      : '';
     return '<div class="ci"><div class="ci-inf"><div class="ci-n">'+tipoBadge+c.nombre+'</div>'
       +(extras.length?'<div style="font-size:10px;color:#888;">'+extras.join(' · ')+'</div>':'')
       +'<div class="ci-p">$'+c.precio+'</div></div>'
-      +'<span class="ci-x" onclick="delItem('+i+')"><i class="ti ti-x"></i></span></div>';
+      +'<div style="display:flex;align-items:center;">'+editBtn+'<span class="ci-x" onclick="delItem('+i+')"><i class="ti ti-x"></i></span></div></div>';
   }).join('');
   calcCambio();
 }
@@ -2729,6 +2761,7 @@ function renderDesgloseSpecs(ventas){
       var propKey = c.proposito;
       if(c.proposito==='Otro' && c.otroDesc) propKey = 'Otro: '+c.otroDesc;
       else if(c.proposito==='Trámite gobierno' && c.tramiteDesc) propKey = 'Trámite: '+c.tramiteDesc;
+      else if(c.proposito==='Inscripción' && c.inscripcionEscuela) propKey = 'Inscripción: '+c.inscripcionEscuela;
       if(!cProp[propKey]) cProp[propKey] = {count:0, productos:{}};
       else if(typeof cProp[propKey] === 'number') cProp[propKey] = {count:cProp[propKey], productos:{}};
       cProp[propKey].count += peso;
@@ -3274,6 +3307,150 @@ function abrirEstadisticasOp(){
   });
 }
 
+
+// ── SOLO GUARDAR ESCUELA SIN AGREGAR AL CARRITO ───────────────
+function soloGuardarEscuela(){
+  var nombre = (document.getElementById('calc-escuela-nombre').value||'').trim();
+  if(!nombre){ alert('Escribe el nombre de la escuela'); return; }
+  // Reutilizar cobrarCalculadora pero interceptar antes de agregar al carrito
+  _soloGuardar = true;
+  cobrarCalculadora();
+  _soloGuardar = false;
+}
+var _soloGuardar = false;
+
+// ── MODIFICAR ITEM DE ESCUELA EN CARRITO (para esa venta específica) ──
+function abrirModificarItemCarrito(idx){
+  var item = carrito[idx];
+  if(!item || item.tipo !== 'escuela') return;
+  _carritoEditIdx = idx;
+  // Build a simple modal showing the items and price to adjust
+  var modal = document.getElementById('m-mod-carrito');
+  if(!modal) return;
+  document.getElementById('mod-carrito-titulo').textContent = item.nombre;
+  // Parse the calcData lineas if available
+  var lineas = (item.calcData && item.calcData.lineas) ? item.calcData.lineas : [];
+  var cont = document.getElementById('mod-carrito-items');
+  if(lineas.length){
+    cont.innerHTML = lineas.map(function(l, i){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #f0f0f0;">'
+        +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;">'
+        +'<input type="checkbox" data-linea-idx="'+i+'" data-precio="'+l.precio+'" checked '
+        +'onchange="recalcModCarrito()"> '
+        +l.nombre+'</label>'
+        +'<span style="font-size:12px;color:#1D9E75;font-weight:600;">$'+l.precio+'</span>'
+        +'</div>';
+    }).join('');
+  } else {
+    // Fallback: show the item as a single line
+    cont.innerHTML = '<div style="font-size:12px;color:#555;padding:8px 0;">'+item.nombre+' — $'+item.precio+'</div>';
+  }
+  document.getElementById('mod-carrito-precio-base').textContent = '$'+item.precio;
+  document.getElementById('mod-carrito-precio-final').textContent = '$'+item.precio;
+  openM('m-mod-carrito');
+}
+var _carritoEditIdx = -1;
+
+function recalcModCarrito(){
+  var total = 0;
+  document.querySelectorAll('#mod-carrito-items input[type=checkbox]').forEach(function(chk){
+    if(chk.checked) total += parseInt(chk.dataset.precio)||0;
+  });
+  document.getElementById('mod-carrito-precio-final').textContent = '$'+total;
+}
+
+function confirmarModCarrito(){
+  var idx = _carritoEditIdx;
+  if(idx < 0 || !carrito[idx]) { closeM('m-mod-carrito'); return; }
+  var total = 0;
+  var lineasActivas = [];
+  document.querySelectorAll('#mod-carrito-items input[type=checkbox]').forEach(function(chk){
+    if(chk.checked){
+      total += parseInt(chk.dataset.precio)||0;
+      var lineaIdx = parseInt(chk.dataset.lineaIdx);
+      if(carrito[idx].calcData && carrito[idx].calcData.lineas){
+        lineasActivas.push(carrito[idx].calcData.lineas[lineaIdx]);
+      }
+    }
+  });
+  if(!total){ alert('Selecciona al menos un item'); return; }
+  carrito[idx].precio = total;
+  // Update calcData.lineas to reflect the actual sold items (without modifying the school)
+  if(carrito[idx].calcData) carrito[idx].calcData.lineasVendidas = lineasActivas;
+  renderCarrito();
+  closeM('m-mod-carrito');
+}
+
+// ── PANEL URGENTES EN PRODUCCIÓN ──────────────────────────────
+var _urgProdVentas = [];
+
+function cargarUrgProd(){
+  var cont = document.getElementById('urg-prod-body');
+  if(!cont) return;
+  if(!db){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin conexión</p>'; return; }
+  cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  db.collection('ventas')
+    .where('origen','in',['urgentes','visas'])
+    .orderBy('timestamp','desc')
+    .limit(100)
+    .get()
+    .then(function(snap){
+      _urgProdVentas = [];
+      snap.forEach(function(d){ _urgProdVentas.push(d.data()); });
+      renderUrgProd(_urgProdVentas);
+    })
+    .catch(function(){ cont.innerHTML='<p style="color:#A32D2D;font-size:12px;text-align:center;padding:16px;">Error al cargar</p>'; });
+}
+
+function filtrarUrgProd(){
+  var q = (document.getElementById('urg-prod-buscar').value||'').toLowerCase().trim();
+  if(!q){ renderUrgProd(_urgProdVentas); return; }
+  renderUrgProd(_urgProdVentas.filter(function(v){
+    return (v.folio||'').toLowerCase().includes(q)
+      || (v.items||[]).some(function(it){ return (it.clienteData&&it.clienteData.proposito||'').toLowerCase().includes(q)||(it.nombre||'').toLowerCase().includes(q); });
+  }));
+}
+
+function renderUrgProd(ventas){
+  var cont = document.getElementById('urg-prod-body');
+  if(!cont) return;
+  if(!ventas.length){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin tickets urgentes recientes</p>'; return; }
+  var MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  cont.innerHTML = ventas.filter(function(v){ return !v.cancelado; }).map(function(v){
+    var itemsHtml = (v.items||[]).map(function(it){
+      var cd = it.clienteData || {};
+      var linea = '<div style="font-size:11px;font-weight:600;padding:2px 0;">• '+it.nombre+'</div>';
+      // Propósito
+      if(cd.proposito){
+        var pk = cd.proposito;
+        if(pk==='Otro'&&cd.otroDesc) pk='Otro: '+cd.otroDesc;
+        else if(pk==='Trámite gobierno'&&cd.tramiteDesc) pk='Trámite: '+cd.tramiteDesc;
+        else if(pk==='Inscripción'&&cd.inscripcionEscuela) pk='Inscripción: '+cd.inscripcionEscuela;
+        linea += '<div style="font-size:10px;color:#0C7ED6;padding-left:10px;">📋 '+pk+'</div>';
+      }
+      // Fotografiados
+      if(cd.fotografiados){
+        var f=cd.fotografiados;
+        var fH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        if(fH||fM) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
+      }
+      // Color/BN
+      if(cd.colorBN) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
+      return linea;
+    }).join('');
+
+    return '<div style="border:1px solid #e0e0e0;border-radius:10px;padding:10px 14px;margin-bottom:8px;background:white;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+      +'<span style="color:#0C7ED6;font-weight:700;font-size:13px;">'+v.folio+'</span>'
+      +'<span style="font-size:10px;color:#aaa;">'+(v.fecha||'')+'  '+(v.hora||'')+'</span>'
+      +'</div>'
+      +'<div style="border-top:1px dashed #e0e0e0;padding-top:6px;">'+itemsHtml+'</div>'
+      +'</div>';
+  }).join('');
+}
+
 function renderHistorialRows(sorted, elH){
   if(!sorted.length){ elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
   elH.innerHTML = sorted.map(v=>{
@@ -3490,6 +3667,8 @@ function editarEsc(i){
   if(btn){
     btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
   }
+  var btnG = document.getElementById('btn-calc-guardar');
+  if(btnG) btnG.style.display = 'none';
 }
 
 function abrirImgEsc(i){
@@ -4098,6 +4277,9 @@ function abrirCalculadora(){
   if(escuelaEditIdx === null){
     var btn = document.getElementById('btn-calc-action');
     if(btn){ btn.innerHTML = '<i class="ti ti-shopping-cart"></i> Agregar al carrito'; }
+    // Show "Guardar" button for new schools (not editing)
+    var btnG = document.getElementById('btn-calc-guardar');
+    if(btnG) btnG.style.display = 'inline-flex';
   }
   // Reset estado con variantes
   ['infantil','credencial','diploma','titulo'].forEach(k=>{
@@ -4697,6 +4879,12 @@ function cobrarCalculadora(){
 
   // Guardar pendiente y abrir popup sexo+edad
   _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
+  // Si solo guardar (sin agregar al carrito), terminar aquí
+  if(_soloGuardar){
+    closeM('m-calc');
+    showToast('✅ Escuela guardada');
+    return;
+  }
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
     var b=document.getElementById(id); if(!b) return;
     var esH=id.startsWith('esc-h');
@@ -4956,19 +5144,23 @@ function esOrdenUrgente(o){
 function showProdTab(tab){
   var activas = document.getElementById('prod-panel-activas');
   var archivadas = document.getElementById('prod-panel-archivadas');
+  var urgentes = document.getElementById('prod-panel-urgentes');
   var tabA = document.getElementById('prod-tab-activas');
   var tabB = document.getElementById('prod-tab-archivadas');
+  var tabU = document.getElementById('prod-tab-urgentes');
+  [activas,archivadas,urgentes].forEach(function(p){ if(p) p.style.display='none'; });
+  [tabA,tabB,tabU].forEach(function(t){ if(t){ t.style.borderBottomColor='transparent'; t.style.color='#aaa'; } });
   if(tab==='activas'){
-    activas.style.display='';
-    archivadas.style.display='none';
-    tabA.style.borderBottomColor='#0C447C'; tabA.style.color='#0C447C';
-    tabB.style.borderBottomColor='transparent'; tabB.style.color='#aaa';
-  } else {
-    activas.style.display='none';
-    archivadas.style.display='';
-    tabA.style.borderBottomColor='transparent'; tabA.style.color='#aaa';
-    tabB.style.borderBottomColor='#0C447C'; tabB.style.color='#0C447C';
+    if(activas) activas.style.display='block';
+    if(tabA){ tabA.style.borderBottomColor='#0C447C'; tabA.style.color='#0C447C'; }
+  } else if(tab==='archivadas'){
+    if(archivadas) archivadas.style.display='block';
+    if(tabB){ tabB.style.borderBottomColor='#0C447C'; tabB.style.color='#0C447C'; }
     cargarArchivadas();
+  } else if(tab==='urgentes'){
+    if(urgentes) urgentes.style.display='block';
+    if(tabU){ tabU.style.borderBottomColor='#0C7ED6'; tabU.style.color='#0C7ED6'; }
+    cargarUrgProd();
   }
 }
 
@@ -5647,6 +5839,7 @@ function mostrarEmailStatus(tipo, msg){
 
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-calc')">Cancelar</button>
+    <button class="btn bgray" id="btn-calc-guardar" onclick="soloGuardarEscuela()" style="color:#0C447C;border-color:#90BEFF;display:none;"><i class="ti ti-device-floppy"></i> Guardar</button>
     <button class="btn bgreen" id="btn-calc-action" onclick="cobrarCalculadora()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
   </div>
 </div></div>
@@ -5762,6 +5955,21 @@ function mostrarEmailStatus(tipo, msg){
     <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
+<!-- MODAL MODIFICAR ITEM CARRITO -->
+<div class="modal-ov" id="m-mod-carrito"><div class="modal-box" style="width:320px;">
+  <p class="modal-t" id="mod-carrito-titulo">Modificar paquete</p>
+  <p style="font-size:11px;color:#888;margin-bottom:10px;">Esta modificación es solo para esta venta. El paquete guardado no cambia.</p>
+  <div id="mod-carrito-items" style="max-height:250px;overflow-y:auto;margin-bottom:10px;"></div>
+  <div style="display:flex;justify-content:space-between;font-size:12px;padding:8px 0;border-top:1px dashed #e0e0e0;">
+    <span>Precio original: <b id="mod-carrito-precio-base">$0</b></span>
+    <span>Precio ajustado: <b id="mod-carrito-precio-final" style="color:#1D9E75;">$0</b></span>
+  </div>
+  <div class="modal-btns">
+    <button class="btn bgray" onclick="closeM('m-mod-carrito')">Cancelar</button>
+    <button class="btn bgreen" onclick="confirmarModCarrito()"><i class="ti ti-check"></i> Aplicar</button>
+  </div>
+</div></div>
+
 <!-- MODAL MARCAR PASO -->
 <div class="modal-ov" id="m-marcar-paso"><div class="modal-box" style="width:300px;">
   <p class="modal-t" id="marcar-paso-titulo">Marcar paso</p>
@@ -5924,12 +6132,16 @@ function mostrarEmailStatus(tipo, msg){
   <div class="frow">
     <label>Propósito</label>
     <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">IMSS/ISSSTE</button>
+      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'])">IMSS/ISSSTE</button>
       <button id="cr-escolar" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelEscolar()">Escolar</button>
       <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelTramite()">Trámite gov.</button>
-      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">INAPAM</button>
-      <button id="cr-trabajo" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trabajo',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro'])">Trabajo</button>
+      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'])">INAPAM</button>
+      <button id="cr-trabajo" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','Trabajo',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'])">Trabajo</button>
       <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelOtro()">Otro</button>
+      <button id="cr-inscripcion" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelInscripcion()">Inscripción</button>
+    </div>
+    <div id="cr-inscripcion-sec" style="display:none;margin-top:8px;">
+      <input type="text" id="cr-inscripcion-txt" placeholder="¿A qué escuela se inscribe?" style="font-size:12px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="_clienteRapido.inscripcionEscuela=this.value.trim()">
     </div>
     <div id="cr-escuela-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-escuela-txt" placeholder="Nombre de la escuela..." style="font-size:12px;" oninput="crFiltrarEscuelas()" autocomplete="off">
@@ -6140,7 +6352,7 @@ function mostrarEmailStatus(tipo, msg){
   </div>
   <div id="email-status" style="font-size:12px;margin-top:6px;display:none;"></div>
   <div class="modal-btns">
-    <button class="btn bgray" onclick="closeM('m-email-ticket')">Cancelar</button>
+    <button class="btn bgray" onclick="closeM('m-email-ticket');openM('m-ticket');"><i class="ti ti-arrow-left"></i> Regresar</button>
     <button class="btn bgreen" id="btn-enviar-email" onclick="enviarTicketEmail()"><i class="ti ti-send"></i> Enviar</button>
   </div>
 </div></div>
