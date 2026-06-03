@@ -2521,9 +2521,14 @@ async function cargarReportes(){
       snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
       ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
     } else if(periodoActual==='semana'){
+      // Fetch current month + previous month to cover 7-day window, filter client-side
       const h7=new Date(now);h7.setDate(h7.getDate()-7);
-      snap=await db.collection('ventas').where('timestamp','>=',h7.toISOString()).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+      const snaps=await Promise.all([
+        db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get(),
+        now.getDate()<=7 ? db.collection('ventas').where('year','==',now.getMonth()===0?now.getFullYear()-1:now.getFullYear()).where('month','==',now.getMonth()===0?12:now.getMonth()).get() : Promise.resolve({forEach:()=>{}})
+      ]);
+      ventasFB=[];
+      snaps.forEach(function(s){ s.forEach(function(d){ var v=d.data(); if(v.timestamp&&v.timestamp>=h7.toISOString()) ventasFB.push(v); }); });
     } else if(periodoActual==='mes'){
       snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
       ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
@@ -2543,10 +2548,14 @@ async function cargarReportes(){
       if(!desde||!hasta){alert('Selecciona fecha inicio y fin');return;}
       const tsDesde=new Date(desde+'T00:00:00').toISOString();
       const tsHasta=new Date(hasta+'T23:59:59').toISOString();
-      snap=await db.collection('ventas')
-        .where('timestamp','>=',tsDesde)
-        .where('timestamp','<=',tsHasta).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+      // Fetch by year range client-side to avoid compound index requirement
+      var desdeDate=new Date(desde+'T00:00:00');
+      var hastaDate=new Date(hasta+'T23:59:59');
+      var years=[];
+      for(var y=desdeDate.getFullYear();y<=hastaDate.getFullYear();y++) years.push(y);
+      var rangoSnaps=await Promise.all(years.map(function(y){ return db.collection('ventas').where('year','==',y).get(); }));
+      ventasFB=[];
+      rangoSnaps.forEach(function(s){ s.forEach(function(d){ var v=d.data(); if(v.timestamp&&v.timestamp>=tsDesde&&v.timestamp<=tsHasta) ventasFB.push(v); }); });
     } else if(periodoActual==='mes_cal'){
       const val=document.getElementById('cal-mes-val').value;
       if(!val){alert('Selecciona un mes');return;}
