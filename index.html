@@ -4847,8 +4847,8 @@ function cobrarCalculadora(){
   });
   calcData.digital={cant:calcState.digital.cant,color:calcState.digital.color,espec:document.getElementById('calc-dig-espec')?document.getElementById('calc-dig-espec').value:''};
 
-  if(!escuelaActual){
-    // Escuela nueva — guardar automáticamente
+  // Si solo guardar (sin agregar al carrito), guardar en Firestore y salir sin tocar carrito
+  if(_soloGuardar){
     var docId='e_'+Date.now();
     var escData={n:nombre,s:descripcionCompleta+' | '+specs,p:'$'+total,img:null,_id:docId,calcData:calcData};
     escuelas.push(escData);
@@ -4859,22 +4859,78 @@ function cobrarCalculadora(){
         .then(function(){setDriveStatus(true,'Escuela guardada ✓');})
         .catch(function(e){setDriveStatus(false,'Error: '+e.code);});
     }
-  } else {
-    // Escuela existente — actualizar calcData automáticamente
-    var idx=escuelaActual.idx;
-    if(escuelas[idx]){
-      escuelas[idx].calcData=calcData;
-      escuelas[idx].s=descripcionCompleta+' | '+specs;
-      escuelas[idx].p='$'+total;
-      var docId=escuelas[idx]._id||('e_'+idx);
-      guardarLocal();
-      if(db){
-        db.collection('escuelas').doc(docId).update({calcData:calcData,s:escuelas[idx].s,p:escuelas[idx].p})
-          .catch(function(e){console.error('Error actualizar escuela:',e);});
-      }
-    }
+    closeM('m-calc');
+    showToast('✅ Escuela guardada');
+    return;
   }
 
+  // Detectar si hubo cambios respecto al paquete original
+  var _huboCambios = false;
+  if(escuelaActual){
+    var escOrig = escuelas[escuelaActual.idx];
+    var totalOrig = parseInt((escOrig.p||'').replace('$',''))||0;
+    if(total !== totalOrig) _huboCambios = true;
+    if(!_huboCambios){
+      var lineasOrig = (escOrig.calcData && escOrig.calcData.lineas) ? escOrig.calcData.lineas.map(function(l){return l.nombre;}).join('|') : '';
+      var lineasNuev = lineas.map(function(l){return l.nombre;}).join('|');
+      if(lineasOrig !== lineasNuev) _huboCambios = true;
+    }
+  } else {
+    // Escuela nueva — siempre hay "cambios" (no existe aún)
+    _huboCambios = true;
+  }
+
+  // Guardar referencia para uso en callbacks
+  window._calcPendienteGuardar = {
+    nombre: nombre, descripcionCompleta: descripcionCompleta,
+    specs: specs, total: total, calcData: calcData,
+    esNueva: !escuelaActual,
+    idxExistente: escuelaActual ? escuelaActual.idx : -1
+  };
+
+  if(_huboCambios){
+    // Pre-fill nombre field with current school name
+    var nombreSugerido = window._calcPendienteGuardar ? window._calcPendienteGuardar.nombre : nombre;
+    var inp = document.getElementById('guardar-paquete-nombre');
+    if(inp){ inp.value = nombreSugerido; }
+    openM('m-guardar-paquete');
+    setTimeout(function(){ var inp2=document.getElementById('guardar-paquete-nombre'); if(inp2){inp2.select();inp2.focus();} }, 200);
+    return; // salir — continúa desde confirmarGuardarPaquete o saltarGuardarPaquete
+  }
+  // Sin cambios — solo agregar al carrito (no guardar nada)
+  _continuarAgregarCarrito();
+}
+
+
+// ── GUARDAR PAQUETE MODIFICADO ────────────────────────────────
+function confirmarGuardarPaquete(){
+  // User wants to save as new school
+  var nuevoNombre = (document.getElementById('guardar-paquete-nombre').value||'').trim();
+  if(!nuevoNombre){ document.getElementById('guardar-paquete-nombre').focus(); return; }
+  closeM('m-guardar-paquete');
+  var g = window._calcPendienteGuardar;
+  if(!g) return;
+  var docId = 'e_'+Date.now();
+  var escData = {n:nuevoNombre, s:g.descripcionCompleta+' | '+g.specs, p:'$'+g.total, img:null, _id:docId, calcData:g.calcData};
+  escuelas.push(escData);
+  rendEsc();
+  guardarLocal();
+  if(db){
+    db.collection('escuelas').doc(docId).set(escData)
+      .then(function(){ setDriveStatus(true,'Escuela guardada ✓'); })
+      .catch(function(e){ setDriveStatus(false,'Error: '+e.code); });
+  }
+  showToast('✅ Paquete guardado como "'+nuevoNombre+'"');
+  _continuarAgregarCarrito();
+}
+
+function saltarGuardarPaquete(){
+  // User does NOT want to save — just add to cart for this sale
+  closeM('m-guardar-paquete');
+  _continuarAgregarCarrito();
+}
+
+function _continuarAgregarCarrito(){
   var barbaPrecioFinal = parseFloat(document.getElementById('calc-barba-precio')&&document.getElementById('calc-barba-precio').style.display==='block'?document.getElementById('calc-barba-precio').value:0)||0;
   if(barbaPrecioFinal>0) lineas.push({nombre:'Edición de barba', precio:barbaPrecioFinal});
   window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,fondo:fondo,cabello:cab,aretes:aretes,barba:barba,notas:notas,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
@@ -4882,12 +4938,6 @@ function cobrarCalculadora(){
 
   // Guardar pendiente y abrir popup sexo+edad
   _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
-  // Si solo guardar (sin agregar al carrito), terminar aquí
-  if(_soloGuardar){
-    closeM('m-calc');
-    showToast('✅ Escuela guardada');
-    return;
-  }
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
     var b=document.getElementById(id); if(!b) return;
     var esH=id.startsWith('esc-h');
@@ -5960,6 +6010,20 @@ function mostrarEmailStatus(tipo, msg){
     <button class="btn bgreen" id="pers-continuar" onclick="continuarConPersonas()" disabled><i class="ti ti-arrow-right"></i> Continuar</button>
   </div>
 </div></div>
+<!-- MODAL GUARDAR PAQUETE MODIFICADO -->
+<div class="modal-ov" id="m-guardar-paquete"><div class="modal-box" style="width:320px;">
+  <p class="modal-t"><i class="ti ti-device-floppy"></i> Paquete modificado</p>
+  <p style="font-size:12px;color:#555;margin-bottom:12px;">Hiciste cambios en este paquete. ¿Quieres guardarlo como un paquete nuevo?</p>
+  <div class="frow" style="margin-bottom:8px;">
+    <label>Nombre del nuevo paquete</label>
+    <input type="text" id="guardar-paquete-nombre" placeholder="Ej: UACH Medicina — sin digital" style="font-size:13px;" onkeydown="if(event.key==='Enter')confirmarGuardarPaquete()">
+  </div>
+  <div class="modal-btns" style="flex-wrap:wrap;gap:6px;">
+    <button class="btn bgray" onclick="saltarGuardarPaquete()">No guardar — solo agregar</button>
+    <button class="btn bgreen" onclick="confirmarGuardarPaquete()"><i class="ti ti-device-floppy"></i> Guardar y agregar</button>
+  </div>
+</div></div>
+
 <!-- MODAL MODIFICAR ITEM CARRITO -->
 <div class="modal-ov" id="m-mod-carrito"><div class="modal-box" style="width:320px;">
   <p class="modal-t" id="mod-carrito-titulo">Modificar paquete</p>
