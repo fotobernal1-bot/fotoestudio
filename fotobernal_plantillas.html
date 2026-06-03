@@ -9,7 +9,7 @@ FOTO BERNAL v5 — MULTI-PAQUETE
 ================================
 MEDIDAS FOTOS (cm): credR=3.5x4.5 credO=3.5x5 inf=2.5x3 dip=5x7 tit=6x9
 HOJAS: 4x6=$4 5x7=$7 6x8=$8 6x9=$9 6x10=$10 6x12=$12 8x10=$28 11x14=$70
-REGLAS: sep=0.5mm, rotación libre, regalo min5x7 max9.5x8.5, proporción max1:2
+REGLAS: sep=0.05mm corte guillotina, margen=0.3cm, rotación libre, regalo min5x7 max9.5x8.5, proporción max1:2
         regalo siempre presente, nunca solo en hoja, 300dpi
 MULTI-PAQUETE: max 5 paquetes, cada uno con foto(s) fuente, cantidades, folio
                opción combinar paquetes en misma hoja para reducir costo
@@ -249,7 +249,7 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
 // =====================================================
 const DPI=300, C2P=DPI/2.54;
 const GAP=0.05;
-const MARGIN=0.5; // margen exterior por lado en cm
+const MARGIN=0.3; // margen exterior por lado en cm
 // Multiplicadores de encuadre — editables desde el pop-up de calibración
 let MULT_ESTERNON=1.4; // cuántas veces la altura de cara hacia abajo (esternón)
 let MULT_ABDOMEN=2.2;  // cuántas veces la altura de cara hacia abajo (abdomen)
@@ -777,7 +777,27 @@ const ESCUELAS = [
      }]
    }
   },
-  {id:'SERV_ALEXIA', nombre:'Servicio Social (Alexia/Flor.)', pedido:{credR:2,inf:3}},
+  {id:'SERV_ALEXIA', nombre:'Servicio Social (Alexia/Flor.)', pedido:{credR:2,inf:3},
+   layout:{
+     hojas:[{
+       sh:'5x7',
+       // Área útil 12.10 × 17.18 cm con margen 0.3cm
+       // Arriba: 2 regalos con marca lado a lado (6.05 × 8.03 cm cada uno)
+       // Abajo izq: 6 infantil 2×3 (5.05 × 9.10 cm) — 3 cliente + 3 extra
+       // Abajo der: 4 credR 2×2 (7.05 × 9.05 cm) — 2 cliente + 2 extra
+       regalo:[
+         {x:0,    y:0, w:6.05, h:8.03},
+         {x:6.05, y:0, w:6.05, h:8.03}
+       ],
+       zonas:[
+         {type:'inf',   cols:2, rows:3, rot:false, x:0,    y:8.08,
+          cliente:3, extra:3},
+         {type:'credR', cols:2, rows:2, rot:false, x:5.05, y:8.08,
+          cliente:2, extra:2}
+       ]
+     }]
+   }
+  },
   {id:'TIT_ALEXIA',  nombre:'Titulación (Alexia/Flor.)',      pedido:{tit:2,credR:2,inf:6}},
   {id:'TEC1',        nombre:'TEC 1',                          pedido:{credO:6}},
   {id:'JERUEL',      nombre:'JERUEL',                         pedido:{dip:6,inf:6}},
@@ -833,24 +853,26 @@ function calcRegaloSize(espacioW, espacioH){
 function getSH(id){ return SH.find(s=>s.id===id); }
 
 // Construir resultado desde un layout verificado de escuela
+// x,y en zonas y regalos son cm relativos al área útil (se suma MARGIN internamente)
 function buildFromLayout(layout, orden, paqId){
   let allSheets = [], totalCost = 0;
   for(const hojaSpec of layout.hojas){
     const sh = getSH(hojaSpec.sh);
     if(!sh) continue;
     const zones = [];
+
+    // Zonas de foto
     for(const z of hojaSpec.zonas){
       const pt = PT[z.type];
       if(!pt) continue;
       const fw = z.rot ? pt.h : pt.w;
       const fh = z.rot ? pt.w : pt.h;
-      const uw = sh.w - 2*MARGIN, uh = sh.h - 2*MARGIN;
-      const xAbs = MARGIN + (z.x || 0) * uw;
-      const yAbs = MARGIN + (z.y || 0) * uh;
+      const xAbs = MARGIN + (z.x || 0);
+      const yAbs = MARGIN + (z.y || 0);
       const w = z.cols * fw + (z.cols-1)*GAP;
       const h = z.rows * fh + (z.rows-1)*GAP;
       const count = z.cols * z.rows;
-      const need = z.cliente || (orden[z.type]||0);
+      const need = z.cliente !== undefined ? z.cliente : (orden[z.type]||0);
       const sinMarca = need + (z.extra||0);
       zones.push({
         type:z.type, x:xAbs, y:yAbs, w, h,
@@ -860,17 +882,16 @@ function buildFromLayout(layout, orden, paqId){
         regalo: false
       });
     }
-    // Agregar zonas de regalo si están definidas
+
+    // Zonas de regalo
     if(hojaSpec.regalo){
       for(const r of hojaSpec.regalo){
-        const xAbs = MARGIN + (r.x||0) * (sh.w-2*MARGIN);
-        const yAbs = MARGIN + (r.y||0) * (sh.h-2*MARGIN);
+        const xAbs = MARGIN + (r.x||0);
+        const yAbs = MARGIN + (r.y||0);
         zones.push({
           type:'regalo', x:xAbs, y:yAbs,
-          cols:r.cols||1, rows:r.rows||1,
-          count:(r.cols||1)*(r.rows||1),
-          pw:r.w, ph:r.h, w:r.w*(r.cols||1)+(Math.max(0,(r.cols||1)-1))*GAP,
-          h:r.h*(r.rows||1)+(Math.max(0,(r.rows||1)-1))*GAP,
+          cols:1, rows:1, count:1,
+          pw:r.w, ph:r.h, w:r.w, h:r.h,
           rot:false, paqId, need:0, sinMarca:0, regalo:true
         });
       }
