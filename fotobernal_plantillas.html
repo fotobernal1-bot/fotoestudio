@@ -402,8 +402,8 @@ function buildPaqBody(paq){
             <button onclick="adjOffset(${paq.id},${fi},0.05)" style="background:var(--sur2);border:1px solid var(--brd);border-radius:3px;color:var(--acc);cursor:pointer;padding:1px 6px;font-size:.7rem;" title="Mover encuadre abajo">▼</button>
           </div>
           <div style="font-size:.58rem;color:${f.faceBox?'var(--grn)':'var(--acc)'};">
-            ${f.faceBox?'✓ cara det.':'⚠ sin detect.'}<br>
-            <span style="color:var(--txt2);">offset: ${Math.round((f.manualOffset||0)*100)}%</span>
+            ${f.faceBox?'✓ cara det.':'⚠ sin detect. — ajusta encuadre'}<br>
+            <span class="offset-label" style="color:var(--txt2);">offset: ${Math.round((f.manualOffset||0)*100)}%</span>
           </div>
         </div>
       </div>
@@ -618,9 +618,11 @@ function calcCrop(imgW, imgH, faceBox, group, manualOffset, destAR){
   const offset = manualOffset || 0;
 
   if(!faceBox){
-    const faceTop = imgH * 0.08;
-    const faceH   = imgH * 0.28;
-    faceBox = {top: faceTop, left: imgW*0.2, width: imgW*0.6, height: faceH};
+    // Sin detección: asumir cara en zona superior, ocupa ~38% de altura
+    // Más realista para fotos de carnet/credencial estándar
+    const faceTop = imgH * 0.05;
+    const faceH   = imgH * 0.38;
+    faceBox = {top: faceTop, left: imgW*0.15, width: imgW*0.70, height: faceH};
   }
 
   const faceTop    = faceBox.top;
@@ -718,13 +720,10 @@ function adjOffset(id,fi,delta){
   const p=paquetes.find(p=>p.id===id);
   if(!p||!p.fotos[fi]) return;
   p.fotos[fi].manualOffset=Math.max(-0.4,Math.min(0.4,(p.fotos[fi].manualOffset||0)+delta));
-  // Update preview canvas and offset label
+  // Solo actualizar canvas y label — NO reconstruir el DOM completo
   renderCropPreview(p,fi);
-  // Update offset display
-  const body=document.querySelector(`#paq_${id} .paq-body`);
-  if(body) body.innerHTML=buildPaqBody(p);
-  // Re-render previews after rebuild
-  setTimeout(()=>renderAllPreviews(p),50);
+  const label=document.querySelector(`#ffitem_${id}_${fi} .offset-label`);
+  if(label) label.textContent=`offset: ${Math.round(p.fotos[fi].manualOffset*100)}%`;
 }
 
 function renderCropPreview(p,fi){
@@ -1481,7 +1480,7 @@ document.getElementById('btnClr').addEventListener('click',()=>{
 // =====================================================
 // MODAL DE ENCUADRE
 // =====================================================
-const modalState={paqId:null, fotoIdx:null, foto:null};
+const modalState={paqId:null, fotoIdx:null, foto:null, offsetOriginal:0};
 
 function openCropModal(paqId, fotoIdx){
   const p=paquetes.find(p=>p.id===paqId);
@@ -1489,19 +1488,35 @@ function openCropModal(paqId, fotoIdx){
   modalState.paqId=paqId;
   modalState.fotoIdx=fotoIdx;
   modalState.foto=p.fotos[fotoIdx];
+  modalState.offsetOriginal=p.fotos[fotoIdx].manualOffset||0; // guardar para cancelar
 
   document.getElementById('modalTitle').textContent=`Encuadre — ${p.nombre} · ${modalState.foto.label}`;
   document.getElementById('cropModal').classList.add('open');
   document.getElementById('multEsternon').value=MULT_ESTERNON;
   document.getElementById('multAbdomen').value=MULT_ABDOMEN;
-  // Esperar a que el modal sea visible (display:flex) antes de medir clientWidth
   requestAnimationFrame(()=>requestAnimationFrame(()=>renderModalCanvas()));
 }
 
 function closeCropModal(){
+  // Aplicar — el offset ya está guardado en p.fotos[fi].manualOffset
   document.getElementById('cropModal').classList.remove('open');
-  // Refresh previews
   const p=paquetes.find(p=>p.id===modalState.paqId);
+  if(p){
+    // Actualizar label en el panel sin reconstruir DOM
+    const fi=modalState.fotoIdx;
+    const label=document.querySelector(`#ffitem_${p.id}_${fi} .offset-label`);
+    if(label) label.textContent=`offset: ${Math.round((p.fotos[fi].manualOffset||0)*100)}%`;
+    setTimeout(()=>renderAllPreviews(p),50);
+  }
+}
+
+function cancelCropModal(){
+  // Cancelar — restaurar offset original
+  const p=paquetes.find(p=>p.id===modalState.paqId);
+  if(p&&p.fotos[modalState.fotoIdx]){
+    p.fotos[modalState.fotoIdx].manualOffset=modalState.offsetOriginal;
+  }
+  document.getElementById('cropModal').classList.remove('open');
   if(p) setTimeout(()=>renderAllPreviews(p),50);
 }
 
@@ -1610,14 +1625,16 @@ function renderModalCanvas(){
 
   // Update offset display
   document.getElementById('modalOffsetVal').textContent=
-    `offset: ${Math.round(offset*100)}% · cara ${fb?'detectada ✓':'no detectada ⚠'}`;
+    `offset: ${Math.round(offset*100)}%`;
+  document.getElementById('modalFaceStatus').textContent=
+    fb ? '✓ Cara detectada automáticamente' : '⚠ Sin detección — ajusta las líneas manualmente';
 }
 
 // Cerrar modal al hacer clic fuera — esperar a que el DOM esté listo
 document.addEventListener('DOMContentLoaded',()=>{
   const modal=document.getElementById('cropModal');
   if(modal) modal.addEventListener('click',e=>{
-    if(e.target===modal) closeCropModal();
+    if(e.target===modal) cancelCropModal();
   });
   // Re-renderizar canvas si el ancho del modal cambia (p.ej. resize de ventana)
   const wrap=document.getElementById('modalCanvasWrap');
@@ -1641,8 +1658,9 @@ refreshPaquetesUI();
   <div class="modal-box">
     <div class="modal-title">
       <span id="modalTitle">Encuadre de foto</span>
-      <button class="modal-close" onclick="closeCropModal()">&#10005; Cerrar</button>
+      <button class="modal-close" onclick="cancelCropModal()">&#10005; Cancelar</button>
     </div>
+    <div style="font-size:.68rem;padding:4px 2px;margin-bottom:4px;" id="modalFaceStatus"></div>
     <div class="type-lines-legend">
       <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternon (Inf, Cred.R)</span></div>
       <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Cred.Oval, Dip, Tit, Regalo)</span></div>
@@ -1667,9 +1685,10 @@ refreshPaquetesUI();
       <span class="calib-label">Abdomen - Cred.Oval, Dip, Tit, Regalo<br><span style="font-size:.6rem;opacity:.7">Mayor = mas cuerpo</span></span>
       <input class="calib-input" type="number" id="multAbdomen" min="0.5" max="4" step="0.1" value="2.2" onchange="updateMult('abdomen',this.value)">
     </div>
-    <div style="font-size:.63rem;color:var(--txt2);padding:6px 10px;background:var(--sur2);border-radius:4px;border-left:2px solid var(--acc);">
-      Linea azul = inicio encuadre. Roja = corte esternon. Verde = corte abdomen. Usa los botones para ajustar.
+    <div style="font-size:.63rem;color:var(--txt2);padding:6px 10px;background:var(--sur2);border-radius:4px;border-left:2px solid var(--acc);margin-bottom:10px;">
+      Linea azul = inicio encuadre. Roja = corte esternon. Verde = corte abdomen. Mueve las líneas con Subir/Bajar.
     </div>
+    <button class="bp" onclick="closeCropModal()" style="background:var(--grn);color:#1a1a18;">✓ Aplicar encuadre</button>
   </div>
 </div>
 </body>
