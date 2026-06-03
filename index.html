@@ -1852,7 +1852,7 @@ async function cobrar(){
       folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),
-      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null})),
+      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null,calcData:c.calcData||null,modData:c.modData||null})),
       total:totalEsc,pago:(hayU||hayImp)?totalEsc:pago,cambio:(hayU||hayImp)?0:pago-total
     };
     if(db) db.collection('ventas').doc(folio).set({...ventaEsc, tickets:[ventaEsc]}).catch(e=>console.error(e));
@@ -1878,6 +1878,8 @@ async function cobrar(){
   }
 
   ultimaVenta=tickets;
+  // Actualizar ventasFB en tiempo real para que reportes refleje la venta inmediatamente
+  tickets.forEach(function(t){ ventasFB.push(t); });
   carrito=[];document.getElementById('pago').value='';
   fechaEntregaSeleccionada='';
   // Resetear método de pago a efectivo
@@ -4055,6 +4057,11 @@ function iniciarFirebase(){
     guardarLocal();
     setDriveStatus(true,'Datos cargados ✓');
     if(!precDoc.exists) guardarFirebase();
+    // Si el usuario recargó estando en reportes, recargar automáticamente
+    var paginaActiva = document.querySelector('.page.active');
+    if(paginaActiva && paginaActiva.id === 'page-reportes'){
+      setTimeout(cargarReportes, 300);
+    }
   }).catch(e=>{
     fbListo=true;
     setDriveStatus(false,'Error cargando datos');
