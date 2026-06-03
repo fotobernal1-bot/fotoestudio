@@ -616,14 +616,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
       <!-- Pestañas -->
       <div style="display:flex;gap:0;border-bottom:2px solid #e0e0e0;margin-bottom:16px;align-items:center;">
-        <button id="prod-tab-activas" onclick="showProdTab('activas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid #0C447C;color:#0C447C;margin-bottom:-2px;">Activas</button>
+          <button id="prod-tab-urgentes" onclick="showProdTab('urgentes')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid #0C7ED6;color:#0C7ED6;margin-bottom:-2px;">⚡ Urgentes</button>
+        <button id="prod-tab-activas" onclick="showProdTab('activas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Activas</button>
         <button id="prod-tab-archivadas" onclick="showProdTab('archivadas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Archivadas</button>
-        <button id="prod-tab-urgentes" onclick="showProdTab('urgentes')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">⚡ Urgentes</button>
         <button id="btn-silenciar-alerta" onclick="silenciarAlerta()" style="display:none;margin-left:auto;margin-right:4px;padding:5px 10px;font-size:11px;background:#FCEBEB;color:#A32D2D;border:1px solid #f5c0c0;border-radius:8px;cursor:pointer;"><i class="ti ti-bell-off"></i> Silenciar</button>
       </div>
 
       <!-- Panel: Activas -->
-      <div id="prod-panel-activas">
+      <div id="prod-panel-activas" style="display:none;">
         <!-- Buscador + acciones -->
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
           <div style="position:relative;flex:1;min-width:200px;">
@@ -668,7 +668,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       </div>
 
       <!-- Panel: Urgentes (solo tickets, sin precios) -->
-      <div id="prod-panel-urgentes" style="display:none;">
+      <div id="prod-panel-urgentes">
         <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
           <div style="position:relative;flex:1;">
             <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
@@ -1070,7 +1070,7 @@ function showPage(id,el){
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
   if(id==='reportes')setTimeout(cargarReportes,300);
-  if(id==='produccion'){setTimeout(cargarProduccion,300);}
+  if(id==='produccion'){setTimeout(cargarProduccion,300);setTimeout(cargarUrgProd,350);}
 }
 function showT(id,el){
   const tabsEl=el.closest('.tabs');
@@ -3390,17 +3390,20 @@ function cargarUrgProd(){
   if(!db){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin conexión</p>'; return; }
   cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   var hoy = new Date(); hoy.setHours(0,0,0,0);
-  db.collection('ventas')
-    .where('origen','in',['urgentes','visas'])
-    .orderBy('timestamp','desc')
-    .limit(100)
-    .get()
-    .then(function(snap){
-      _urgProdVentas = [];
-      snap.forEach(function(d){ _urgProdVentas.push(d.data()); });
-      renderUrgProd(_urgProdVentas);
-    })
-    .catch(function(){ cont.innerHTML='<p style="color:#A32D2D;font-size:12px;text-align:center;padding:16px;">Error al cargar</p>'; });
+  // Use today's date to filter
+  var hoyStr = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}).split('/').reverse().join('-');
+  // Two separate queries to avoid compound index requirement
+  Promise.all([
+    db.collection('ventas').where('fecha','==',getFechaStr(new Date())).get()
+  ]).then(function(results){
+    _urgProdVentas = [];
+    results[0].forEach(function(d){
+      var v = d.data();
+      if(v.origen==='urgentes' || v.origen==='visas' || (v.folio||'').startsWith('F-U')) _urgProdVentas.push(v);
+    });
+    _urgProdVentas.sort(function(a,b){ return (b.timestamp||'').localeCompare(a.timestamp||''); });
+    renderUrgProd(_urgProdVentas);
+  }).catch(function(e){ cont.innerHTML='<p style="color:#A32D2D;font-size:12px;text-align:center;padding:16px;">Error: '+e.message+'</p>'; });
 }
 
 function filtrarUrgProd(){
@@ -5150,6 +5153,9 @@ function showProdTab(tab){
   var tabU = document.getElementById('prod-tab-urgentes');
   [activas,archivadas,urgentes].forEach(function(p){ if(p) p.style.display='none'; });
   [tabA,tabB,tabU].forEach(function(t){ if(t){ t.style.borderBottomColor='transparent'; t.style.color='#aaa'; } });
+  // Hide multi-select toolbar when not on activas
+  var barraSel = document.getElementById('prod-barra-sel');
+  if(tab!=='activas' && barraSel) barraSel.style.display='none';
   if(tab==='activas'){
     if(activas) activas.style.display='block';
     if(tabA){ tabA.style.borderBottomColor='#0C447C'; tabA.style.color='#0C447C'; }
@@ -5514,7 +5520,6 @@ function abrirEnviarEmail(){
   st.style.display = 'none'; st.textContent = '';
   const btn = document.getElementById('btn-enviar-email');
   btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar';
-  closeM('m-ticket');
   openM('m-email-ticket');
   setTimeout(function(){ document.getElementById('email-cliente').focus(); }, 200);
 }
