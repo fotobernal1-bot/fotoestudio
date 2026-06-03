@@ -4918,15 +4918,27 @@ function cobrarCalculadora(){
   var hayModificaciones = agregados.length > 0 || quitados.length > 0;
 
   // Guardar referencia para uso en callbacks
+  // Calcular barba precio antes de cerrar el contexto
+  var barbaPrecioFinalCtx = parseFloat(document.getElementById('calc-barba-precio')&&document.getElementById('calc-barba-precio').style.display==='block'?document.getElementById('calc-barba-precio').value:0)||0;
+  var lineasConBarba = lineas.slice();
+  if(barbaPrecioFinalCtx>0) lineasConBarba.push({nombre:'Edición de barba', precio:barbaPrecioFinalCtx});
+
   window._calcPendienteGuardar = {
     nombre: nombre, descripcionCompleta: descripcionCompleta,
     specs: specs, total: total, calcData: calcData,
     esNueva: !escuelaActual,
     idxExistente: escuelaActual ? escuelaActual.idx : -1,
     itemsBase: itemsBase,
-    itemsVendidos: lineas.slice(),
+    itemsVendidos: lineasConBarba,
     modificaciones: hayModificaciones ? {agregados: agregados, quitados: quitados} : null,
-    escuelaBase: nombre
+    escuelaBase: nombre,
+    // Guardar todas las variables de contexto para _continuarAgregarCarrito
+    _lineas: lineasConBarba, _specs: specs, _nombre: nombre,
+    _descuento: descuento, _subtotal: subtotal, _total: total,
+    _vestH: vestH, _vestM: vestM, _vest: vest,
+    _digVestH: digVestH, _digVestM: digVestM,
+    _fondo: fondo, _cab: cab, _aretes: aretes, _barba: barba,
+    _notas: notas, _specsPersonas: specsPersonas, _barbaPrecioFinal: barbaPrecioFinalCtx
   };
   _huboCambios = hayModificaciones || !escuelaActual;
 
@@ -4973,10 +4985,28 @@ function saltarGuardarPaquete(){
 }
 
 function _continuarAgregarCarrito(){
-  var barbaPrecioFinal = parseFloat(document.getElementById('calc-barba-precio')&&document.getElementById('calc-barba-precio').style.display==='block'?document.getElementById('calc-barba-precio').value:0)||0;
-  if(barbaPrecioFinal>0) lineas.push({nombre:'Edición de barba', precio:barbaPrecioFinal});
+  var g = window._calcPendienteGuardar || {};
+  var lineas = g._lineas || [];
+  var barbaPrecioFinal = g._barbaPrecioFinal || 0;
+  var nombre = g._nombre || '';
+  var specs = g._specs || '';
+  var descuento = g._descuento || 0;
+  var subtotal = g._subtotal || 0;
+  var total = g._total || 0;
+  var vest = g._vest || '';
+  var vestH = g._vestH || '';
+  var vestM = g._vestM || '';
+  var digVestH = g._digVestH || '';
+  var digVestM = g._digVestM || '';
+  var fondo = g._fondo || '';
+  var cab = g._cab || '';
+  var aretes = g._aretes || '';
+  var barba = g._barba || '';
+  var notas = g._notas || '';
+  var specsPersonas = g._specsPersonas || [];
   window._calcSpecs={nombre:nombre,specs:specs,lineas:lineas,descuento:descuento,subtotal:subtotal,total:total,vestimenta:vest,vestimenta_h:vestH,vestimenta_m:vestM,dig_vest_h:digVestH,dig_vest_m:digVestM,fondo:fondo,cabello:cab,aretes:aretes,barba:barba,notas:notas,sexo:calcSexo,personas:specsPersonas,barba_edicion:barbaPrecioFinal};
   closeM('m-calc');
+  closeM('m-guardar-paquete');
 
   // Guardar pendiente y abrir popup sexo+edad
   _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
