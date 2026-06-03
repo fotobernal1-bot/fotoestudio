@@ -768,9 +768,10 @@ const ESCUELAS = [
      hojas:[{
        sh:'6x9',
        zonas:[
-         // 4×2 = 8 diplomas rotados. 5 cliente + 1 extra sin marca + 2 con marca
+         // 2×4 = 8 diplomas rotados (diploma 5×7 → ocupa 7cm ancho × 5cm alto)
+         // 2 cols × 7cm = 14cm ✓ | 4 filas × 5cm = 20cm ✓ en área útil 14.24×21.86cm
          // need=5, sinMarca=6 (5 cliente + 1 extra), conMarca=2
-         {type:'dip', cols:4, rows:2, rot:true, x:0, y:0,
+         {type:'dip', cols:2, rows:4, rot:true, x:0, y:0,
           cliente:5, extra:1, conMarca:2}
        ]
      }]
