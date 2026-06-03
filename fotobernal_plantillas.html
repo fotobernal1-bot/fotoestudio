@@ -301,9 +301,31 @@ function createPaquete(){
     orden:{credR:0,credO:0,inf:0,dip:0,tit:0},
     fotoAsign:{credR:0,credO:0,inf:0,dip:0,tit:0},
     folio:'',
-    sepMode:'auto', // 'auto','separar','mixto'
+    escuela:'',
+    sepMode:'auto',
     collapsed:false,
   };
+}
+
+function setEscuela(id, escuelaId){
+  const p=paquetes.find(p=>p.id===id);
+  if(!p) return;
+  p.escuela = escuelaId;
+  if(escuelaId){
+    const esc = ESCUELAS.find(e=>e.id===escuelaId);
+    if(esc){
+      // Auto-rellenar cantidades
+      Object.keys(p.orden).forEach(t=>p.orden[t]=0);
+      Object.assign(p.orden, esc.pedido);
+      // Actualizar nombre si aún es genérico
+      if(p.nombre.startsWith('Cliente ')) p.nombre = esc.nombre;
+    }
+  }
+  const body=document.querySelector(`#paq_${id} .paq-body`);
+  if(body) body.innerHTML=buildPaqBody(p);
+  // Actualizar badge
+  const badge=document.querySelector(`#paq_${id} .paq-badge`);
+  if(badge) badge.textContent=`${totalFotos(p.orden)} fotos`;
 }
 
 function setFotoAsign(id,type,val){
@@ -418,7 +440,20 @@ function buildPaqBody(paq){
     </div>`;
   }).join('');
 
+  const escuelaOpts = ESCUELAS.map(e =>
+    `<option value="${e.id}" ${paq.escuela===e.id?'selected':''}>${e.nombre}</option>`
+  ).join('');
+
   return `
+    <div class="stitle">🏫 Escuela</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <select class="fi" style="flex:1;font-size:.72rem;"
+        onchange="setEscuela(${paq.id},this.value)">
+        <option value="">— Sin escuela (manual) —</option>
+        ${escuelaOpts}
+      </select>
+    </div>
+
     <div class="stitle">📷 Fotos fuente</div>
     <div class="fotos-fuente" id="fotos_${paq.id}">${fotosHTML}</div>
     <button class="btn-add-foto" onclick="addFotoClick(${paq.id})">＋ Agregar foto (color, BN, otra vestimenta...)</button>
@@ -724,263 +759,567 @@ function updateFotoLabel(id,fi,val){
 }
 
 // =====================================================
-// ALGORITMO DE LAYOUT (igual que v4)
+// ESCUELAS — pedido típico por escuela
+// El algoritmo calcula la distribución óptima en tiempo real
 // =====================================================
-function fitN(zw,zh,pw,ph){
-  const n=Math.floor((zw+GAP)/(pw+GAP))*Math.floor((zh+GAP)/(ph+GAP));
-  const r=Math.floor((zw+GAP)/(ph+GAP))*Math.floor((zh+GAP)/(pw+GAP));
-  return {n:Math.max(n,r),rot:r>n,
-    cols_n:Math.floor((zw+GAP)/(pw+GAP)),rows_n:Math.floor((zh+GAP)/(ph+GAP)),
-    cols_r:Math.floor((zw+GAP)/(ph+GAP)),rows_r:Math.floor((zh+GAP)/(pw+GAP))};
+const ESCUELAS = [
+  {id:'UACH',              nombre:'UACH',                          pedido:{dip:5}},
+  {id:'SERV_ALEXIA',       nombre:'Servicio Social (Alexia/Flor.)',pedido:{credR:2,inf:3}},
+  {id:'TIT_ALEXIA',        nombre:'Titulación (Alexia/Flor.)',     pedido:{tit:2,credR:2,inf:6}},
+  {id:'TEC1',              nombre:'TEC 1',                         pedido:{credO:6}},
+  {id:'JERUEL',            nombre:'JERUEL',                        pedido:{dip:6,inf:6}},
+  {id:'CESCIJUC',          nombre:'CESCIJUC',                      pedido:{tit:6}},
+  {id:'UNIDEP',            nombre:'UNIDEP',                        pedido:{tit:6}},
+  {id:'NORMAL_SUP',        nombre:'Normal Superior',               pedido:{inf:4,credO:3,tit:2}},
+  {id:'INFORAJ',           nombre:'INFORAJ',                       pedido:{credO:6,credR:6,dip:6,inf:6}},
+  {id:'UNAM',              nombre:'UNAM',                          pedido:{tit:6,credO:6}},
+  {id:'CBTCH',             nombre:'CBTCH',                         pedido:{dip:6,tit:4,inf:8}},
+];
+
+// =====================================================
+// ALGORITMO DE OPTIMIZACIÓN v2
+// Reglas:
+//  1. Primero cumplir pedido del cliente
+//  2. Siempre 1 extra sin marca por tipo
+//  3. Resto del espacio → regalo con marca de agua (publicidad)
+//  4. Mínimo 1 regalo con marca por PAQUETE (no por hoja)
+//  5. Tipos que nunca llevan marca: credR, credO, inf
+//  6. El algoritmo prueba las 4 combinaciones de orientación+rotación
+//  7. Elige la hoja más económica que cumpla todo
+//  8. Regalo: tamaño calculado automáticamente (mín 5×7 cm, máx 9.5×8.5 cm)
+// =====================================================
+
+const SIN_MARCA = new Set(['credR','credO','inf']);
+
+// Calcular cuántas fotos de tipo caben en un área con margen
+function capacidad(hojaW, hojaH, fotoW, fotoH){
+  const aw = hojaW - 2*MARGIN;
+  const ah = hojaH - 2*MARGIN;
+  const combos = [
+    {cols:Math.floor(aw/fotoW), rows:Math.floor(ah/fotoH), rota:false, horiz:false},
+    {cols:Math.floor(aw/fotoH), rows:Math.floor(ah/fotoW), rota:true,  horiz:false},
+    {cols:Math.floor(ah/fotoW), rows:Math.floor(aw/fotoH), rota:false, horiz:true},
+    {cols:Math.floor(ah/fotoH), rows:Math.floor(aw/fotoW), rota:true,  horiz:true},
+  ];
+  let mejor = null;
+  for(const c of combos){
+    const total = c.cols * c.rows;
+    if(!mejor || total > mejor.total) mejor = {...c, total};
+  }
+  return mejor || {cols:0,rows:0,total:0,rota:false,horiz:false};
 }
 
-function validGift(w,h){
-  if(w<GIFT_MIN_W||h<GIFT_MIN_H) return false;
-  if(w>GIFT_MAX_W||h>GIFT_MAX_H) return false;
-  return Math.max(w,h)/Math.min(w,h)<=2.0;
+// Calcular tamaño de foto de regalo según espacio disponible
+function calcRegaloSize(espacioW, espacioH){
+  const w = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, espacioW));
+  const h = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, espacioH));
+  return {w, h};
 }
 
-function layoutInSheet(sw,sh,types){
-  // Descontar márgenes exteriores
-  const uw=sw-2*MARGIN; // ancho útil
-  const uh=sh-2*MARGIN; // alto útil
+// Optimizar un paquete usando el nuevo algoritmo
+function optimizeSinglePaqV2(paq){
+  const orden = paq.orden;
+  const paqId = paq.id;
+
+  // Tipos con cantidad > 0
+  const tipos = Object.keys(orden).filter(t => orden[t] > 0);
+  if(!tipos.length) return null;
+
+  // Calcular cuántas fotos necesitamos en total por tipo
+  // cliente + 1 extra sin marca. Si tipo acepta marca, el resto va con marca.
+  // Mínimo 1 regalo con marca por paquete.
+
+  let mejorSolucion = null;
+
+  // Intentar en cada hoja disponible
+  for(const sh of SH){
+    const sol = intentarHoja(sh, tipos, orden, paqId);
+    if(!sol) continue;
+    if(!mejorSolucion || sol.cost < mejorSolucion.cost){
+      mejorSolucion = sol;
+    }
+  }
+
+  return mejorSolucion;
+}
+
+function intentarHoja(sh, tipos, orden, paqId){
+  // Estrategia: distribuir tipos en zonas dentro de la hoja
+  // Para cada tipo calcular grid óptimo, luego verificar que todo cabe
+
+  const hojaW = sh.w, hojaH = sh.h;
+  let zonas = [];
+  let tieneRegalo = false;
+
+  // Caso especial: un solo tipo
+  if(tipos.length === 1){
+    const t = tipos[0];
+    const pt = PT[t];
+    const cap = capacidad(hojaW, hojaH, pt.w, pt.h);
+    if(cap.total === 0) return null;
+
+    const clientePide = orden[t];
+    const totalDisp = cap.total;
+
+    // Distribuir: cliente + 1 extra + resto con/sin marca
+    if(clientePide + 1 > totalDisp) return null; // no cabe ni el pedido + extra
+
+    let clienteSinMarca = clientePide;
+    let extraSinMarca = 1;
+    let conMarca = 0;
+
+    if(!SIN_MARCA.has(t)){
+      // Este tipo puede llevar marca
+      conMarca = totalDisp - clienteSinMarca - extraSinMarca;
+      if(conMarca < 1) conMarca = 1; // mínimo 1 con marca si hay espacio
+      extraSinMarca = totalDisp - clienteSinMarca - conMarca;
+      if(extraSinMarca < 0){ extraSinMarca=0; conMarca = totalDisp - clienteSinMarca; }
+    } else {
+      // No acepta marca, agregar regalo con marca en espacio sobrante
+      extraSinMarca = totalDisp - clienteSinMarca;
+      // Calcular espacio sobrante para regalo
+      const usadoW = cap.rota ? cap.cols * pt.h : cap.cols * pt.w;
+      const usadoH = cap.rota ? cap.rows * pt.w : cap.rows * pt.h;
+      const sobranteW = (cap.horiz ? hojaH : hojaW) - 2*MARGIN - usadoW;
+      const sobranteH = (cap.horiz ? hojaW : hojaH) - 2*MARGIN - usadoH;
+
+      if(sobranteW >= GIFT_MIN_W && sobranteH >= GIFT_MIN_H){
+        const rs = calcRegaloSize(sobranteW, sobranteH);
+        zonas.push({
+          type:'regalo', x:MARGIN + usadoW, y:MARGIN,
+          cols:1, rows:1, count:1,
+          pw:rs.w, ph:rs.h, w:rs.w, h:rs.h,
+          rot:false, paqId, need:0, regalo:true
+        });
+        tieneRegalo = true;
+      } else if(sobranteH >= GIFT_MIN_H && sobranteW >= GIFT_MIN_W){
+        const rs = calcRegaloSize(sobranteH, sobranteW);
+        zonas.push({
+          type:'regalo', x:MARGIN, y:MARGIN + usadoH,
+          cols:1, rows:1, count:1,
+          pw:rs.w, ph:rs.h, w:rs.w, h:rs.h,
+          rot:false, paqId, need:0, regalo:true
+        });
+        tieneRegalo = true;
+      }
+    }
+
+    if(!SIN_MARCA.has(t) && conMarca > 0) tieneRegalo = true;
+
+    // Posición de la zona principal
+    const fw = cap.rota ? pt.h : pt.w;
+    const fh = cap.rota ? pt.w : pt.h;
+    const zw = cap.cols * fw + (cap.cols-1)*GAP;
+    const zh = cap.rows * fh + (cap.rows-1)*GAP;
+    const xBase = MARGIN, yBase = MARGIN;
+
+    zonas.unshift({
+      type:t,
+      x: xBase, y: yBase,
+      cols: cap.cols, rows: cap.rows,
+      count: totalDisp,
+      pw: fw, ph: fh, w: zw, h: zh,
+      rot: cap.rota, paqId,
+      need: clienteSinMarca,
+      sinMarca: clienteSinMarca + extraSinMarca,
+      regalo: false
+    });
+
+    if(!tieneRegalo) return null; // sin regalo no es válido
+
+    return {
+      sheets:[{
+        sh, ori: cap.horiz ? 'landscape':'portrait',
+        sw: cap.horiz ? sh.h : sh.w,
+        shh: cap.horiz ? sh.w : sh.h,
+        layout:{zones: zonas},
+        cost: sh.price, paqIds:[paqId]
+      }],
+      cost: sh.price
+    };
+  }
+
+  // Múltiples tipos: usar los ejemplos de entrenamiento como referencia
+  // Calcular si todos los tipos caben con su respectivo grid + 1 extra + regalo
+  // Estrategia simplificada: tipos ordenados por tamaño descendente
+
+  const tiposOrdenados = [...tipos].sort((a,b)=>{
+    const sa = PT[a].w * PT[a].h;
+    const sb = PT[b].w * PT[b].h;
+    return sb - sa;
+  });
+
+  // Calcular el espacio mínimo requerido para cada tipo
+  let totalAreaNecesaria = 0;
+  for(const t of tiposOrdenados){
+    const pt = PT[t];
+    const minCount = orden[t] + 1; // pedido + 1 extra
+    totalAreaNecesaria += minCount * pt.w * pt.h;
+  }
+
+  // Área útil de la hoja
+  const areaUtil = (hojaW - 2*MARGIN) * (hojaH - 2*MARGIN);
+  if(totalAreaNecesaria > areaUtil * 1.5) return null; // imposible
+
+  // Intentar distribución en bandas horizontales/verticales
+  const solMulti = intentarDistribucionMultiple(sh, tiposOrdenados, orden, paqId);
+  return solMulti;
+}
+
+function intentarDistribucionMultiple(sh, tipos, orden, paqId){
+  // Distribuir tipos apilados verticalmente
+  // Cada tipo ocupa una banda horizontal
+  const hw = sh.w - 2*MARGIN;
+  const hh = sh.h - 2*MARGIN;
+
+  let zonas = [];
+  let yAcum = 0;
+  let tieneRegalo = false;
+
+  for(const t of tipos){
+    const pt = PT[t];
+    const minCount = orden[t] + 1;
+
+    // Calcular grid que cabe en el ancho disponible
+    let mejorGrid = null;
+    const combos = [
+      {fw:pt.w, fh:pt.h, rot:false},
+      {fw:pt.h, fh:pt.w, rot:true},
+    ];
+    for(const c of combos){
+      const cols = Math.floor(hw / c.fw);
+      if(cols < 1) continue;
+      const rowsNecesarias = Math.ceil(minCount / cols);
+      const total = cols * rowsNecesarias;
+      if(!mejorGrid || total < mejorGrid.total ||
+         (total === mejorGrid.total && rowsNecesarias < mejorGrid.rows)){
+        mejorGrid = {cols, rows:rowsNecesarias, total, fw:c.fw, fh:c.fh, rot:c.rot};
+      }
+    }
+
+    if(!mejorGrid || mejorGrid.cols < 1) return null;
+
+    const altoZona = mejorGrid.rows * mejorGrid.fh + (mejorGrid.rows-1)*GAP;
+    if(yAcum + altoZona > hh + 0.1) return null; // no cabe
+
+    const clienteSinMarca = orden[t];
+    const extraSinMarca = mejorGrid.total - clienteSinMarca;
+    let conMarca = 0;
+
+    if(!SIN_MARCA.has(t)){
+      conMarca = Math.max(1, Math.floor(extraSinMarca * 0.5));
+      if(conMarca > 0) tieneRegalo = true;
+    }
+
+    zonas.push({
+      type:t,
+      x: MARGIN, y: MARGIN + yAcum,
+      cols: mejorGrid.cols, rows: mejorGrid.rows,
+      count: mejorGrid.total,
+      pw: mejorGrid.fw, ph: mejorGrid.fh,
+      w: mejorGrid.cols * mejorGrid.fw + (mejorGrid.cols-1)*GAP,
+      h: altoZona,
+      rot: mejorGrid.rot, paqId,
+      need: clienteSinMarca,
+      sinMarca: clienteSinMarca + (SIN_MARCA.has(t) ? extraSinMarca : extraSinMarca - conMarca),
+      regalo: false
+    });
+
+    yAcum += altoZona + GAP;
+  }
+
+  // Espacio sobrante para regalo
+  const sobranteH = hh - yAcum;
+  if(!tieneRegalo && sobranteH >= GIFT_MIN_H){
+    const rs = calcRegaloSize(hw, sobranteH);
+    zonas.push({
+      type:'regalo', x:MARGIN, y:MARGIN + yAcum,
+      cols:1, rows:1, count:1,
+      pw:rs.w, ph:rs.h, w:rs.w, h:rs.h,
+      rot:false, paqId, need:0, regalo:true, sinMarca:0
+    });
+    tieneRegalo = true;
+  }
+
+  if(!tieneRegalo) return null;
+
+  return {
+    sheets:[{
+      sh, ori:'portrait',
+      sw:sh.w, shh:sh.h,
+      layout:{zones:zonas},
+      cost:sh.price, paqIds:[paqId]
+    }],
+    cost:sh.price
+  };
+}
+
+// =====================================================
+// BASES DE PLANTILLAS (legacy — mantenido para compatibilidad)
+// Cada base define zonas con posición, cols, rows, tipo y rotación.
+// x,y,w,h en cm desde la esquina superior izquierda de la hoja (sin margen).
+// rot:true = foto rotada 90°
+// regalo:true = zona de regalo (lleva marca de agua)
+// La marca de agua se aplica a todo lo que excede el pedido del cliente.
+// =====================================================
+
+// Helper: buscar hoja por id
+function getSH(id){ return SH.find(s=>s.id===id); }
+
+// Helper: construir zonas a partir de una base
+// zone = {type, cols, rows, rot, x, y, regalo}
+// x,y son proporcionales al área útil de la hoja
+function buildLayout(shId, zoneDefs, paqId, orden){
+  const sh=getSH(shId);
+  if(!sh) return null;
+  const sw=sh.w, shh=sh.h;
+  const uw=sw-2*MARGIN, uh=shh-2*MARGIN;
   const zones=[];
-  let usedY=0;
-  for(let i=0;i<types.length;i++){
-    const t=types[i];
-    const pt=PT[t.type];
-    const remH=uh-usedY;
-    if(remH<pt.h) return null;
-    const f=fitN(uw,remH,pt.w,pt.h);
-    const pw=f.rot?pt.h:pt.w,ph=f.rot?pt.w:pt.h;
-    const cols=f.rot?f.cols_r:f.cols_n;
-    if(cols===0) return null;
-    const ordered=t.need;
-    const need=ordered+1;
-    const rowsNeed=Math.ceil(need/cols);
-    const rowsMax=Math.floor((remH+GAP)/(ph+GAP));
-    const rowsWithExtra=Math.min(rowsNeed+1, rowsMax);
-    const countWithExtra=cols*rowsWithExtra;
-    const maxAllowed=Math.max(need, ordered*2);
-    const rowsFinal=countWithExtra<=maxAllowed ? rowsWithExtra : rowsNeed;
-    const count=cols*rowsFinal;
-    const zh=rowsFinal*ph+(rowsFinal-1)*GAP;
-    // La última foto extra lleva marca de agua
-    const wmPhotoIdx=count>need?count-1:-1;
-    // Posición x/y incluye el margen exterior
-    zones.push({type:t.type,x:MARGIN,y:MARGIN+usedY,w:uw,h:zh,cols,rows:rowsFinal,count,rot:f.rot,pw,ph,paqId:t.paqId,need,wmPhotoIdx});
-    usedY+=zh+GAP;
+  for(const z of zoneDefs){
+    const pt=PT[z.type];
+    const pw=z.rot?pt.h:pt.w, ph=z.rot?pt.w:pt.h;
+    const count=z.cols*z.rows;
+    const need=orden[z.type]||0;
+    // x,y absolutos en cm desde borde de hoja
+    const xAbs=MARGIN+z.x*uw;
+    const yAbs=MARGIN+z.y*uh;
+    const w=z.cols*pw+(z.cols-1)*GAP;
+    const h=z.rows*ph+(z.rows-1)*GAP;
+    zones.push({
+      type:z.type, x:xAbs, y:yAbs, w, h,
+      cols:z.cols, rows:z.rows, count,
+      rot:z.rot||false, pw, ph,
+      paqId, need,
+      regalo:z.regalo||false
+    });
   }
-  const remH=uh-usedY+GAP;
-  let giftZone=null;
-  if(remH>=GIFT_MIN_H){
-    const gw=Math.min(uw,GIFT_MAX_W),gh=Math.min(remH,GIFT_MAX_H);
-    if(validGift(gw,gh)) giftZone={x:MARGIN,y:MARGIN+usedY,w:gw,h:gh};
-  }
-  if(!giftZone&&zones.length>0){
-    const lz=zones[zones.length-1];
-    const usedW=lz.cols*(lz.pw+GAP)-GAP;
-    const remW=uw-usedW-GAP;
-    if(remW>=GIFT_MIN_W){
-      const gh=Math.min(lz.h,GIFT_MAX_H),gw=Math.min(remW,GIFT_MAX_W);
-      if(validGift(gw,gh)) giftZone={x:MARGIN+usedW+GAP,y:lz.y,w:gw,h:gh};
-    }
-  }
-  return{zones,giftZone,usedY};
+  return{zones, sh, sw, shh};
 }
 
+// =====================================================
+// DEFINICIÓN DE LAS 9 BASES
+// =====================================================
+// Coordenadas x,y son fracción del área útil (0=inicio, 1=fin)
+// Para zonas lado a lado: x=0 para izquierda, x=anchoIzq/uw para derecha
+
+const BASES=[
+
+  // BASE 1: 6×9 — diplomas solos
+  // 4 cols × 2 filas, rotado
+  {
+    tipos:['diploma'],
+    shId:'6x9',
+    zonas:[
+      {type:'diploma', cols:4, rows:2, rot:true, x:0, y:0}
+    ]
+  },
+
+  // BASE 2: 6×8 — titulo + credR + infantil (Florencia titulación)
+  // Fila 1: título 3×1 | Fila 2: credR 3×1 izq + infantil 3×2 der
+  {
+    tipos:['titulo','credR','infantil'],
+    shId:'6x8',
+    zonas:[
+      {type:'titulo',   cols:3, rows:1, rot:false, x:0,    y:0},
+      {type:'credR',    cols:3, rows:2, rot:false, x:0,    y:null}, // y calculado
+      {type:'infantil', cols:3, rows:2, rot:true,  x:null, y:null}  // x,y calculado
+    ]
+  },
+
+  // BASE 3: 6×12 — títulos solos
+  // 2 cols × 3 filas
+  {
+    tipos:['titulo'],
+    shId:'6x12',
+    zonas:[
+      {type:'titulo', cols:2, rows:3, rot:false, x:0, y:0}
+    ]
+  },
+
+  // BASE 4: 6×8 — credOval + infantil
+  // Regalo sup izq | infantil 3×3 sup der | credOval 4×2 inferior
+  {
+    tipos:['credOval','infantil'],
+    shId:'6x8',
+    zonas:[
+      {type:'regalo',   cols:1, rows:1, rot:false, x:0,    y:0,    regalo:true, type:'credOval'},
+      {type:'infantil', cols:3, rows:3, rot:false, x:null, y:0},
+      {type:'credOval', cols:4, rows:2, rot:false, x:0,    y:null}
+    ]
+  },
+
+  // BASE 5: 6×8 — credOval solas
+  // 2 regalo sup lado a lado | credOval 4×2 inferior
+  {
+    tipos:['credOval'],
+    shId:'6x8',
+    zonas:[
+      {type:'credOval', cols:2, rows:1, rot:false, x:0, y:0,    regalo:true},
+      {type:'credOval', cols:4, rows:2, rot:false, x:0, y:null}
+    ]
+  },
+
+  // BASE 6: 6×8 — diploma + infantil
+  // Diploma 2×1 sup izq | infantil 3×3 sup der | diploma 3×1 inf izq
+  {
+    tipos:['diploma','infantil'],
+    shId:'6x8',
+    zonas:[
+      {type:'diploma',  cols:2, rows:1, rot:false, x:0,    y:0},
+      {type:'infantil', cols:3, rows:3, rot:true,  x:null, y:0},
+      {type:'diploma',  cols:3, rows:1, rot:false, x:0,    y:null}
+    ]
+  },
+
+  // BASE 7: 6×8 — títulos solos
+  // 2 cols × 2 filas
+  {
+    tipos:['titulo'],
+    shId:'6x8',
+    zonas:[
+      {type:'titulo', cols:2, rows:2, rot:false, x:0, y:0}
+    ]
+  },
+
+  // BASE 8: 6×8 — diplomas solos
+  // 3 cols × 2 filas
+  {
+    tipos:['diploma'],
+    shId:'6x8',
+    zonas:[
+      {type:'diploma', cols:3, rows:2, rot:false, x:0, y:0}
+    ]
+  },
+
+  // BASE 9: 5×7 — credR + infantil
+  // 2 regalo sup | credR 2×3 izq inf | infantil 2×3 der inf
+  {
+    tipos:['credR','infantil'],
+    shId:'5x7',
+    zonas:[
+      {type:'credR',    cols:2, rows:1, rot:false, x:0,    y:0,    regalo:true},
+      {type:'credR',    cols:2, rows:3, rot:false, x:0,    y:null},
+      {type:'infantil', cols:2, rows:3, rot:false, x:null, y:null}
+    ]
+  },
+
+  // BASE 10/11: 6×12 — titulo + infantil (+ diploma en hoja separada)
+  // Regalo sup izq | infantil 3×3 sup der | titulo 2×2 inf
+  {
+    tipos:['titulo','infantil'],
+    shId:'6x12',
+    zonas:[
+      {type:'titulo',   cols:1, rows:1, rot:false, x:0,    y:0,    regalo:true},
+      {type:'infantil', cols:3, rows:3, rot:true,  x:null, y:0},
+      {type:'titulo',   cols:2, rows:2, rot:false, x:0,    y:null}
+    ]
+  }
+];
+
+// =====================================================
+// MATCH DE BASE AL PEDIDO
+// =====================================================
+function tiposKey(tipos){ return [...tipos].sort().join('+'); }
+
+function matchBase(orden){
+  const tiposPedidos=Object.keys(orden).filter(t=>orden[t]>0);
+  const key=tiposKey(tiposPedidos);
+  return BASES.filter(b=>tiposKey(b.tipos)===key);
+}
+
+// =====================================================
+// CALCULAR ZONAS CON POSICIONES REALES
+// =====================================================
+function calcZones(base, orden, paqId){
+  const sh=getSH(base.shId);
+  if(!sh) return null;
+  const uw=sh.w-2*MARGIN, uh=sh.h-2*MARGIN;
+  const zones=[];
+
+  // Primera pasada: calcular dimensiones de cada zona
+  for(const z of base.zonas){
+    const pt=PT[z.type];
+    const pw=z.rot?pt.h:pt.w, ph=z.rot?pt.w:pt.h;
+    const w=z.cols*pw+(z.cols-1)*GAP;
+    const h=z.rows*ph+(z.rows-1)*GAP;
+    zones.push({...z, pw, ph, w, h, need:orden[z.type]||0});
+  }
+
+  // Segunda pasada: resolver x,y null
+  // Acumuladores
+  let curY=0;
+  let prevZoneInRow=null;
+
+  for(let i=0;i<zones.length;i++){
+    const z=zones[i];
+
+    // Resolver Y
+    if(z.y===null){
+      // Buscar la zona anterior que termine más abajo
+      let maxY=0;
+      for(let j=0;j<i;j++){
+        const prev=zones[j];
+        if(prev.resolvedX===zones[i-1]?.resolvedX || j===i-1){
+          // misma columna o zona anterior directa
+        }
+        const bottom=prev.resolvedY+prev.h+GAP;
+        if(bottom>maxY) maxY=bottom;
+      }
+      z.resolvedY=maxY;
+    } else {
+      z.resolvedY=z.y===0?0:z.y*uh;
+    }
+
+    // Resolver X
+    if(z.x===null){
+      // Buscar zona en la misma fila (mismo resolvedY) para poner a su derecha
+      let rightOf=0;
+      for(let j=0;j<i;j++){
+        const prev=zones[j];
+        if(Math.abs(prev.resolvedY-z.resolvedY)<1){
+          const right=prev.resolvedX+prev.w+GAP;
+          if(right>rightOf) rightOf=right;
+        }
+      }
+      z.resolvedX=rightOf;
+    } else {
+      z.resolvedX=z.x===0?0:z.x*uw;
+    }
+  }
+
+  // Construir zonas finales
+  return zones.map(z=>({
+    type:z.type,
+    x:MARGIN+z.resolvedX, y:MARGIN+z.resolvedY,
+    w:z.w, h:z.h,
+    cols:z.cols, rows:z.rows,
+    count:z.cols*z.rows,
+    rot:z.rot||false, pw:z.pw, ph:z.ph,
+    paqId, need:z.need,
+    regalo:z.regalo||false
+  }));
+}
+
+// =====================================================
+// OPTIMIZACIÓN
+// =====================================================
 function optimizeSinglePaq(paq){
-  const types=TORD.filter(t=>(paq.orden[t]||0)>0).map(t=>({type:t,need:paq.orden[t],paqId:paq.id}));
-  if(types.length===0) return null;
-
-  const sepMode=paq.sepMode||'auto';
-  const multiFoto=paq.fotos.length>1;
-
-  // MODO SEPARAR: agrupar tipos por foto fuente asignada, cada grupo en su hoja
-  if(sepMode==='separar'&&multiFoto){
-    // Agrupar types por fotoAsign
-    const groups={};
-    for(const t of types){
-      const fi=(paq.fotoAsign&&paq.fotoAsign[t.type])||0;
-      if(!groups[fi]) groups[fi]=[];
-      groups[fi].push(t);
-    }
-    const groupKeys=Object.keys(groups);
-    let allSheets=[],totalCost=0;
-    // Primera hoja del primer grupo necesita regalo
-    for(let gi=0;gi<groupKeys.length;gi++){
-      const grp=groups[groupKeys[gi]];
-      const needGift=gi===0; // solo primera hoja tiene regalo
-      const res=bestSheet(grp,needGift);
-      if(!res) return null;
-      allSheets.push({...res,paqIds:[paq.id]});
-      totalCost+=res.cost;
-    }
-    return{sheets:allSheets,cost:totalCost};
-  }
-
-  // MODO MIXTO o AUTO: optimizar normalmente
-  let best=null,bestC=Infinity;
-  // Una hoja
-  for(const sh of SH){
-    for(const ori of ['portrait','landscape']){
-      const sw=ori==='landscape'?sh.h:sh.w,shh=ori==='landscape'?sh.w:sh.h;
-      const layout=layoutInSheet(sw,shh,types);
-      if(!layout) continue;
-      let ok=true;
-      for(const t of types){
-        const z=layout.zones.find(z=>z.type===t.type);
-        if(!z||z.count<t.need+1){ok=false;break;}
-      }
-      if(!ok||!layout.giftZone) continue;
-      // Score con penalización por desperdicio
-      const sheetArea=sw*shh;
-      const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
-      const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
-      const score=sh.price*(1+wasteRatio*1.5);
-      if(score<bestC){bestC=score;best={sheets:[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:[paq.id]}],cost:sh.price};}
-    }
-  }
-  // Múltiples hojas (auto)
-  if(sepMode!=='mixto'){
-    // Opción A: dividir tipos entre hojas (para pedidos con múltiples tipos)
-    const n=types.length;
-    for(let mask=1;mask<(1<<n)-1;mask++){
-      const g1=[],g2=[];
-      for(let i=0;i<n;i++){if(mask&(1<<i))g1.push(types[i]);else g2.push(types[i]);}
-      if(!g1.length||!g2.length) continue;
-      const r1=bestSheet(g1,true),r2=bestSheet(g2,false);
-      if(!r1||!r2) continue;
-      const c=r1.cost+r2.cost;
-      if(c<bestC){bestC=c;best={sheets:[
-        {...r1,paqIds:[paq.id]},
-        {...r2,paqIds:[paq.id]}
-      ],cost:c};}
-    }
-
-    // Opción B: mismo tipo en múltiples hojas (ej: 6 título → 2 hojas 6×8)
-    // Probar dividir el pedido en 2, 3 partes iguales
-    for(const t of types){
-      const totalNeed=t.need;
-      for(let numSheets=2; numSheets<=4; numSheets++){
-        const perSheet=Math.ceil(totalNeed/numSheets);
-        const subTypes=[{...t, need:perSheet}];
-        // Primera hoja necesita regalo
-        const r1=bestSheet(subTypes,true);
-        if(!r1) continue;
-        // Hojas adicionales sin regalo
-        const otherSheets=[];
-        let totalCost=r1.cost;
-        let valid=true;
-        for(let s=1;s<numSheets;s++){
-          const remaining=totalNeed-perSheet*s;
-          if(remaining<=0) break;
-          const subR=[{...t, need:Math.min(perSheet,remaining)}];
-          const rs=bestSheet(subR,false);
-          if(!rs){valid=false;break;}
-          otherSheets.push({...rs,paqIds:[paq.id]});
-          totalCost+=rs.cost;
-        }
-        if(!valid) continue;
-        if(totalCost<bestC){
-          bestC=totalCost;
-          const allSheets=[{...r1,paqIds:[paq.id]},...otherSheets];
-          best={sheets:allSheets,cost:totalCost};
-        }
-      }
-    }
-  }
-  return best;
-}
-
-function bestSheet(types,needGift){
-  let best=null,bestScore=Infinity;
-  for(const sh of SH){
-    for(const ori of ['portrait','landscape']){
-      const sw=ori==='landscape'?sh.h:sh.w,shh=ori==='landscape'?sh.w:sh.h;
-      const layout=layoutInSheet(sw,shh,types);
-      if(!layout) continue;
-      let ok=true;
-      for(const t of types){
-        const z=layout.zones.find(z=>z.type===t.type);
-        if(!z||z.count<t.need+1){ok=false;break;}
-      }
-      if(!ok) continue;
-      if(needGift&&!layout.giftZone) continue;
-      // Score = price + penalización por espacio desperdiciado
-      // Área usada vs área total
-      const sheetArea=sw*shh;
-      const usedArea=layout.zones.reduce((a,z)=>a+z.w*z.h,0);
-      const wasteRatio=Math.max(0,(sheetArea-usedArea)/sheetArea);
-      // Penalizar hojas caras con mucho desperdicio
-      const score=sh.price*(1+wasteRatio*1.5);
-      if(score<bestScore){bestScore=score;best={sh,ori,sw,shh,layout,cost:sh.price};}
-    }
-  }
-  return best;
+  // Usar el nuevo algoritmo v2
+  return optimizeSinglePaqV2(paq);
 }
 
 function optimizeAll(){
-  const combinar=document.getElementById('opt_combinar').checked;
   const paqsActivos=paquetes.filter(p=>totalFotos(p.orden)>0);
-  if(paqsActivos.length===0) return null;
+  if(!paqsActivos.length) return null;
 
-  if(!combinar||paqsActivos.length===1){
-    // Cada paquete por separado
-    let allSheets=[],totalCost=0;
-    for(const paq of paqsActivos){
-      const res=optimizeSinglePaq(paq);
-      if(!res) continue;
-      allSheets=[...allSheets,...res.sheets];
-      totalCost+=res.cost;
-    }
-    return{sheets:allSheets,cost:totalCost};
-  }
-
-  // Modo combinado: intentar meter paquetes juntos
-  // Por ahora: optimizar cada paquete individualmente y comparar
-  // con versión combinada (todos los tipos juntos en mismas hojas)
-  let sepCost=0,sepSheets=[];
+  let allSheets=[], totalCost=0;
   for(const paq of paqsActivos){
     const res=optimizeSinglePaq(paq);
-    if(res){sepCost+=res.cost;sepSheets=[...sepSheets,...res.sheets];}
+    if(!res) continue;
+    allSheets=[...allSheets,...res.sheets];
+    totalCost+=res.cost;
   }
-
-  // Versión combinada: todos los tipos de todos los paquetes juntos
-  const allTypes=[];
-  for(const paq of paqsActivos){
-    for(const t of TORD){
-      if((paq.orden[t]||0)>0){
-        allTypes.push({type:t,need:paq.orden[t],paqId:paq.id});
-      }
-    }
-  }
-
-  let combCost=Infinity,combSheets=[];
-  for(const sh of SH){
-    for(const ori of ['portrait','landscape']){
-      const sw=ori==='landscape'?sh.h:sh.w,shh=ori==='landscape'?sh.w:sh.h;
-      const layout=layoutInSheet(sw,shh,allTypes);
-      if(!layout) continue;
-      let ok=true;
-      for(const t of allTypes){
-        const z=layout.zones.find(z=>z.type===t.type&&z.paqId===t.paqId);
-        // Simplified: check by type only for combined
-        const zAny=layout.zones.find(z=>z.type===t.type);
-        if(!zAny||zAny.count<t.need+1){ok=false;break;}
-      }
-      if(!ok||!layout.giftZone) continue;
-      if(sh.price<combCost){
-        combCost=sh.price;
-        combSheets=[{sh,ori,sw,shh,layout,cost:sh.price,paqIds:paqsActivos.map(p=>p.id)}];
-      }
-    }
-  }
-
-  if(combCost<sepCost){
-    return{sheets:combSheets,cost:combCost,combined:true};
-  }
-  return{sheets:sepSheets,cost:sepCost};
+  return{sheets:allSheets, cost:totalCost};
 }
 
 // =====================================================
@@ -1046,42 +1385,28 @@ function drawSheet(cv,sd,wm,paqs){
     const fotoSrc=paq&&paq.fotos.length>0?(paq.fotos[fotoIdx]||paq.fotos[0]):null;
     const img=fotoSrc?fotoSrc.img:null;
 
-    // Calcular encuadre según tipo
     const group=CROP_GROUPS[z.type]||'abdomen';
     const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,group,fotoSrc.manualOffset||0):null;
 
-    const zxp=Math.round(z.x*C2P),zyp=Math.round(z.y*C2P);
-    const pwp=Math.round(z.pw*C2P),php=Math.round(z.ph*C2P);
+    const zxp=Math.round(z.x*C2P), zyp=Math.round(z.y*C2P);
+    const pwp=Math.round(z.pw*C2P), php=Math.round(z.ph*C2P);
     const gp=Math.round(GAP*C2P);
+    const folio=paq?paq.folio:'';
+
     let photoIdx=0;
     for(let r=0;r<z.rows;r++){
       for(let c=0;c<z.cols;c++){
         if(photoIdx>=z.count) break;
         const px=zxp+c*(pwp+gp), py=zyp+r*(php+gp);
         drawPhoto(ctx,px,py,pwp,php,z.rot,img,crop);
-        if(photoIdx===z.wmPhotoIdx){
-          const folio=paq?paq.folio:'';
+        // Marca de agua: zona de regalo siempre, o fotos que exceden el pedido
+        const esExtra = photoIdx >= z.need;
+        if(z.regalo || esExtra){
           drawWM(ctx,px,py,pwp,php,{...wm,folio},z.rot);
         }
         photoIdx++;
       }
     }
-  }
-
-  if(layout.giftZone){
-    const g=layout.giftZone;
-    const paq=paqs[paqs.length-1];
-    const lastZone=layout.zones[layout.zones.length-1];
-    const giftFotoIdx=paq&&paq.fotoAsign&&lastZone?(paq.fotoAsign[lastZone.type]||0):0;
-    const fotoSrc=paq&&paq.fotos.length>0?(paq.fotos[giftFotoIdx]||paq.fotos[0]):null;
-    const img=fotoSrc?fotoSrc.img:null;
-    // Foto de regalo siempre usa encuadre abdomen
-    const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,'abdomen',fotoSrc.manualOffset||0, g.w/g.h):null;
-    const gx=Math.round(g.x*C2P),gy=Math.round(g.y*C2P);
-    const gw=Math.round(g.w*C2P),gh=Math.round(g.h*C2P);
-    drawPhoto(ctx,gx,gy,gw,gh,false,img,crop);
-    const folio=paq?paq.folio:'';
-    drawWM(ctx,gx,gy,gw,gh,{...wm,folio});
   }
 }
 
@@ -1230,11 +1555,7 @@ document.getElementById('btnGen').addEventListener('click',()=>{
       <div class="rsheet-title">Hoja ${i+1} — ${sd.sh.id}" $${sd.sh.price} ${paqNombres?'· '+paqNombres:''}</div>`;
     for(const z of sd.layout.zones){
       const paq=paquetes.find(p=>p.id===z.paqId);
-      html+=`<div class="rline">· ${PT[z.type].label}: <b>${z.count}</b> total${paq?' ('+paq.nombre+')':''} — pedidas <b>${z.need-1}</b> · entregadas <b>${z.count}</b> · extras <b>${z.count-(z.need-1)}</b>${z.wmPhotoIdx>=0?` · <span style="color:var(--acc)">1 con marca (regalo)</span>`:''}</div>`;
-    }
-    if(sd.layout.giftZone){
-      const g=sd.layout.giftZone;
-      html+=`<div class="rline" style="color:var(--grn)">· 🎁 Regalo: ${g.w.toFixed(1)}×${g.h.toFixed(1)}cm</div>`;
+      html+=`<div class="rline">· ${PT[z.type]?PT[z.type].label:z.type}: <b>${z.count}</b> total${paq?' ('+paq.nombre+')':''} — pedidas <b>${z.need}</b> · sin marca <b>${z.sinMarca!==undefined?z.sinMarca:z.count}</b> · con marca <b>${z.count-(z.sinMarca!==undefined?z.sinMarca:z.count)}</b></div>`;
     }
     html+=`</div>`;
   });
