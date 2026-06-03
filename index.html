@@ -3522,14 +3522,14 @@ function renderHistorialRows(sorted, elH){
         if(cd.camisa_blanca) extras.push('Camisa blanca');
         if(cd.barba_edicion>0) extras.push('Editar barba');
         if(extras.length) linea+='<div style="font-size:10px;color:#BA7517;padding-left:10px;">+ '+extras.join(', ')+'</div>';
-      // Mostrar modificaciones al paquete base
-      if(it.modData && it.modData.modificaciones){
-        var mods = it.modData.modificaciones;
+      }
+      // Modificaciones al paquete base
+      if(i.modData && i.modData.modificaciones){
+        var mods = i.modData.modificaciones;
         if(mods.agregados && mods.agregados.length)
           linea+='<div style="font-size:10px;color:#1D9E75;padding-left:10px;">+ Agregado: '+mods.agregados.join(', ')+'</div>';
         if(mods.quitados && mods.quitados.length)
           linea+='<div style="font-size:10px;color:#A32D2D;padding-left:10px;">− Quitado: '+mods.quitados.join(', ')+'</div>';
-      }
       }
       return linea;
     }).join('');
