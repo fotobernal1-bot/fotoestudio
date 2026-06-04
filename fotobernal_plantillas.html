@@ -428,6 +428,12 @@ function buildPaqBody(paq){
   ).join('');
 
   return `
+    <div class="paq-folio">
+      <label>Folio #</label>
+      <input class="fi" type="text" value="${paq.folio}" placeholder="opcional"
+        onchange="updateFolio(${paq.id},this.value)">
+    </div>
+
     <div class="stitle">🏫 Escuela</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
       <select class="fi" style="flex:1;font-size:.72rem;"
@@ -463,11 +469,6 @@ function buildPaqBody(paq){
       </div>
     </div>`:''}
 
-    <div class="paq-folio">
-      <label>Folio #</label>
-      <input class="fi" type="text" value="${paq.folio}" placeholder="opcional"
-        onchange="updateFolio(${paq.id},this.value)">
-    </div>
   `;
 }
 
