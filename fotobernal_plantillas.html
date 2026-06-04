@@ -820,14 +820,15 @@ const ESCUELAS = [
    }]}
   },
   {id:'JERUEL', nombre:'JERUEL', pedido:{dip:6, f3x35:5, inf:6},
-   layout:{hojas:[{sh:'6x12',
-     // Lado izq: 2cols x 4filas diplomas (6 cliente + 2 con marca en pos 3 y 7)
-     // Lado der arriba: 1col x 5filas f3x35 rotadas
-     // Lado der abajo: 1col x 6filas inf rotadas
+   layout:{hojas:[{sh:'6x12', horiz:true,
+     // Hoja HORIZONTAL (landscape): 30.48x15.24cm
+     // Lado izq: 4cols x 2filas diplomas, marca en posiciones 4 y 8
+     // Col A der: 1col x 5filas f3x35 rotadas
+     // Col B der: 1col x 6filas inf rotadas
      zonas:[
-       {type:'dip',   cols:2, rows:4, rot:false, x:0,      y:0,    cliente:6, extra:0, sinMarca:8, marcaEn:[3,7]},
-       {type:'f3x35', cols:1, rows:5, rot:true,  x:10.05,  y:0,    cliente:5, extra:0},
-       {type:'inf',   cols:1, rows:6, rot:true,  x:10.05,  y:15.0, cliente:6, extra:0}
+       {type:'dip',   cols:4, rows:2, rot:false, x:0,      y:0, cliente:6, extra:0, sinMarca:8, marcaEn:[3,7]},
+       {type:'f3x35', cols:1, rows:5, rot:true,  x:20.20,  y:0, cliente:5, extra:0, pw:3.5, ph:2.928},
+       {type:'inf',   cols:1, rows:6, rot:true,  x:23.75,  y:0, cliente:6, extra:0, pw:3.0, ph:2.440}
      ]
    }]}
   },
@@ -957,8 +958,8 @@ function buildFromLayout(layout, orden, paqId){
     for(const z of hojaSpec.zonas){
       const pt = PT[z.type];
       if(!pt) continue;
-      const fw = z.rot ? pt.h : pt.w;
-      const fh = z.rot ? pt.w : pt.h;
+      const fw = z.pw !== undefined ? z.pw : (z.rot ? pt.h : pt.w);
+      const fh = z.ph !== undefined ? z.ph : (z.rot ? pt.w : pt.h);
       const xAbs = MARGIN + (z.x || 0);
       const yAbs = MARGIN + (z.y || 0);
       const w = z.cols * fw + (z.cols-1)*GAP;
@@ -989,7 +990,9 @@ function buildFromLayout(layout, orden, paqId){
         });
       }
     }
-    allSheets.push({sh, ori:'portrait', sw:sh.w, shh:sh.h,
+    const horiz = hojaSpec.horiz || false;
+    allSheets.push({sh, ori:horiz?'landscape':'portrait',
+                    sw:horiz?sh.h:sh.w, shh:horiz?sh.w:sh.h,
                     layout:{zones}, cost:sh.price, paqIds:[paqId]});
     totalCost += sh.price;
   }
