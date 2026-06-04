@@ -797,11 +797,12 @@ const ESCUELAS = [
    }
   },
   {id:'TIT_ALEXIA', nombre:'Titulación (Alexia/Flor.)', pedido:{tit:2,credR:2,inf:6},
-   layout:{hojas:[{sh:'6x8',
+   layout:{hojas:[{sh:'6x8', horiz:true,
+     // Landscape: 3 titulos arriba, credR+infantil rotada debajo lado a lado
      zonas:[
-       {type:'tit',  cols:2, rows:1, rot:false, x:0, y:0,      cliente:2, extra:0},
-       {type:'credR',cols:4, rows:1, rot:false, x:0, y:9.05,   cliente:2, extra:2},
-       {type:'inf',  cols:5, rows:2, rot:false, x:0, y:13.6,   cliente:6, extra:4}
+       {type:'tit',  cols:3, rows:1, rot:false, x:0,      y:0,     cliente:2, extra:0, sinMarca:3, marcaEn:[2]},
+       {type:'credR',cols:3, rows:1, rot:false, x:0,      y:9.05,  cliente:2, extra:1},
+       {type:'inf',  cols:3, rows:2, rot:true,  x:10.65,  y:9.05,  cliente:6, extra:0}
      ]
    }]}
   },
@@ -830,63 +831,85 @@ const ESCUELAS = [
    }]}
   },
   {id:'CESCIJUC', nombre:'CESCIJUC', pedido:{tit:6},
-   layout:{hojas:[{sh:'11x14',
-     zonas:[
-       {type:'tit', cols:4, rows:3, rot:false, x:0, y:0, cliente:6, extra:6}
-     ],
-     regalo:[
-       {x:0,      y:27.15, w:6.835, h:7.81},
-       {x:6.885,  y:27.15, w:6.835, h:7.81},
-       {x:13.77,  y:27.15, w:6.835, h:7.81},
-       {x:20.655, y:27.15, w:6.835, h:7.81}
-     ]
-   }]}
+   layout:{hojas:[
+     {sh:'6x8',
+      // Hoja 1: 3 cliente + 1 con marca (posicion 4, indice 3)
+      zonas:[{type:'tit', cols:2, rows:2, rot:false, x:0, y:0, cliente:3, extra:0, sinMarca:4, marcaEn:[3]}]
+     },
+     {sh:'6x8',
+      // Hoja 2: 3 cliente + 1 extra sin marca
+      zonas:[{type:'tit', cols:2, rows:2, rot:false, x:0, y:0, cliente:3, extra:1}]
+     }
+   ]}
   },
   {id:'UNIDEP', nombre:'UNIDEP', pedido:{tit:6},
-   layout:{hojas:[{sh:'11x14',
-     zonas:[
-       {type:'tit', cols:4, rows:3, rot:false, x:0, y:0, cliente:6, extra:6}
-     ],
-     regalo:[
-       {x:0,      y:27.15, w:6.835, h:7.81},
-       {x:6.885,  y:27.15, w:6.835, h:7.81},
-       {x:13.77,  y:27.15, w:6.835, h:7.81},
-       {x:20.655, y:27.15, w:6.835, h:7.81}
-     ]
-   }]}
+   layout:{hojas:[
+     {sh:'6x8',
+      zonas:[{type:'tit', cols:2, rows:2, rot:false, x:0, y:0, cliente:3, extra:0, sinMarca:4, marcaEn:[3]}]
+     },
+     {sh:'6x8',
+      zonas:[{type:'tit', cols:2, rows:2, rot:false, x:0, y:0, cliente:3, extra:1}]
+     }
+   ]}
   },
   {id:'NORMAL_SUP', nombre:'Normal Superior', pedido:{inf:4,credO:3,tit:2},
-   layout:{hojas:[{sh:'6x8',
-     zonas:[
-       {type:'tit',  cols:2, rows:1, rot:false, x:0, y:0,    cliente:2, extra:0},
-       {type:'credO',cols:4, rows:1, rot:false, x:0, y:9.05, cliente:3, extra:1},
-       {type:'inf',  cols:5, rows:1, rot:false, x:0, y:14.1, cliente:4, extra:1}
-     ]
-   }]}
+   layout:{hojas:[
+     {sh:'6x8',
+      // Hoja 1: regalo sup-izq + infantil sup-der (3x3 rot) + credO inferior (4x2)
+      regalo:[
+        {x:0, y:0, w:5.49, h:8.5}
+      ],
+      zonas:[
+        {type:'inf',  cols:3, rows:3, rot:true,  x:5.54, y:0,     cliente:4, extra:5},
+        {type:'credO',cols:4, rows:2, rot:false, x:0,    y:9.67,  cliente:3, extra:5}
+      ]
+     },
+     {sh:'6x8',
+      // Hoja 2: titulo 2x2=4 (cliente:2, extra:1, con_marca:1)
+      zonas:[{type:'tit', cols:2, rows:2, rot:false, x:0, y:0, cliente:2, extra:1, sinMarca:3, marcaEn:[3]}]
+     }
+   ]}
   },
   {id:'INFORAJ', nombre:'INFORAJ', pedido:{credO:6,credR:6,dip:6,inf:6},
    layout:{hojas:[
-     {sh:'8x10',
+     {sh:'6x12',
+      // Hoja 1 vertical: credO sup + credR medio + inf inf-izq + regalo inf-der
       zonas:[
-        {type:'dip',  cols:3, rows:2, rot:false, x:0, y:0,    cliente:6, extra:0},
-        {type:'inf',  cols:7, rows:3, rot:false, x:0, y:14.1, cliente:6, extra:15}
+        {type:'credO', cols:4, rows:2, rot:false, x:0,    y:0,      cliente:6, extra:2},
+        {type:'credR', cols:4, rows:2, rot:false, x:0,    y:10.10,  cliente:6, extra:2},
+        {type:'inf',   cols:3, rows:3, rot:true,  x:0,    y:19.20,  cliente:6, extra:3}
+      ],
+      regalo:[
+        {x:7.65, y:19.20, w:6.99, h:8.5}
       ]
      },
-     {sh:'5x7',
+     {sh:'6x9', horiz:true,
+      // Hoja 2 landscape: diploma 4x2=8 (cliente:6, extra:1, con_marca:1)
       zonas:[
-        {type:'credO', cols:3, rows:3, rot:false, x:0, y:0,    cliente:6, extra:3},
-        {type:'credR', cols:3, rows:2, rot:false, x:0, y:15.1, cliente:6, extra:0}
+        {type:'dip', cols:4, rows:2, rot:false, x:0, y:0, cliente:6, extra:1, sinMarca:7, marcaEn:[7]}
       ]
      }
    ]}
   },
   {id:'UNAM', nombre:'UNAM', pedido:{tit:6,credO:6},
-   layout:{hojas:[{sh:'11x14',
-     zonas:[
-       {type:'tit',  cols:4, rows:3, rot:false, x:0, y:0,     cliente:6, extra:6},
-       {type:'credO',cols:7, rows:1, rot:false, x:0, y:27.15, cliente:6, extra:1}
-     ]
-   }]}
+   layout:{hojas:[
+     {sh:'6x8',
+      // Hoja 1: regalo arriba (2x1) + credO abajo (4x2=8, cliente:6, extra:2)
+      regalo:[
+        {x:0,    y:0, w:7.32, h:9.62},
+        {x:7.37, y:0, w:7.32, h:9.62}
+      ],
+      zonas:[
+        {type:'credO', cols:4, rows:2, rot:false, x:0, y:9.67, cliente:6, extra:2}
+      ]
+     },
+     {sh:'6x12', horiz:true,
+      // Hoja 2: titulo 3x2=6 exacto landscape rotado (fw=9,fh=6), sin regalo ni extra
+      zonas:[
+        {type:'tit', cols:3, rows:2, rot:true, x:0, y:0, cliente:6, extra:0}
+      ]
+     }
+   ]}
   },
   {id:'CBTCH', nombre:'CBTCH', pedido:{dip:6,tit:4,inf:8},
    layout:{hojas:[{sh:'11x14',
