@@ -1128,7 +1128,210 @@ function intentarHoja(sh, tipos, orden, paqId){
 
   // Intentar distribución en bandas horizontales/verticales
   const solMulti = intentarDistribucionMultiple(sh, tiposOrdenados, orden, paqId);
-  return solMulti;
+
+  // Intentar layout 2D (tipo grande en banda + tipo pequeño en zona restante con rotación)
+  const sol2D = intentarLayout2D(sh, tiposOrdenados, orden, paqId);
+
+  // Gana la más barata que no sea null
+  if(!solMulti && !sol2D) return null;
+  if(!solMulti) return sol2D;
+  if(!sol2D) return solMulti;
+  return sol2D.cost <= solMulti.cost ? sol2D : solMulti;
+}
+
+function intentarLayout2D(sh, tipos, orden, paqId){
+  // Layout 2D: tipo grande en banda horizontal + tipo pequeño en zona restante
+  // Modelo basado en plantilla real: 3 diploma + 6 infantil en hoja 8x6
+  // - Banda A (tipo grande): fila en un extremo de la hoja
+  // - Banda B (tipo pequeño): zona restante, con rotación permitida
+  // - Regalo: espacio lateral sobrante en banda B
+  if(tipos.length < 2) return null;
+
+  let mejorSol = null;
+
+  // Probar ambas orientaciones de hoja
+  const orientaciones = [
+    {hw: sh.w, hh: sh.h, horiz: false},
+    {hw: sh.h, hh: sh.w, horiz: true},
+  ];
+
+  // Probar todas las permutaciones de tipo grande / tipo pequeño
+  for(let iGrande = 0; iGrande < tipos.length; iGrande++){
+    const tGrande = tipos[iGrande];
+    const tiposRestantes = tipos.filter((_,i) => i !== iGrande);
+
+    // Por ahora soportamos 2 tipos (el caso real es exactamente 2)
+    if(tiposRestantes.length !== 1) continue;
+    const tPeq = tiposRestantes[0];
+
+    const ptG = PT[tGrande];
+    const ptP = PT[tPeq];
+    const nGrande = orden[tGrande];
+    const nPeq   = orden[tPeq];
+
+    for(const ori of orientaciones){
+      const hw = ori.hw - 2*MARGIN; // ancho útil
+      const hh = ori.hh - 2*MARGIN; // alto útil
+
+      // Probar tipo grande en banda inferior y superior
+      for(const posGrande of ['bottom','top']){
+
+        // Probar con y sin rotación del tipo grande
+        const combosG = [
+          {fw: ptG.w, fh: ptG.h, rot: false},
+          {fw: ptG.h, fh: ptG.w, rot: true},
+        ];
+
+        for(const cG of combosG){
+          // Regla visual rotación: solo si lado largo foto coincide con eje largo del espacio
+          if(cG.rot){
+            const fotoLargaHoriz = cG.fw >= cG.fh;
+            const espacioLargoHoriz = hw >= hh;
+            if(fotoLargaHoriz !== espacioLargoHoriz) continue;
+          }
+
+          const colsG = Math.floor(hw / cG.fw);
+          if(colsG < 1) continue;
+          const rowsG = Math.ceil(nGrande / colsG);
+          if(rowsG < 1) continue;
+          const bandaGH = rowsG * cG.fh + (rowsG-1)*GAP;
+          if(bandaGH > hh - GIFT_MIN_H - GAP) continue; // necesitamos espacio para pequeño+regalo
+
+          // Espacio restante para tipo pequeño
+          const altoPeq = hh - bandaGH - GAP;
+          if(altoPeq <= 0) continue;
+
+          // Probar con y sin rotación del tipo pequeño
+          const combosP = [
+            {fw: ptP.w, fh: ptP.h, rot: false},
+            {fw: ptP.h, fh: ptP.w, rot: true},
+          ];
+
+          for(const cP of combosP){
+            if(cP.rot){
+              const fotoLargaHoriz = cP.fw >= cP.fh;
+              const espacioLargoHoriz = hw >= altoPeq;
+              if(fotoLargaHoriz !== espacioLargoHoriz) continue;
+            }
+
+            const colsP = Math.floor(hw / cP.fw);
+            if(colsP < 1) continue;
+            const rowsP = Math.ceil(nPeq / colsP);
+            if(rowsP < 1) continue;
+            const bandaPH = rowsP * cP.fh + (rowsP-1)*GAP;
+            if(bandaPH > altoPeq + 0.05) continue;
+
+            // Espacio sobrante lateral en banda pequeño para regalo
+            const anchoUsadoP = colsP * cP.fw + (colsP-1)*GAP;
+            const sobranteW = hw - anchoUsadoP;
+
+            let regaloCfg = null;
+            if(sobranteW >= GIFT_MIN_W && altoPeq >= GIFT_MIN_H){
+              // Regalo lateral en banda pequeño
+              const rw = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, sobranteW));
+              const rh = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, altoPeq));
+              regaloCfg = {
+                x: MARGIN + anchoUsadoP + GAP,
+                y: null, // se calcula después según posGrande
+                w: rw, h: rh, cols: 1
+              };
+            } else if(altoPeq - bandaPH >= GIFT_MIN_H && hw >= GIFT_MIN_W){
+              // Regalo en fila sobrante debajo de tipo pequeño
+              const rw = Math.min(GIFT_MAX_W, Math.max(GIFT_MIN_W, hw / 2));
+              const rh = Math.min(GIFT_MAX_H, Math.max(GIFT_MIN_H, altoPeq - bandaPH - GAP));
+              regaloCfg = {
+                x: MARGIN,
+                y: null,
+                w: rw, h: rh, cols: Math.max(1, Math.floor(hw / rw))
+              };
+            }
+
+            if(!regaloCfg) continue;
+
+            // Calcular posiciones Y según posGrande
+            let yGrande, yPeq, yRegalo;
+            if(posGrande === 'bottom'){
+              yPeq    = MARGIN;
+              yRegalo = MARGIN + (regaloCfg.x > MARGIN ? 0 : bandaPH + GAP); // lateral: misma y que pequeño
+              yGrande = MARGIN + altoPeq + GAP;
+            } else {
+              yGrande = MARGIN;
+              yPeq    = MARGIN + bandaGH + GAP;
+              yRegalo = yPeq + (regaloCfg.x > MARGIN ? 0 : bandaPH + GAP);
+            }
+            regaloCfg.y = (regaloCfg.x > MARGIN)
+              ? (posGrande === 'bottom' ? MARGIN : MARGIN + bandaGH + GAP)
+              : yRegalo;
+
+            // Construir zonas
+            const totalP = colsP * rowsP;
+            const extraP = totalP - nPeq;
+            const totalG = colsG * rowsG;
+            const extraG = totalG - nGrande;
+
+            const zonas = [];
+
+            // Zona tipo pequeño
+            zonas.push({
+              type: tPeq,
+              x: MARGIN, y: yPeq,
+              cols: colsP, rows: rowsP, count: totalP,
+              pw: cP.fw, ph: cP.fh,
+              w: anchoUsadoP, h: bandaPH,
+              rot: cP.rot, paqId,
+              need: nPeq,
+              sinMarca: nPeq + (SIN_MARCA.has(tPeq) ? extraP : Math.max(0, extraP - Math.max(1, Math.floor(extraP*0.5)))),
+              regalo: false
+            });
+
+            // Zona tipo grande
+            const anchoUsadoG = colsG * cG.fw + (colsG-1)*GAP;
+            zonas.push({
+              type: tGrande,
+              x: MARGIN, y: yGrande,
+              cols: colsG, rows: rowsG, count: totalG,
+              pw: cG.fw, ph: cG.fh,
+              w: anchoUsadoG, h: bandaGH,
+              rot: cG.rot, paqId,
+              need: nGrande,
+              sinMarca: nGrande + (SIN_MARCA.has(tGrande) ? extraG : Math.max(0, extraG - Math.max(1, Math.floor(extraG*0.5)))),
+              regalo: false
+            });
+
+            // Zonas regalo
+            const nR = regaloCfg.cols || 1;
+            for(let i = 0; i < nR; i++){
+              zonas.push({
+                type: 'regalo',
+                x: regaloCfg.x + i*(regaloCfg.w + GAP),
+                y: regaloCfg.y,
+                cols:1, rows:1, count:1,
+                pw: regaloCfg.w, ph: regaloCfg.h,
+                w: regaloCfg.w, h: regaloCfg.h,
+                rot: false, paqId, need:0, sinMarca:0, regalo:true
+              });
+            }
+
+            const sol = {
+              sheets:[{
+                sh, ori: ori.horiz ? 'landscape':'portrait',
+                sw: ori.hw, shh: ori.hh,
+                layout:{zones: zonas},
+                cost: sh.price, paqIds:[paqId]
+              }],
+              cost: sh.price
+            };
+
+            if(!mejorSol || sol.cost < mejorSol.cost){
+              mejorSol = sol;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return mejorSol;
 }
 
 function intentarDistribucionMultiple(sh, tipos, orden, paqId){
