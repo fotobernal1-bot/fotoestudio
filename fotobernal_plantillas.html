@@ -414,11 +414,11 @@ function buildPaqBody(paq){
         <div class="pg" id="gift_${paq.id}_${t}"></div>
       </div>
       <div class="qty-ctrl">
-        <button class="qb" onclick="adjPaq(${paq.id},'${t}',-1)">−</button>
+        <button class="qb" onclick="adjPaq(${paq.id},\x27${t}\x27,-1)">−</button>
         <input class="qi" type="number" min="0" value="${paq.orden[t]||0}"
           id="q_${paq.id}_${t}"
           onchange="setPaqQty(${paq.id},'${t}',this.value)">
-        <button class="qb" onclick="adjPaq(${paq.id},'${t}',1)">+</button>
+        <button class="qb" onclick="adjPaq(${paq.id},\x27${t}\x27,1)">+</button>
       </div>
     </div>`;
   }).join('');
@@ -450,7 +450,7 @@ function buildPaqBody(paq){
       <div style="font-size:.62rem;color:var(--txt2);margin-bottom:6px;">🗂 Hojas por foto fuente:</div>
       <div style="display:flex;gap:6px;">
         ${['auto','separar','mixto'].map(m=>`
-          <button onclick="setSepMode(${paq.id},'${m}')"
+          <button onclick="setSepMode(${paq.id},\x27${m}\x27)"
             style="flex:1;padding:5px 4px;border-radius:4px;font-family:'DM Mono',monospace;font-size:.62rem;cursor:pointer;border:1px solid ${paq.sepMode===m?'var(--acc)':'var(--brd)'};background:${paq.sepMode===m?'rgba(200,168,75,.18)':'var(--sur2)'};color:${paq.sepMode===m?'var(--acc)':'var(--txt2)'};">
             ${m==='auto'?'🤖 Auto':m==='separar'?'📄 Separar':'🔀 Mixto'}
           </button>
