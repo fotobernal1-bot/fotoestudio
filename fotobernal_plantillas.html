@@ -1695,49 +1695,8 @@ function renderCropModal() {
     ctx.fillStyle = 'rgba(200,168,75,0.95)';
     ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI*2); ctx.fill();
   });
-  // Punto de mira central con color segun centrado
-  const distX = Math.abs(cropState.rx - 0.5);  // 0=centrado, 0.5=extremo
-  const distY = Math.abs(cropState.ry - 0.5);
-  const dist = Math.sqrt(distX*distX + distY*distY); // 0..0.707
-  // Color: verde(0) -> amarillo(0.1) -> rojo(0.25+)
-  let r, g;
-  if (dist < 0.1) {
-    r = Math.round(255 * (dist / 0.1));
-    g = 255;
-  } else {
-    r = 255;
-    g = Math.round(255 * Math.max(0, 1 - (dist - 0.1) / 0.15));
-  }
-  const crossColor = `rgb(${r},${g},0)`;
-  const cxC = rx1 + rw / 2, cyC = ry1 + rh / 2;
-  const crossSize = Math.min(rw, rh) * 0.06;
-  ctx.strokeStyle = crossColor;
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 3]);
-  ctx.beginPath(); ctx.moveTo(cxC - crossSize, cyC); ctx.lineTo(cxC + crossSize, cyC); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cxC, cyC - crossSize); ctx.lineTo(cxC, cyC + crossSize); ctx.stroke();
-  // Circulo central
-  ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(cxC, cyC, crossSize * 0.45, 0, Math.PI*2);
-  ctx.strokeStyle = crossColor; ctx.lineWidth = 2; ctx.stroke();
-  // Punto solido si muy centrado
-  if (dist < 0.05) {
-    ctx.fillStyle = crossColor;
-    ctx.beginPath(); ctx.arc(cxC, cyC, crossSize * 0.25, 0, Math.PI*2); ctx.fill();
-  }
-
-  // Actualizar indicador numerico
-  const pctX = Math.round(cropState.rx * 100);
-  const pctY = Math.round(cropState.ry * 100);
-  const el = document.getElementById('cropCenterIndicator');
-  if (el) {
-    const dxPct = Math.abs(pctX - 50), dyPct = Math.abs(pctY - 50);
-    const centrado = dxPct <= 3 && dyPct <= 3;
-    const casi = dxPct <= 8 && dyPct <= 8;
-    const color = centrado ? '#4bc87a' : casi ? '#c8a84b' : '#c84b4b';
-    const label = centrado ? '\u2713 Centrado' : casi ? '\u25ce Casi centrado' : '\u25cb Descentrado';
-    el.innerHTML = `<span style="color:${color};font-weight:500">${label}</span> &nbsp; X: <b>${pctX}%</b> &nbsp; Y: <b>${pctY}%</b> &nbsp; <span style="color:var(--txt2);font-size:.6rem">(50% = centro)</span>`;
-  }
+  // Actualizar indicador de balance izq/der
+  updateCropBalance(rx1, rw, dispW);
 
   cv._dispW = dispW; cv._dispH = dispH;
 }
@@ -1791,6 +1750,37 @@ document.addEventListener('DOMContentLoaded', () => {
     new ResizeObserver(() => { if (modal && modal.classList.contains('open')) renderCropModal(); }).observe(wrap);
   }
 });
+
+function updateCropBalance(rx1, rw, dispW) {
+  const el = document.getElementById('cropCenterIndicator');
+  if (!el) return;
+  // Espacio a la izquierda y derecha del recuadre en la imagen
+  const leftPx  = rx1;               // px desde borde izq hasta recuadre
+  const rightPx = dispW - rx1 - rw;  // px desde recuadre hasta borde der
+  const total   = leftPx + rightPx;
+  if (total <= 0) { el.innerHTML = ''; return; }
+  const leftPct  = Math.round(leftPx  / dispW * 100);
+  const rightPct = Math.round(rightPx / dispW * 100);
+  const diff = Math.abs(leftPct - rightPct);
+  // Color: verde si diferencia <= 4%, amarillo <= 10%, rojo mas
+  const colorL = diff <= 4  ? '#4bc87a' : diff <= 10 ? '#c8a84b' : '#c84b4b';
+  const colorR = diff <= 4  ? '#4bc87a' : diff <= 10 ? '#c8a84b' : '#c84b4b';
+  // Barra visual: ancho proporcional al espacio
+  const barW = 160; // px totales de la barra
+  el.innerHTML =
+    '<div style="display:flex;align-items:center;gap:6px;font-size:.72rem;">' +
+      '<span style="color:' + colorL + ';font-weight:600;min-width:34px;text-align:right">' + leftPct + '%</span>' +
+      '<span style="color:var(--txt2);font-size:.6rem">izq</span>' +
+      '<div style="display:flex;align-items:center;gap:0;border:1px solid var(--brd);border-radius:3px;overflow:hidden;height:12px;width:' + barW + 'px">' +
+        '<div style="width:' + Math.round(leftPx/dispW*barW) + 'px;background:' + colorL + ';height:100%;opacity:0.7"></div>' +
+        '<div style="width:' + Math.round(rw/dispW*barW) + 'px;background:rgba(200,168,75,0.35);height:100%"></div>' +
+        '<div style="flex:1;background:' + colorR + ';height:100%;opacity:0.7"></div>' +
+      '</div>' +
+      '<span style="color:var(--txt2);font-size:.6rem">der</span>' +
+      '<span style="color:' + colorR + ';font-weight:600;min-width:34px">' + rightPct + '%</span>' +
+      (diff <= 4 ? '<span style="color:#4bc87a;font-size:.65rem">\u2713 centrado</span>' : '') +
+    '</div>';
+}
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 
