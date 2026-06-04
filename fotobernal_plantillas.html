@@ -945,6 +945,12 @@ function intentarHoja(sh, tipos, orden, paqId){
 
     for(const ch of combosHoja){
       for(const cf of combosFoto){
+        // Regla visual: rot solo valido si orientacion foto coincide con orientacion espacio
+        if(cf.rota){
+          const fotoHoriz = cf.fw >= cf.fh; // lado largo foto horizontal
+          const espacioHoriz = ch.hw >= ch.hh; // espacio mas ancho que alto
+          if(fotoHoriz !== espacioHoriz) continue;
+        }
         const aw = ch.hw - 2*MARGIN;
         const ah = ch.hh - 2*MARGIN;
 
@@ -1133,6 +1139,16 @@ function intentarDistribucionMultiple(sh, tipos, orden, paqId){
       const cols = Math.floor(hw / c.fw);
       if(cols < 1) continue;
       const rowsNecesarias = Math.ceil(minCount / cols);
+      const zonaH = rowsNecesarias * c.fh + (rowsNecesarias-1)*GAP;
+      // Regla visual: rot solo valido si lado largo foto queda en el eje largo del espacio
+      // Espacio de banda: hw (ancho) vs zonaH (alto)
+      // Foto rotada: fw=pt.h, fh=pt.w. Solo rotar si fw>=fh (lado largo horizontal)
+      // y el espacio es mas ancho que alto
+      if(c.rot){
+        const fotoLadoLargoHoriz = c.fw >= c.fh; // lado largo queda horizontal
+        const espacioMasAncho = hw >= zonaH;      // espacio es mas ancho que alto
+        if(fotoLadoLargoHoriz !== espacioMasAncho) continue; // orientaciones incompatibles
+      }
       const total = cols * rowsNecesarias;
       if(!mejorGrid || total < mejorGrid.total ||
          (total === mejorGrid.total && rowsNecesarias < mejorGrid.rows)){
@@ -1349,13 +1365,16 @@ function drawPhoto(ctx,px,py,pw,ph,rot,img,crop){
     ctx.rotate(Math.PI/2);
     const tmp=pw;pw=ph;ph=tmp;
     if(img){
-      const c=getCropRect(img.width,img.height,pw,ph);
-      // Scale crop to box aspect
-      const cropAR=c.sw/c.sh, boxAR=pw/ph;
-      let sx=c.sx,sy=c.sy,sw=c.sw,sh=c.sh;
-      if(cropAR>boxAR){sw=sh*boxAR;sx=c.sx+(c.sw-sw)/2;}
-      else{sh=sw/boxAR;sy=c.sy+(c.sh-sh)/2;}
-      ctx.drawImage(img,sx,sy,sw,sh,-pw/2,-ph/2,pw,ph);
+      const c = crop ? crop : getCropRect(img.width,img.height,pw,ph);
+      if(!crop){
+        const cropAR=c.sw/c.sh, boxAR=pw/ph;
+        let sx=c.sx,sy=c.sy,sw=c.sw,sh=c.sh;
+        if(cropAR>boxAR){sw=sh*boxAR;sx=c.sx+(c.sw-sw)/2;}
+        else{sh=sw/boxAR;sy=c.sy+(c.sh-sh)/2;}
+        ctx.drawImage(img,sx,sy,sw,sh,-pw/2,-ph/2,pw,ph);
+      } else {
+        ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,-pw/2,-ph/2,pw,ph);
+      }
     } else{ctx.fillStyle='#ebebeb';ctx.fillRect(-pw/2,-ph/2,pw,ph);}
     ctx.strokeStyle='rgba(140,140,140,0.4)';ctx.lineWidth=1;
     ctx.strokeRect(-pw/2,-ph/2,pw,ph);
@@ -1363,12 +1382,18 @@ function drawPhoto(ctx,px,py,pw,ph,rot,img,crop){
     return;
   }
   if(img){
-    const c=getCropRect(img.width,img.height,pw,ph);
-    const cropAR=c.sw/c.sh, boxAR=pw/ph;
-    let sx=c.sx,sy=c.sy,sw=c.sw,sh=c.sh;
-    if(cropAR>boxAR){sw=sh*boxAR;sx=c.sx+(c.sw-sw)/2;}
-    else{sh=sw/boxAR;sy=c.sy+(c.sh-sh)/2;}
-    ctx.drawImage(img,sx,sy,sw,sh,px,py,pw,ph);
+    // Si hay crop guardado usarlo directo (ya tiene la proporcion correcta)
+    const c = crop ? crop : getCropRect(img.width,img.height,pw,ph);
+    if(!crop){
+      // Solo reajustar aspecto en el fallback de centro
+      const cropAR=c.sw/c.sh, boxAR=pw/ph;
+      let sx=c.sx,sy=c.sy,sw=c.sw,sh=c.sh;
+      if(cropAR>boxAR){sw=sh*boxAR;sx=c.sx+(c.sw-sw)/2;}
+      else{sh=sw/boxAR;sy=c.sy+(c.sh-sh)/2;}
+      ctx.drawImage(img,sx,sy,sw,sh,px,py,pw,ph);
+    } else {
+      ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,px,py,pw,ph);
+    }
   } else{
     ctx.fillStyle='#ebebeb';ctx.fillRect(px,py,pw,ph);
     ctx.fillStyle='#bbb';ctx.font=`${Math.round(Math.min(pw,ph)*.08)}px monospace`;
@@ -1568,9 +1593,19 @@ function closeCropModal2(apply) {
       if (pt && f.img) {
         if (!f.crops) f.crops = {};
         const ar = pt.w / pt.h;
+        // sw/sh: el recuadre ocupa el 75% del lado mas corto de la imagen
+        // manteniendo la proporcion exacta del tipo
         let sw, sh;
-        if (f.img.width / f.img.height > ar) { sh = f.img.height; sw = sh * ar; }
-        else { sw = f.img.width; sh = sw / ar; }
+        const imgAR = f.img.width / f.img.height;
+        if (imgAR > ar) {
+          // imagen mas ancha que el tipo: altura limita
+          sh = f.img.height * 0.75; sw = sh * ar;
+          if (sw > f.img.width) { sw = f.img.width; sh = sw / ar; }
+        } else {
+          // imagen mas alta que el tipo: ancho limita
+          sw = f.img.width * 0.75; sh = sw / ar;
+          if (sh > f.img.height) { sh = f.img.height; sw = sh * ar; }
+        }
         let sx = cropState.rx * f.img.width - sw / 2;
         let sy = cropState.ry * f.img.height - sh / 2;
         sx = Math.max(0, Math.min(f.img.width - sw, sx));
