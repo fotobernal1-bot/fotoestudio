@@ -254,13 +254,14 @@ const MARGIN=0.3; // margen exterior por lado en cm
 let MULT_ESTERNON=1.4; // cuántas veces la altura de cara hacia abajo (esternón)
 let MULT_ABDOMEN=2.2;  // cuántas veces la altura de cara hacia abajo (abdomen)
 const PT={
-  credR:{label:'Cred.R',    w:3.5,h:4.5},
-  credO:{label:'Cred.Oval', w:3.5,h:5.0},
-  inf:  {label:'Infantil',  w:2.5,h:3.0},
-  dip:  {label:'Diploma',   w:5.0,h:7.0},
-  tit:  {label:'Título',    w:6.0,h:9.0},
+  credR: {label:'Cred.R',    w:3.5,h:4.5},
+  credO: {label:'Cred.Oval', w:3.5,h:5.0},
+  inf:   {label:'Infantil',  w:2.5,h:3.0},
+  dip:   {label:'Diploma',   w:5.0,h:7.0},
+  tit:   {label:'Título',    w:6.0,h:9.0},
+  f3x35: {label:'3×3.5',     w:3.0,h:3.5}, // medida especial — JERUEL
 };
-const TORD=['tit','dip','credO','credR','inf'];
+const TORD=['tit','dip','credO','credR','inf','f3x35'];
 const SH=[
   {id:'4x6',   w:10.16,h:15.24,price:4 },
   {id:'5x7',   w:12.70,h:17.78,price:7 },
@@ -603,7 +604,7 @@ function addFotoClick(id){
 // Top siempre: espacio sobre la cabeza ~10% del encuadre final
 // =====================================================
 const CROP_GROUPS={
-  inf:'esternon', credR:'esternon',
+  inf:'esternon', credR:'esternon', f3x35:'esternon',
   credO:'abdomen', dip:'abdomen', tit:'abdomen', regalo:'abdomen'
 };
 
@@ -818,11 +819,15 @@ const ESCUELAS = [
      ]
    }]}
   },
-  {id:'JERUEL', nombre:'JERUEL', pedido:{dip:6,inf:6},
-   layout:{hojas:[{sh:'8x10',
+  {id:'JERUEL', nombre:'JERUEL', pedido:{dip:6, f3x35:5, inf:6},
+   layout:{hojas:[{sh:'6x12',
+     // Lado izq: 2cols x 4filas diplomas (6 cliente + 2 con marca en pos 3 y 7)
+     // Lado der arriba: 1col x 5filas f3x35 rotadas
+     // Lado der abajo: 1col x 6filas inf rotadas
      zonas:[
-       {type:'dip', cols:3, rows:2, rot:false, x:0, y:0,    cliente:6, extra:0},
-       {type:'inf', cols:7, rows:3, rot:false, x:0, y:14.1, cliente:6, extra:15}
+       {type:'dip',   cols:2, rows:4, rot:false, x:0,      y:0,    cliente:6, extra:0, sinMarca:8, marcaEn:[3,7]},
+       {type:'f3x35', cols:1, rows:5, rot:true,  x:10.05,  y:0,    cliente:5, extra:0},
+       {type:'inf',   cols:1, rows:6, rot:true,  x:10.05,  y:15.0, cliente:6, extra:0}
      ]
    }]}
   },
@@ -966,6 +971,7 @@ function buildFromLayout(layout, orden, paqId){
         cols:z.cols, rows:z.rows, count,
         rot:z.rot||false, pw:fw, ph:fh,
         paqId, need, sinMarca,
+        marcaEn: z.marcaEn||null,
         regalo: false
       });
     }
@@ -1409,9 +1415,9 @@ function drawSheet(cv,sd,wm,paqs){
         if(photoIdx>=z.count) break;
         const px=zxp+c*(pwp+gp), py=zyp+r*(php+gp);
         drawPhoto(ctx,px,py,pwp,php,z.rot,img,crop);
-        // Marca de agua: zona de regalo siempre, o fotos que exceden el pedido
+        // Marca de agua: zona de regalo siempre, posiciones especificas (marcaEn), o fotos que exceden el pedido
         const marcaDesde = z.sinMarca !== undefined ? z.sinMarca : z.need;
-        const esExtra = photoIdx >= marcaDesde;
+        const esExtra = z.marcaEn ? z.marcaEn.includes(photoIdx) : photoIdx >= marcaDesde;
         if(z.regalo || esExtra){
           drawWM(ctx,px,py,pwp,php,{...wm,folio},z.rot);
         }
