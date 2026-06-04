@@ -244,7 +244,7 @@ canvas{border:2px solid var(--acc);border-radius:0 0 4px 4px;max-width:100%;disp
 // CONSTANTES
 // =====================================================
 const DPI=300, C2P=DPI/2.54;
-const GAP=0.05;
+const GAP=0.02;
 const MARGIN=0.3; // margen exterior por lado en cm
 // Multiplicadores de encuadre — editables desde el pop-up de calibración
 const PT={
@@ -770,13 +770,24 @@ const ESCUELAS = [
    ]}
   },
   {id:'CBTCH', nombre:'CBTCH', pedido:{dip:6,tit:4,inf:8},
-   layout:{hojas:[{sh:'11x14',
-     zonas:[
-       {type:'tit', cols:4, rows:1, rot:false, x:0, y:0,     cliente:4, extra:0},
-       {type:'dip', cols:4, rows:2, rot:false, x:0, y:9.05,  cliente:6, extra:2},
-       {type:'inf', cols:10,rows:3, rot:false, x:0, y:23.15, cliente:8, extra:22}
-     ]
-   }]}
+   layout:{hojas:[
+     {sh:'6x12',
+      // Hoja 1: superior izq=regalo, superior der=infantil 3x3, inferior=titulo 2x2
+      regalo:[
+        {x:0, y:0, w:7.08, h:9.04}
+      ],
+      zonas:[
+        {type:'inf', cols:3, rows:3, rot:false, x:7.10, y:0,     cliente:8, extra:1},
+        {type:'tit', cols:2, rows:2, rot:false, x:0,    y:11.86, cliente:4, extra:0}
+      ]
+     },
+     {sh:'6x8', horiz:true,
+      // Hoja 2: diploma 3x2 landscape (6 exacto, sin sobrante)
+      zonas:[
+        {type:'dip', cols:3, rows:2, rot:false, x:0, y:0, cliente:6, extra:0}
+      ]
+     }
+   ]}
   },
 ];
 
@@ -1376,7 +1387,7 @@ function drawPhoto(ctx,px,py,pw,ph,rot,img,crop){
         ctx.drawImage(img,c.sx,c.sy,c.sw,c.sh,-pw/2,-ph/2,pw,ph);
       }
     } else{ctx.fillStyle='#ebebeb';ctx.fillRect(-pw/2,-ph/2,pw,ph);}
-    ctx.strokeStyle='rgba(140,140,140,0.4)';ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(80,80,80,0.8)';ctx.lineWidth=1;
     ctx.strokeRect(-pw/2,-ph/2,pw,ph);
     ctx.restore();
     return;
@@ -1400,7 +1411,7 @@ function drawPhoto(ctx,px,py,pw,ph,rot,img,crop){
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('foto',px+pw/2,py+ph/2);
   }
-  ctx.strokeStyle='rgba(140,140,140,0.4)';ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(80,80,80,0.8)';ctx.lineWidth=1;
   ctx.strokeRect(px,py,pw,ph);
 }
 
