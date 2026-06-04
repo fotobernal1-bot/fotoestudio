@@ -798,15 +798,102 @@ const ESCUELAS = [
      }]
    }
   },
-  {id:'TIT_ALEXIA',  nombre:'Titulación (Alexia/Flor.)',      pedido:{tit:2,credR:2,inf:6}},
-  {id:'TEC1',        nombre:'TEC 1',                          pedido:{credO:6}},
-  {id:'JERUEL',      nombre:'JERUEL',                         pedido:{dip:6,inf:6}},
-  {id:'CESCIJUC',    nombre:'CESCIJUC',                       pedido:{tit:6}},
-  {id:'UNIDEP',      nombre:'UNIDEP',                         pedido:{tit:6}},
-  {id:'NORMAL_SUP',  nombre:'Normal Superior',                pedido:{inf:4,credO:3,tit:2}},
-  {id:'INFORAJ',     nombre:'INFORAJ',                        pedido:{credO:6,credR:6,dip:6,inf:6}},
-  {id:'UNAM',        nombre:'UNAM',                           pedido:{tit:6,credO:6}},
-  {id:'CBTCH',       nombre:'CBTCH',                          pedido:{dip:6,tit:4,inf:8}},
+  {id:'TIT_ALEXIA', nombre:'Titulación (Alexia/Flor.)', pedido:{tit:2,credR:2,inf:6},
+   layout:{hojas:[{sh:'6x8',
+     zonas:[
+       {type:'tit',  cols:2, rows:1, rot:false, x:0, y:0,      cliente:2, extra:0},
+       {type:'credR',cols:4, rows:1, rot:false, x:0, y:9.05,   cliente:2, extra:2},
+       {type:'inf',  cols:5, rows:2, rot:false, x:0, y:13.6,   cliente:6, extra:4}
+     ]
+   }]}
+  },
+  {id:'TEC1', nombre:'TEC 1', pedido:{credO:6},
+   layout:{hojas:[{sh:'6x8',
+     regalo:[
+       {x:0,    y:0, w:7.32, h:7.494},
+       {x:7.37, y:0, w:7.32, h:7.494}
+     ],
+     zonas:[
+       {type:'credO', cols:4, rows:2, rot:false, x:0, y:7.544, cliente:6, extra:2}
+     ]
+   }]}
+  },
+  {id:'JERUEL', nombre:'JERUEL', pedido:{dip:6,inf:6},
+   layout:{hojas:[{sh:'8x10',
+     zonas:[
+       {type:'dip', cols:3, rows:2, rot:false, x:0, y:0,    cliente:6, extra:0},
+       {type:'inf', cols:7, rows:3, rot:false, x:0, y:14.1, cliente:6, extra:15}
+     ]
+   }]}
+  },
+  {id:'CESCIJUC', nombre:'CESCIJUC', pedido:{tit:6},
+   layout:{hojas:[{sh:'11x14',
+     zonas:[
+       {type:'tit', cols:4, rows:3, rot:false, x:0, y:0, cliente:6, extra:6}
+     ],
+     regalo:[
+       {x:0,      y:27.15, w:6.835, h:7.81},
+       {x:6.885,  y:27.15, w:6.835, h:7.81},
+       {x:13.77,  y:27.15, w:6.835, h:7.81},
+       {x:20.655, y:27.15, w:6.835, h:7.81}
+     ]
+   }]}
+  },
+  {id:'UNIDEP', nombre:'UNIDEP', pedido:{tit:6},
+   layout:{hojas:[{sh:'11x14',
+     zonas:[
+       {type:'tit', cols:4, rows:3, rot:false, x:0, y:0, cliente:6, extra:6}
+     ],
+     regalo:[
+       {x:0,      y:27.15, w:6.835, h:7.81},
+       {x:6.885,  y:27.15, w:6.835, h:7.81},
+       {x:13.77,  y:27.15, w:6.835, h:7.81},
+       {x:20.655, y:27.15, w:6.835, h:7.81}
+     ]
+   }]}
+  },
+  {id:'NORMAL_SUP', nombre:'Normal Superior', pedido:{inf:4,credO:3,tit:2},
+   layout:{hojas:[{sh:'6x8',
+     zonas:[
+       {type:'tit',  cols:2, rows:1, rot:false, x:0, y:0,    cliente:2, extra:0},
+       {type:'credO',cols:4, rows:1, rot:false, x:0, y:9.05, cliente:3, extra:1},
+       {type:'inf',  cols:5, rows:1, rot:false, x:0, y:14.1, cliente:4, extra:1}
+     ]
+   }]}
+  },
+  {id:'INFORAJ', nombre:'INFORAJ', pedido:{credO:6,credR:6,dip:6,inf:6},
+   layout:{hojas:[
+     {sh:'8x10',
+      zonas:[
+        {type:'dip',  cols:3, rows:2, rot:false, x:0, y:0,    cliente:6, extra:0},
+        {type:'inf',  cols:7, rows:3, rot:false, x:0, y:14.1, cliente:6, extra:15}
+      ]
+     },
+     {sh:'5x7',
+      zonas:[
+        {type:'credO', cols:3, rows:3, rot:false, x:0, y:0,    cliente:6, extra:3},
+        {type:'credR', cols:3, rows:2, rot:false, x:0, y:15.1, cliente:6, extra:0}
+      ]
+     }
+   ]}
+  },
+  {id:'UNAM', nombre:'UNAM', pedido:{tit:6,credO:6},
+   layout:{hojas:[{sh:'11x14',
+     zonas:[
+       {type:'tit',  cols:4, rows:3, rot:false, x:0, y:0,     cliente:6, extra:6},
+       {type:'credO',cols:7, rows:1, rot:false, x:0, y:27.15, cliente:6, extra:1}
+     ]
+   }]}
+  },
+  {id:'CBTCH', nombre:'CBTCH', pedido:{dip:6,tit:4,inf:8},
+   layout:{hojas:[{sh:'11x14',
+     zonas:[
+       {type:'tit', cols:4, rows:1, rot:false, x:0, y:0,     cliente:4, extra:0},
+       {type:'dip', cols:4, rows:2, rot:false, x:0, y:9.05,  cliente:6, extra:2},
+       {type:'inf', cols:10,rows:3, rot:false, x:0, y:23.15, cliente:8, extra:22}
+     ]
+   }]}
+  },
 ];
 
 // =====================================================
@@ -1431,7 +1518,24 @@ function drawWM(ctx,px,py,pw,ph,wm,rotated){
 }
 
 function dlCv(cv,name){
-  cv.toBlob(b=>{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);},'image/jpeg',1.0);
+  cv.toBlob(blob=>{
+    // Incrustar metadata JFIF con 300dpi para que editores muestren medidas correctas
+    blob.arrayBuffer().then(buf=>{
+      const arr=new Uint8Array(buf);
+      // Buscar segmento APP0 (JFIF): bytes 2-3 deben ser FF E0
+      // Estructura JFIF APP0: FF E0 [len16] JFIF\0 [ver2] [units] [Xdensity16] [Ydensity16] ...
+      // units=1 → pixels per inch; Xdensity=Ydensity=300
+      if(arr[2]===0xFF && arr[3]===0xE0 && arr[6]===0x4A){ // FF E0 ... 'J'(0x4A=JFIF)
+        arr[11]=1;      // units: 1 = DPI
+        arr[12]=1;arr[13]=44; // Xdensity = 300 (0x012C)
+        arr[14]=1;arr[15]=44; // Ydensity = 300 (0x012C)
+      }
+      const fixed=new Blob([arr],{type:'image/jpeg'});
+      const u=URL.createObjectURL(fixed);
+      const a=document.createElement('a');a.href=u;a.download=name;a.click();
+      setTimeout(()=>URL.revokeObjectURL(u),1000);
+    });
+  },'image/jpeg',1.0);
 }
 
 // =====================================================
@@ -1598,16 +1702,20 @@ function renderModalCanvas(){
   }
   const maxW=Math.min(640, availW||600);
   const scale=maxW/img.width;
+  const dispW=maxW;
+  const dispH=Math.round(img.height*scale);
 
-  cv.width=img.width;
-  cv.height=img.height;
-  cv.style.width=maxW+'px';
-  cv.style.height=Math.round(img.height*scale)+'px';
+  // Dibujar a tamaño de pantalla (no nativo) para que lineWidth y etiquetas sean visibles
+  cv.width=dispW;
+  cv.height=dispH;
+  cv.style.width=dispW+'px';
+  cv.style.height=dispH+'px';
 
   const ctx=cv.getContext('2d');
-  ctx.drawImage(img,0,0);
+  ctx.clearRect(0,0,dispW,dispH);
+  ctx.drawImage(img,0,0,dispW,dispH);
 
-  // Calcular faceBox
+  // Calcular faceBox — coordenadas en espacio NATIVO, luego escalar a pantalla
   const fb=f.faceBox;
   const offset=f.manualOffset||0;
 
@@ -1619,43 +1727,44 @@ function renderModalCanvas(){
   }
   const faceBottom=faceTop+faceH;
   const topPad=faceH*0.22;
-  const sy=Math.max(0,faceTop-topPad+offset*img.height);
-  const cutE=faceBottom+faceH*MULT_ESTERNON;
-  const cutA=faceBottom+faceH*MULT_ABDOMEN;
+  // Todas las coordenadas en píxeles nativos → escalar a pantalla con *scale
+  const sy  = Math.max(0, faceTop - topPad + offset*img.height) * scale;
+  const cutE= Math.min(img.height, faceBottom + faceH*MULT_ESTERNON) * scale;
+  const cutA= Math.min(img.height, faceBottom + faceH*MULT_ABDOMEN)  * scale;
 
   // Overlay oscuro PRIMERO (debajo de las líneas y etiquetas)
   ctx.fillStyle='rgba(0,0,0,0.45)';
-  ctx.fillRect(0,0,img.width,sy); // arriba del encuadre
-  if(cutA<img.height) ctx.fillRect(0,cutA,img.width,img.height-cutA); // debajo del corte
+  ctx.fillRect(0,0,dispW,sy);               // arriba del encuadre
+  if(cutA<dispH) ctx.fillRect(0,cutA,dispW,dispH-cutA); // debajo del corte
 
   // Línea inicio encuadre (azul punteada)
   ctx.strokeStyle='rgba(75,139,200,0.9)';
-  ctx.lineWidth=3;
-  ctx.setLineDash([8,4]);
-  ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(img.width,sy);ctx.stroke();
+  ctx.lineWidth=2.5;
+  ctx.setLineDash([10,5]);
+  ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(dispW,sy);ctx.stroke();
 
   // Línea esternón (roja)
   ctx.strokeStyle='rgba(255,107,107,0.9)';
-  ctx.lineWidth=3;
+  ctx.lineWidth=2.5;
   ctx.setLineDash([]);
-  ctx.beginPath();ctx.moveTo(0,cutE);ctx.lineTo(img.width,cutE);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,cutE);ctx.lineTo(dispW,cutE);ctx.stroke();
 
   // Línea abdomen (verde)
   ctx.strokeStyle='rgba(75,200,122,0.9)';
-  ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(0,cutA);ctx.lineTo(img.width,cutA);ctx.stroke();
+  ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(0,cutA);ctx.lineTo(dispW,cutA);ctx.stroke();
   ctx.setLineDash([]);
 
-  // Etiquetas (encima del overlay)
-  const fontSize=Math.round(img.height*0.025);
+  // Etiquetas
+  const fontSize=14;
   ctx.font=`bold ${fontSize}px monospace`;
-  const labelY_sy=sy>fontSize+8 ? sy-6 : sy+fontSize+4; // evitar salirse por arriba
+  const labelY_sy=sy>fontSize+8 ? sy-5 : sy+fontSize+4;
   ctx.fillStyle='rgba(75,139,200,1)';
   ctx.fillText('► inicio encuadre',8,labelY_sy);
   ctx.fillStyle='rgba(255,107,107,1)';
-  ctx.fillText('► esternón',8,Math.min(cutE-6,img.height-4));
+  ctx.fillText('► esternón',8,Math.min(cutE-5,dispH-4));
   ctx.fillStyle='rgba(75,200,122,1)';
-  ctx.fillText('► abdomen',8,Math.min(cutA-6,img.height-4));
+  ctx.fillText('► abdomen',8,Math.min(cutA-5,dispH-4));
 
   // Update offset display
   document.getElementById('modalOffsetVal').textContent=
