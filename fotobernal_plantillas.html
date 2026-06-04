@@ -699,7 +699,7 @@ function onFotoFile(id,input){
       if(faceBox) toast('✅ Cara detectada');
       else toast('⚠️ No se detectó cara — usa ajuste manual');
 
-      p.fotos.push({img, name:file.name, label, src:ev.target.result, faceBox, manualOffset:0});
+      p.fotos.push({img, name:file.name, label, src:ev.target.result, faceBox, cropOffsets:{esternon:0, abdomen:0}});
       const body=document.querySelector(`#paq_${id} .paq-body`);
       if(body) body.innerHTML=buildPaqBody(p);
       setTimeout(()=>renderAllPreviews(p),80);
@@ -718,13 +718,8 @@ function deleteFoto(id,fi){
 }
 
 function adjOffset(id,fi,delta){
-  const p=paquetes.find(p=>p.id===id);
-  if(!p||!p.fotos[fi]) return;
-  p.fotos[fi].manualOffset=Math.max(-0.4,Math.min(0.4,(p.fotos[fi].manualOffset||0)+delta));
-  // Solo actualizar canvas y label — NO reconstruir el DOM completo
-  renderCropPreview(p,fi);
-  const label=document.querySelector(`#ffitem_${id}_${fi} .offset-label`);
-  if(label) label.textContent=`offset: ${Math.round(p.fotos[fi].manualOffset*100)}%`;
+  // Los botones del panel ahora solo abren el modal de encuadre
+  openCropModal(id,fi,'abdomen');
 }
 
 function renderCropPreview(p,fi){
@@ -734,7 +729,7 @@ function renderCropPreview(p,fi){
   if(!cv) return;
   const ctx=cv.getContext('2d');
   // Show abdomen crop as default preview
-  const crop=calcCrop(f.img.width,f.img.height,f.faceBox,'abdomen',f.manualOffset||0);
+  const crop=calcCrop(f.img.width,f.img.height,f.faceBox,'abdomen',(f.cropOffsets?f.cropOffsets.abdomen:f.manualOffset)||0);
   ctx.clearRect(0,0,32,40);
   const cropAR=crop.sw/crop.sh, boxAR=32/40;
   let sx=crop.sx,sy=crop.sy,sw=crop.sw,sh=crop.sh;
@@ -747,10 +742,12 @@ function renderAllPreviews(p){
   p.fotos.forEach((_,fi)=>renderCropPreview(p,fi));
 }
 
-function setManualOffset(id,fi,val){
+function setManualOffset(id,fi,val,group){
   const p=paquetes.find(p=>p.id===id);
   if(!p||!p.fotos[fi]) return;
-  p.fotos[fi].manualOffset=parseInt(val)/100;
+  const g=group||'abdomen';
+  if(!p.fotos[fi].cropOffsets) p.fotos[fi].cropOffsets={esternon:0,abdomen:0};
+  p.fotos[fi].cropOffsets[g]=parseInt(val)/100;
 }
 
 function updateFotoLabel(id,fi,val){
@@ -1389,6 +1386,30 @@ function renderAll(plan,wm){
     ca.appendChild(wrap);
 
     drawSheet(cv,sd,wm,paqsEnHoja);
+
+    // Click en canvas: detectar zona y abrir modal de encuadre
+    cv.style.cursor='crosshair';
+    cv.onclick=(e)=>{
+      const rect=cv.getBoundingClientRect();
+      const scaleX=cv.width/rect.width;
+      const scaleY=cv.height/rect.height;
+      const cx=(e.clientX-rect.left)*scaleX;
+      const cy=(e.clientY-rect.top)*scaleY;
+      // Buscar zona clicada
+      for(const z of sd.layout.zones){
+        if(z.regalo) continue;
+        const zx=Math.round(z.x*C2P), zy=Math.round(z.y*C2P);
+        const zw=Math.round(z.w*C2P), zh=Math.round(z.h*C2P);
+        if(cx>=zx&&cx<=zx+zw&&cy>=zy&&cy<=zy+zh){
+          const paq=paqsEnHoja.find(p=>p.id===z.paqId)||paqsEnHoja[0];
+          if(!paq||!paq.fotos.length) return;
+          const fotoIdx=paq.fotoAsign&&paq.fotoAsign[z.type]!==undefined?paq.fotoAsign[z.type]:0;
+          const group=CROP_GROUPS[z.type]||'abdomen';
+          openCropModal(paq.id,fotoIdx,group);
+          return;
+        }
+      }
+    };
   });
 }
 
@@ -1405,7 +1426,8 @@ function drawSheet(cv,sd,wm,paqs){
     const img=fotoSrc?fotoSrc.img:null;
 
     const group=CROP_GROUPS[z.type]||'abdomen';
-    const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,group,fotoSrc.manualOffset||0):null;
+    const cropOff=fotoSrc?(fotoSrc.cropOffsets?fotoSrc.cropOffsets[group]||0:fotoSrc.manualOffset||0):0;
+    const crop=img?calcCrop(img.width,img.height,fotoSrc.faceBox,group,cropOff):null;
 
     const zxp=Math.round(z.x*C2P), zyp=Math.round(z.y*C2P);
     const pwp=Math.round(z.pw*C2P), php=Math.round(z.ph*C2P);
@@ -1608,6 +1630,7 @@ document.getElementById('btnGen').addEventListener('click',()=>{
   html+=`<div class="rcost">Costo papel: $${plan.cost}</div>`;
   rc.innerHTML=html;
 
+  window._lastPlan=plan; window._lastWm=wm;
   renderAll(plan,wm);
   toast(`✅ ${plan.sheets.length} hoja(s) · $${plan.cost}`);
 });
@@ -1627,17 +1650,21 @@ document.getElementById('btnClr').addEventListener('click',()=>{
 // =====================================================
 // MODAL DE ENCUADRE
 // =====================================================
-const modalState={paqId:null, fotoIdx:null, foto:null, offsetOriginal:0};
+const modalState={paqId:null, fotoIdx:null, foto:null, group:'abdomen', offsetOriginal:0};
 
-function openCropModal(paqId, fotoIdx){
+function openCropModal(paqId, fotoIdx, group){
   const p=paquetes.find(p=>p.id===paqId);
   if(!p||!p.fotos[fotoIdx]) return;
+  const g=group||'abdomen';
+  if(!p.fotos[fotoIdx].cropOffsets) p.fotos[fotoIdx].cropOffsets={esternon:0,abdomen:0};
   modalState.paqId=paqId;
   modalState.fotoIdx=fotoIdx;
   modalState.foto=p.fotos[fotoIdx];
-  modalState.offsetOriginal=p.fotos[fotoIdx].manualOffset||0; // guardar para cancelar
+  modalState.group=g;
+  modalState.offsetOriginal=p.fotos[fotoIdx].cropOffsets[g]||0;
 
-  document.getElementById('modalTitle').textContent=`Encuadre — ${p.nombre} · ${modalState.foto.label}`;
+  const typeLabel=g==='esternon'?'Esternon (Inf, Cred.R)':'Abdomen (Dip, Oval, Tit)';
+  document.getElementById('modalTitle').textContent=`Encuadre — ${p.nombre} · ${modalState.foto.label} · ${typeLabel}`;
   document.getElementById('cropModal').classList.add('open');
   document.getElementById('multEsternon').value=MULT_ESTERNON;
   document.getElementById('multAbdomen').value=MULT_ABDOMEN;
@@ -1645,23 +1672,34 @@ function openCropModal(paqId, fotoIdx){
 }
 
 function closeCropModal(){
-  // Aplicar — el offset ya está guardado en p.fotos[fi].manualOffset
   document.getElementById('cropModal').classList.remove('open');
   const p=paquetes.find(p=>p.id===modalState.paqId);
   if(p){
-    // Actualizar label en el panel sin reconstruir DOM
     const fi=modalState.fotoIdx;
+    const g=modalState.group;
+    const off=(p.fotos[fi].cropOffsets?p.fotos[fi].cropOffsets[g]:p.fotos[fi].manualOffset)||0;
     const label=document.querySelector(`#ffitem_${p.id}_${fi} .offset-label`);
-    if(label) label.textContent=`offset: ${Math.round((p.fotos[fi].manualOffset||0)*100)}%`;
+    if(label) label.textContent=`e:${Math.round((p.fotos[fi].cropOffsets?p.fotos[fi].cropOffsets.esternon:0)*100)}% a:${Math.round((p.fotos[fi].cropOffsets?p.fotos[fi].cropOffsets.abdomen:0)*100)}%`;
+    // Regenerar el canvas principal con los nuevos offsets
+    const plan=window._lastPlan;
+    const wm=window._lastWm;
+    if(plan&&wm){
+      document.querySelectorAll('.sw canvas').forEach((cv,idx)=>{
+        const sd=plan.sheets[idx];
+        const paqsEnHoja=(sd.paqIds||[]).map(id=>paquetes.find(p=>p.id===id)).filter(Boolean);
+        drawSheet(cv,sd,wm,paqsEnHoja);
+      });
+    }
     setTimeout(()=>renderAllPreviews(p),50);
   }
 }
 
 function cancelCropModal(){
-  // Cancelar — restaurar offset original
   const p=paquetes.find(p=>p.id===modalState.paqId);
   if(p&&p.fotos[modalState.fotoIdx]){
-    p.fotos[modalState.fotoIdx].manualOffset=modalState.offsetOriginal;
+    const f=p.fotos[modalState.fotoIdx];
+    if(!f.cropOffsets) f.cropOffsets={esternon:0,abdomen:0};
+    f.cropOffsets[modalState.group]=modalState.offsetOriginal;
   }
   document.getElementById('cropModal').classList.remove('open');
   if(p) setTimeout(()=>renderAllPreviews(p),50);
@@ -1672,7 +1710,8 @@ function modalResetOffset(){
   if(!p) return;
   const f=p.fotos[modalState.fotoIdx];
   if(!f) return;
-  f.manualOffset=0;
+  if(!f.cropOffsets) f.cropOffsets={esternon:0,abdomen:0};
+  f.cropOffsets[modalState.group]=0;
   modalState.foto=f;
   renderModalCanvas();
 }
@@ -1682,7 +1721,9 @@ function modalAdjOffset(delta){
   if(!p) return;
   const f=p.fotos[modalState.fotoIdx];
   if(!f) return;
-  f.manualOffset=Math.max(-0.4,Math.min(0.4,(f.manualOffset||0)+delta));
+  if(!f.cropOffsets) f.cropOffsets={esternon:0,abdomen:0};
+  const g=modalState.group;
+  f.cropOffsets[g]=Math.max(-0.4,Math.min(0.4,(f.cropOffsets[g]||0)+delta));
   modalState.foto=f;
   renderModalCanvas();
 }
@@ -1726,7 +1767,9 @@ function renderModalCanvas(){
 
   // Calcular faceBox — coordenadas en espacio NATIVO, luego escalar a pantalla
   const fb=f.faceBox;
-  const offset=f.manualOffset||0;
+  const g=modalState.group||'abdomen';
+  if(!f.cropOffsets) f.cropOffsets={esternon:0,abdomen:0};
+  const offset=f.cropOffsets[g]||0;
 
   let faceTop,faceH;
   if(fb){
@@ -1775,11 +1818,50 @@ function renderModalCanvas(){
   ctx.fillStyle='rgba(75,200,122,1)';
   ctx.fillText('► abdomen',8,Math.min(cutA-5,dispH-4));
 
+  // Dibujar recuadro de encuadre para el grupo activo
+  const activeGroup = modalState.group||'abdomen';
+  const cropY1 = activeGroup==='esternon' ? sy : sy;
+  const cropY2 = activeGroup==='esternon' ? cutE : cutA;
+  const cropX1 = 0; const cropX2 = dispW;
+
+  // Oscurecer fuera del recuadre activo
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(0,0,dispW,cropY1);
+  ctx.fillRect(0,cropY2,dispW,dispH-cropY2);
+
+  // Recuadro principal
+  ctx.strokeStyle=activeGroup==='esternon'?'rgba(255,107,107,1)':'rgba(75,200,122,1)';
+  ctx.lineWidth=3;
+  ctx.setLineDash([]);
+  ctx.strokeRect(cropX1+2,cropY1+2,cropX2-4,cropY2-cropY1-4);
+
+  // 4 esquinas arrastrables
+  const corners=[
+    {x:cropX1,y:cropY1},{x:cropX2,y:cropY1},
+    {x:cropX1,y:cropY2},{x:cropX2,y:cropY2}
+  ];
+  corners.forEach(c=>{
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.beginPath();ctx.arc(c.x,c.y,9,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=activeGroup==='esternon'?'rgba(255,107,107,1)':'rgba(75,200,122,1)';
+    ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(c.x,c.y,9,0,Math.PI*2);ctx.stroke();
+  });
+
+  // Etiqueta tipo activo
+  const lbl=activeGroup==='esternon'?'ESTERNON':'ABDOMEN';
+  ctx.font='bold 13px monospace';
+  ctx.fillStyle=activeGroup==='esternon'?'rgba(255,107,107,1)':'rgba(75,200,122,1)';
+  ctx.fillText('\u25ba '+lbl,8,cropY1>20?cropY1-5:cropY2+16);
+
+  // Guardar coordenadas de recuadre para drag
+  cv._cropRect={y1:cropY1,y2:cropY2,dispH,imgH:img.height,scale};
+
   // Update offset display
   document.getElementById('modalOffsetVal').textContent=
     `offset: ${Math.round(offset*100)}%`;
   document.getElementById('modalFaceStatus').textContent=
-    fb ? '✓ Cara detectada automáticamente' : '⚠ Sin detección — ajusta las líneas manualmente';
+    fb ? '✓ Cara detectada automáticamente' : '⚠ Sin detección — ajusta manualmente';
 }
 
 // Cerrar modal al hacer clic fuera — esperar a que el DOM esté listo
@@ -1794,6 +1876,63 @@ document.addEventListener('DOMContentLoaded',()=>{
     new ResizeObserver(()=>{
       if(modal && modal.classList.contains('open')) renderModalCanvas();
     }).observe(wrap);
+  }
+
+  // Drag vertical en canvas del modal para mover el recuadre
+  const modalCv=document.getElementById('modalCanvas');
+  let dragState={active:false, startY:0, startOffset:0};
+
+  function getModalEventY(e){
+    return e.touches?e.touches[0].clientY:e.clientY;
+  }
+
+  function onModalDragStart(e){
+    const cv=document.getElementById('modalCanvas');
+    if(!cv._cropRect) return;
+    e.preventDefault();
+    dragState.active=true;
+    dragState.startY=getModalEventY(e);
+    const g=modalState.group||'abdomen';
+    const f=modalState.foto;
+    dragState.startOffset=f&&f.cropOffsets?f.cropOffsets[g]||0:0;
+    cv.style.cursor='grabbing';
+  }
+
+  function onModalDragMove(e){
+    if(!dragState.active) return;
+    e.preventDefault();
+    const cv=document.getElementById('modalCanvas');
+    if(!cv._cropRect) return;
+    const rect=cv.getBoundingClientRect();
+    const deltaY=(getModalEventY(e)-dragState.startY);
+    // Convertir delta de px pantalla a fraccion de imagen
+    const deltaFrac=deltaY/rect.height;
+    const newOffset=Math.max(-0.4,Math.min(0.4,dragState.startOffset+deltaFrac));
+    const p=paquetes.find(p=>p.id===modalState.paqId);
+    if(!p) return;
+    const f=p.fotos[modalState.fotoIdx];
+    if(!f) return;
+    if(!f.cropOffsets) f.cropOffsets={esternon:0,abdomen:0};
+    f.cropOffsets[modalState.group]=newOffset;
+    modalState.foto=f;
+    renderModalCanvas();
+  }
+
+  function onModalDragEnd(){
+    if(!dragState.active) return;
+    dragState.active=false;
+    const cv=document.getElementById('modalCanvas');
+    cv.style.cursor='grab';
+  }
+
+  if(modalCv){
+    modalCv.addEventListener('mousedown',onModalDragStart);
+    modalCv.addEventListener('touchstart',onModalDragStart,{passive:false});
+    document.addEventListener('mousemove',onModalDragMove);
+    document.addEventListener('touchmove',onModalDragMove,{passive:false});
+    document.addEventListener('mouseup',onModalDragEnd);
+    document.addEventListener('touchend',onModalDragEnd);
+    modalCv.style.cursor='grab';
   }
 });
 
@@ -1814,18 +1953,18 @@ refreshPaquetesUI();
     </div>
     <div style="font-size:.68rem;padding:4px 2px;margin-bottom:4px;" id="modalFaceStatus"></div>
     <div class="type-lines-legend">
-      <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternon (Inf, Cred.R)</span></div>
-      <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Cred.Oval, Dip, Tit, Regalo)</span></div>
-      <div class="tleg"><div class="tleg-dot" style="background:#4b8bc8"></div><span style="color:var(--txt2)">Inicio encuadre</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#ff6b6b"></div><span style="color:var(--txt2)">Esternon (Inf, Cred.R, 3x3.5)</span></div>
+      <div class="tleg"><div class="tleg-dot" style="background:#4bc87a"></div><span style="color:var(--txt2)">Abdomen (Oval, Dip, Tit)</span></div>
+      <div class="tleg" style="font-size:.62rem;color:var(--txt2);margin-left:auto">Clic en foto del canvas para abrir encuadre</div>
     </div>
     <div class="modal-canvas-wrap" id="modalCanvasWrap">
       <canvas id="modalCanvas"></canvas>
     </div>
     <div class="modal-controls">
-      <span style="font-size:.72rem;color:var(--txt2);">Ajustar encuadre:</span>
-      <button class="modal-btn big" onclick="modalAdjOffset(-0.05)">&#9650; Subir</button>
-      <button class="modal-btn big" onclick="modalAdjOffset(0.05)">&#9660; Bajar</button>
-      <button class="modal-btn" onclick="modalResetOffset()">&#8635; Reset</button>
+      <span style="font-size:.72rem;color:var(--txt2);">Arrastrar foto para mover encuadre ↕ o:</span>
+      <button class="modal-btn big" onclick="modalAdjOffset(-0.02)">&#9650;</button>
+      <button class="modal-btn big" onclick="modalAdjOffset(0.02)">&#9660;</button>
+      <button class="modal-btn" onclick="modalResetOffset()">&#8635;</button>
       <span id="modalOffsetVal" style="font-size:.72rem;color:var(--acc);">offset: 0%</span>
     </div>
     <div style="font-size:.65rem;color:var(--txt2);margin-top:2px;">Calibracion (afecta a todos los paquetes):</div>
@@ -1838,7 +1977,7 @@ refreshPaquetesUI();
       <input class="calib-input" type="number" id="multAbdomen" min="0.5" max="4" step="0.1" value="2.2" onchange="updateMult('abdomen',this.value)">
     </div>
     <div style="font-size:.63rem;color:var(--txt2);padding:6px 10px;background:var(--sur2);border-radius:4px;border-left:2px solid var(--acc);margin-bottom:10px;">
-      Linea azul = inicio encuadre. Roja = corte esternon. Verde = corte abdomen. Mueve las líneas con Subir/Bajar.
+      El recuadre muestra el encuadre del grupo activo. Arrástralo arriba/abajo para ajustar. Cada tipo (esternon/abdomen) guarda su propio offset independiente.
     </div>
     <button class="bp" onclick="closeCropModal()" style="background:var(--grn);color:#1a1a18;">✓ Aplicar encuadre</button>
   </div>
