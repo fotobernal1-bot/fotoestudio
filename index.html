@@ -617,12 +617,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
       <!-- Pestañas -->
       <div style="display:flex;gap:0;border-bottom:2px solid #e0e0e0;margin-bottom:16px;align-items:center;">
           <button id="prod-tab-urgentes" onclick="showProdTab('urgentes')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid #0C7ED6;color:#0C7ED6;margin-bottom:-2px;">⚡ Urgentes</button>
-        <button id="prod-tab-activas" onclick="showProdTab('activas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Activas</button>
+        <button id="prod-tab-activas" onclick="showProdTab('activas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Ordinarias</button>
+        <button id="prod-tab-pendiente" onclick="showProdTab('pendiente')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">📦 Pendiente de entrega <span id='prod-tab-pendiente-badge' style='display:none;background:#BA7517;color:white;font-size:10px;border-radius:10px;padding:1px 6px;margin-left:3px;'></span></button>
         <button id="prod-tab-archivadas" onclick="showProdTab('archivadas')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;color:#aaa;margin-bottom:-2px;">Archivadas</button>
         <button id="btn-silenciar-alerta" onclick="silenciarAlerta()" style="display:none;margin-left:auto;margin-right:4px;padding:5px 10px;font-size:11px;background:#FCEBEB;color:#A32D2D;border:1px solid #f5c0c0;border-radius:8px;cursor:pointer;"><i class="ti ti-bell-off"></i> Silenciar</button>
       </div>
 
-      <!-- Panel: Activas -->
+      <!-- Panel: Ordinarias -->
       <div id="prod-panel-activas" style="display:none;">
         <!-- Buscador + acciones -->
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
@@ -641,7 +642,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
               <button onclick="marcarPasoMultiple('proceso')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Proceso</button>
               <button onclick="marcarPasoMultiple('impresion')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Impresión</button>
               <button onclick="marcarPasoMultiple('acabado')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Acabado</button>
-              <button onclick="marcarPasoMultiple('entrega')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Entrega</button>
               <button onclick="deseleccionarTodas()" class="btn bgray" style="font-size:11px;padding:5px 10px;color:#A32D2D;border-color:#f5c0c0;">✕ Limpiar</button>
             </div>
           </div>
@@ -656,12 +656,47 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">PROCESO</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">IMPRESIÓN</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">ACABADO</th>
-                <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">ENTREGA</th>
                 <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:60px;"></th>
               </tr>
             </thead>
             <tbody id="prod-body">
-              <tr><td colspan="6" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>
+              <tr><td colspan="5" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Panel: Pendiente de entrega -->
+      <div id="prod-panel-pendiente" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
+            <input type="text" id="pend-buscar" placeholder="Buscar por folio, nombre o fecha..." oninput="buscarPendiente()" style="padding-left:34px;font-size:14px;border:1px solid #d0d0d0;border-radius:10px;width:100%;background:#f7f7f5;box-sizing:border-box;">
+          </div>
+          <!-- Barra selección múltiple pendiente -->
+          <button onclick="toggleModoSeleccionPendiente()" id="btn-modo-sel-pend" class="btn bgray" style="font-size:12px;padding:7px 14px;white-space:nowrap;"><i class="ti ti-checkbox"></i> Selección múltiple</button>
+        </div>
+        <div id="prod-barra-sel-pend" style="display:none;background:#FFF3E0;border:1px solid #FFB74D;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#BA7517;font-weight:600;" id="prod-sel-count-pend">0 seleccionadas</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;">
+              <button onclick="marcarPasoMultiplePendiente('entrega')" class="btn bgray" style="font-size:11px;padding:5px 10px;">✅ Entrega</button>
+              <button onclick="deseleccionarTodasPendiente()" class="btn bgray" style="font-size:11px;padding:5px 10px;color:#A32D2D;border-color:#f5c0c0;">✕ Limpiar</button>
+            </div>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="pend-tabla" style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#FFF8F0;border-bottom:2px solid #FFD699;">
+                <th id="pend-th-sel" style="display:none;padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:36px;"><input type="checkbox" id="pend-sel-all" onchange="toggleSelAllPendiente(this)" title="Seleccionar todas"></th>
+                <th style="padding:10px 12px;text-align:left;font-size:11px;color:#666;font-weight:600;min-width:220px;">INFORMACIÓN</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:110px;">ENTREGA</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:80px;"></th>
+              </tr>
+            </thead>
+            <tbody id="pend-body">
+              <tr><td colspan="3" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin pedidos pendientes de entrega</td></tr>
             </tbody>
           </table>
         </div>
@@ -3270,6 +3305,20 @@ function _ejecutarMarcarMultiple(paso, quien){
     .catch(function(e){ alert('Error: '+e.message); });
 }
 
+function _ejecutarMarcarMultiplePendiente(paso, quien){
+  var seleccionados = Array.from(document.querySelectorAll('.pend-sel-chk:checked')).map(function(c){ return c.dataset.folio; });
+  if(!seleccionados.length) return;
+  var hora = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  if(!db){ alert('Sin conexión'); return; }
+  var promesas = seleccionados.map(function(folio){
+    var update = {}; update[paso] = {hecho:true, quien:quien, hora:hora};
+    return db.collection('produccion').doc(folio).update(update);
+  });
+  Promise.all(promesas)
+    .then(function(){ deseleccionarTodasPendiente(); cargarProduccion(); })
+    .catch(function(e){ alert('Error: '+e.message); });
+}
+
 // ── ESTADÍSTICAS POR OPERADOR ──────────────────────────────────
 function abrirEstadisticasOp(){
   if(!db){ alert('Sin conexión a Firebase'); return; }
@@ -5293,17 +5342,25 @@ function showProdTab(tab){
   var activas = document.getElementById('prod-panel-activas');
   var archivadas = document.getElementById('prod-panel-archivadas');
   var urgentes = document.getElementById('prod-panel-urgentes');
+  var pendiente = document.getElementById('prod-panel-pendiente');
   var tabA = document.getElementById('prod-tab-activas');
   var tabB = document.getElementById('prod-tab-archivadas');
   var tabU = document.getElementById('prod-tab-urgentes');
-  [activas,archivadas,urgentes].forEach(function(p){ if(p) p.style.display='none'; });
-  [tabA,tabB,tabU].forEach(function(t){ if(t){ t.style.borderBottomColor='transparent'; t.style.color='#aaa'; } });
-  // Hide multi-select toolbar when not on activas
+  var tabP = document.getElementById('prod-tab-pendiente');
+  [activas,archivadas,urgentes,pendiente].forEach(function(p){ if(p) p.style.display='none'; });
+  [tabA,tabB,tabU,tabP].forEach(function(t){ if(t){ t.style.borderBottomColor='transparent'; t.style.color='#aaa'; } });
+  // Ocultar barras de selección múltiple
   var barraSel = document.getElementById('prod-barra-sel');
   if(tab!=='activas' && barraSel) barraSel.style.display='none';
+  var barraSelPend = document.getElementById('prod-barra-sel-pend');
+  if(tab!=='pendiente' && barraSelPend) barraSelPend.style.display='none';
   if(tab==='activas'){
     if(activas) activas.style.display='block';
     if(tabA){ tabA.style.borderBottomColor='#0C447C'; tabA.style.color='#0C447C'; }
+  } else if(tab==='pendiente'){
+    if(pendiente) pendiente.style.display='block';
+    if(tabP){ tabP.style.borderBottomColor='#BA7517'; tabP.style.color='#BA7517'; }
+    renderPendienteEntrega(window._pendienteLista||[]);
   } else if(tab==='archivadas'){
     if(archivadas) archivadas.style.display='block';
     if(tabB){ tabB.style.borderBottomColor='#0C447C'; tabB.style.color='#0C447C'; }
@@ -5385,7 +5442,6 @@ function cargarProduccion(){
     .then(function(snap){
       var arr = [];
       snap.forEach(function(d){ arr.push(d.data()); });
-      // Urgentes (menos de 2 hrs) al tope, luego más antigua arriba
       arr.sort(function(a,b){
         var aUrg = esOrdenUrgente(a);
         var bUrg = esOrdenUrgente(b);
@@ -5393,13 +5449,26 @@ function cargarProduccion(){
         if(!aUrg && bUrg) return 1;
         return a.timestamp < b.timestamp ? -1 : 1;
       });
-      ordenesProduccion = arr;
-      window._produccionLista = arr;
-      renderProduccion(query ? arr.filter(function(o){
+      // Separar: ordinarias (acabado no hecho) vs pendiente de entrega (acabado hecho, entrega no hecha)
+      var ordinarias = arr.filter(function(o){ return !(o.acabado && o.acabado.hecho); });
+      var pendiente  = arr.filter(function(o){ return (o.acabado && o.acabado.hecho) && !(o.entrega && o.entrega.hecho); });
+      ordenesProduccion = ordinarias;
+      window._produccionLista = ordinarias;
+      window._pendienteLista  = pendiente;
+      // Actualizar badge pendiente
+      var badge = document.getElementById('prod-tab-pendiente-badge');
+      if(badge){
+        if(pendiente.length){ badge.textContent = pendiente.length; badge.style.display='inline'; }
+        else { badge.style.display='none'; }
+      }
+      renderProduccion(query ? ordinarias.filter(function(o){
         return o.folio.toLowerCase().includes(query) ||
-               o.info.toLowerCase().includes(query) ||
-               o.fecha.includes(query);
-      }) : arr);
+               (o.info||'').toLowerCase().includes(query) ||
+               (o.fecha||'').includes(query);
+      }) : ordinarias);
+      // Si el tab activo es pendiente, re-renderizar
+      var tabP = document.getElementById('prod-tab-pendiente');
+      if(tabP && tabP.style.color !== '#aaa') renderPendienteEntrega(pendiente);
       verificarAlertaUrgente();
     })
     .catch(function(e){ console.error('Error cargar produccion:', e); });
@@ -5409,13 +5478,12 @@ function renderProduccion(lista){
   var tbody = document.getElementById('prod-body');
   if(!tbody) return;
   if(!lista.length){
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin órdenes pendientes</td></tr>';
     return;
   }
   tbody.innerHTML = lista.map(function(o){
-    var pasos = ['proceso','impresion','acabado','entrega'];
-    var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado',entrega:'Entrega'};
-    var todosHechos = pasos.every(function(p){ return o[p].hecho; }); // todos incluye entrega para archivar
+    var pasos = ['proceso','impresion','acabado'];
+    var nombresP = {proceso:'Proceso',impresion:'Impresión',acabado:'Acabado'};
 
     // Alerta roja: faltan menos de 2 horas para entrega y no está completa
     var esUrgente = esOrdenUrgente(o);
@@ -5442,11 +5510,7 @@ function renderProduccion(lista){
           + '</td>';
       }
     }).join('');
-    var archivarBtn = o.archivada
-      ? '<td style="text-align:center;padding:8px;"><button onclick="desarchivarOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #1D9E75;border-radius:6px;background:#f0fdf8;cursor:pointer;color:#1D9E75;font-weight:600;">↩ Desarchivar</button></td>'
-      : todosHechos
-        ? '<td style="text-align:center;padding:8px;"><button onclick="archivarOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
-        : '<td></td>';
+    var archivarBtn = '<td></td>';
     var origenColor = o.origen==='escuelas' ? '#0C447C' : '#555';
     var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;font-weight:600;">📅 '+o.fechaEntrega+'</div>' : '';
     var notaBtn = '<button onclick="editarNota(\x27'+o.folio+'\x27,\x27'+(o.nota||'').replace(/'/g,'\x27')+'\x27)" style="background:transparent;border:none;cursor:pointer;font-size:13px;color:'+(o.nota?'#1D9E75':'#ccc')+';" title="'+(o.nota?'Ver/editar nota':'Agregar nota')+'"><i class="ti ti-pencil"></i></button>';
@@ -5534,6 +5598,110 @@ function renderProduccion(lista){
   }).join('');
 }
 
+// ── PENDIENTE DE ENTREGA ──────────────────────────────────────
+function renderPendienteEntrega(lista){
+  var tbody = document.getElementById('pend-body');
+  if(!tbody) return;
+  if(!lista || !lista.length){
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:30px;color:#aaa;font-size:13px;">Sin pedidos pendientes de entrega</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(function(o){
+    var origenColor = o.origen==='escuelas' ? '#0C447C' : '#555';
+    var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;font-weight:600;">📅 '+o.fechaEntrega+'</div>' : '';
+    var specsLine = '';
+    if(o.specs && o.specs.lineas && o.specs.lineas.length){
+      specsLine = '<div style="font-size:10px;color:#555;margin-top:3px;">' + o.specs.lineas.map(function(l){ return '• '+l; }).join(' ') + '</div>';
+    }
+    // Celda de entrega
+    var entPaso = o.entrega || {hecho:false};
+    var celdaEntrega;
+    if(entPaso.hecho){
+      celdaEntrega = '<td style="text-align:center;padding:8px;vertical-align:top;">'
+        + '<div style="color:#1D9E75;font-size:18px;cursor:pointer;" onclick="deshacerPaso(\x27'+o.folio+'\x27,\x27entrega\x27)" title="Toca para deshacer">✅</div>'
+        + '<div style="font-size:10px;color:#1D9E75;font-weight:600;">'+entPaso.quien+'</div>'
+        + '<div style="font-size:9px;color:#aaa;">'+entPaso.hora+'</div>'
+        + '</td>';
+    } else {
+      celdaEntrega = '<td style="text-align:center;padding:8px;vertical-align:top;">'
+        + '<button onclick="abrirMarcarPaso(\x27'+o.folio+'\x27,\x27entrega\x27)" '
+        + 'style="width:32px;height:32px;border:2px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;color:#ccc;">○</button>'
+        + '</td>';
+    }
+    // Botón archivar solo cuando entrega esté hecha
+    var accionBtn = entPaso.hecho
+      ? '<td style="text-align:center;padding:8px;"><button onclick="archivarOrden(\x27'+o.folio+'\x27)" style="font-size:10px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:6px;background:#f7f7f5;cursor:pointer;color:#888;">Archivar</button></td>'
+      : '<td></td>';
+    return '<tr style="border-bottom:1px solid #f0f0f0;" id="pend-row-'+o.folio+'">'
+      + '<td id="pend-chk-td-'+o.folio+'" style="display:none;text-align:center;padding:10px 8px;vertical-align:top;"><input type="checkbox" class="pend-sel-chk" data-folio="'+o.folio+'" onchange="actualizarSelCountPendiente()"></td>'
+      + '<td style="padding:10px 12px;vertical-align:top;">'
+      + '<div style="font-weight:700;color:'+origenColor+';font-size:12px;">'+o.folio+'</div>'
+      + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:240px;">'+(o.info||'').replace(/\s*\([HM](,\s*[^)]*)?\)/g,'').trim()+'</div>'
+      + specsLine
+      + fechaEnt
+      + '<div style="font-size:10px;color:#aaa;margin-top:2px;">'+o.fecha+'</div>'
+      + '</td>'
+      + celdaEntrega
+      + accionBtn
+      + '</tr>';
+  }).join('');
+}
+
+function buscarPendiente(){
+  var q = (document.getElementById('pend-buscar').value||'').trim().toLowerCase();
+  var lista = window._pendienteLista || [];
+  if(!q){ renderPendienteEntrega(lista); return; }
+  renderPendienteEntrega(lista.filter(function(o){
+    return (o.folio||'').toLowerCase().includes(q) ||
+           (o.info||'').toLowerCase().includes(q) ||
+           (o.fecha||'').includes(q);
+  }));
+}
+
+var _modoSelPendiente = false;
+function toggleModoSeleccionPendiente(){
+  _modoSelPendiente = !_modoSelPendiente;
+  document.querySelectorAll('[id^="pend-chk-td-"]').forEach(function(td){ td.style.display = _modoSelPendiente ? 'table-cell' : 'none'; });
+  var thSel = document.getElementById('pend-th-sel');
+  if(thSel) thSel.style.display = _modoSelPendiente ? 'table-cell' : 'none';
+  var btn = document.getElementById('btn-modo-sel-pend');
+  if(btn) btn.style.background = _modoSelPendiente ? '#0C447C' : '';
+  if(btn) btn.style.color = _modoSelPendiente ? 'white' : '';
+  if(!_modoSelPendiente) deseleccionarTodasPendiente();
+}
+
+function toggleSelAllPendiente(chk){
+  document.querySelectorAll('.pend-sel-chk').forEach(function(c){ c.checked = chk.checked; });
+  actualizarSelCountPendiente();
+}
+
+function actualizarSelCountPendiente(){
+  var sel = document.querySelectorAll('.pend-sel-chk:checked').length;
+  var span = document.getElementById('prod-sel-count-pend');
+  if(span) span.textContent = sel + ' seleccionada' + (sel!==1?'s':'');
+  var barra = document.getElementById('prod-barra-sel-pend');
+  if(barra) barra.style.display = sel > 0 ? 'block' : 'none';
+}
+
+function deseleccionarTodasPendiente(){
+  document.querySelectorAll('.pend-sel-chk').forEach(function(c){ c.checked = false; });
+  var barra = document.getElementById('prod-barra-sel-pend');
+  if(barra) barra.style.display = 'none';
+}
+
+function marcarPasoMultiplePendiente(paso){
+  var seleccionados = document.querySelectorAll('.pend-sel-chk:checked');
+  if(!seleccionados.length){ alert('Selecciona al menos una orden'); return; }
+  var nombresP = {entrega:'Entrega'};
+  _marcarPasoCtx = {folio:null, paso:paso, multiple:true, esPendiente:true};
+  var tit = document.getElementById('marcar-paso-titulo');
+  if(tit) tit.textContent = '✅ ' + (nombresP[paso]||paso) + ' — ' + seleccionados.length + ' órdenes';
+  _renderAccesosOperador();
+  var inp = document.getElementById('marcar-paso-quien');
+  if(inp){ inp.value = localStorage.getItem('fs_ultimo_op')||''; inp.focus(); inp.select(); }
+  openM('m-marcar-paso');
+}
+
 // Estado temporal para marcar paso
 var _marcarPasoCtx = {folio:null, paso:null, multiple:false};
 
@@ -5578,7 +5746,11 @@ function confirmarMarcarPaso(){
   localStorage.setItem('fs_ultimo_op', quien.toLowerCase());
   closeM('m-marcar-paso');
   if(_marcarPasoCtx.multiple){
-    _ejecutarMarcarMultiple(_marcarPasoCtx.paso, quien);
+    if(_marcarPasoCtx.esPendiente){
+      _ejecutarMarcarMultiplePendiente(_marcarPasoCtx.paso, quien);
+    } else {
+      _ejecutarMarcarMultiple(_marcarPasoCtx.paso, quien);
+    }
   } else {
     _ejecutarMarcarPaso(_marcarPasoCtx.folio, _marcarPasoCtx.paso, quien);
   }
@@ -5622,27 +5794,17 @@ function desarchivarOrden(folio){
 }
 
 function buscarOrden(){
-  var query = document.getElementById('prod-buscar').value.trim().toLowerCase();
+  var query = (document.getElementById('prod-buscar').value||'').trim().toLowerCase();
   if(!query){
     renderProduccion(ordenesProduccion);
     return;
   }
-  // Buscar también en archivadas
-  if(!db) return;
-  db.collection('produccion').get()
-    .then(function(snap){
-      var arr = [];
-      snap.forEach(function(d){ arr.push(d.data()); });
-      var filtradas = arr.filter(function(o){
-        return (o.folio.toLowerCase().includes(query) ||
-               (o.info||'').toLowerCase().includes(query) ||
-               (o.fecha||'').includes(query));
-      });
-      filtradas.sort(function(a,b){ return a.timestamp < b.timestamp ? -1 : 1; });
-      // Separar activas y archivadas para renderizar correctamente
-      var activas = filtradas.filter(function(o){ return !o.archivada; });
-      renderProduccion(activas);
-    });
+  var filtradas = ordenesProduccion.filter(function(o){
+    return (o.folio||'').toLowerCase().includes(query) ||
+           (o.info||'').toLowerCase().includes(query) ||
+           (o.fecha||'').includes(query);
+  });
+  renderProduccion(filtradas);
 }
 
 // ============================================================
@@ -6261,15 +6423,6 @@ function mostrarEmailStatus(tipo, msg){
 <div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
 
-  <!-- Color / BN — primero -->
-  <div class="frow">
-    <label>Color / B&N</label>
-    <div style="display:flex;gap:8px;">
-      <button id="cr-color" class="btn bgreen" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('color')">Color</button>
-      <button id="cr-bn" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('bn')">B/N</button>
-    </div>
-  </div>
-
   <!-- Quien paga: sexo + edad en cuadrícula 2x3 -->
   <p class="slabel" style="margin-bottom:8px;">Quien paga</p>
   <div class="frow">
@@ -6290,6 +6443,15 @@ function mostrarEmailStatus(tipo, msg){
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+    </div>
+  </div>
+
+  <!-- Color / B&N -->
+  <div class="frow">
+    <label>Color / B&N</label>
+    <div style="display:flex;gap:8px;">
+      <button id="cr-color" class="btn bgreen" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('color')">Color</button>
+      <button id="cr-bn" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('bn')">B/N</button>
     </div>
   </div>
 
