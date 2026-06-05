@@ -704,6 +704,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 
       <!-- Panel: Urgentes (solo tickets, sin precios) -->
       <div id="prod-panel-urgentes">
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#888;font-weight:500;">Tickets hoy:</span>
+          <span id="urg-prod-contador" style="background:#EBF3FF;color:#0C447C;font-size:22px;font-weight:800;padding:4px 18px;border-radius:12px;letter-spacing:1px;">0</span>
+        </div>
         <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
           <div style="position:relative;flex:1;">
             <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#aaa;pointer-events:none;"></i>
@@ -3492,6 +3496,10 @@ function filtrarUrgProd(){
 function renderUrgProd(ventas){
   var cont = document.getElementById('urg-prod-body');
   if(!cont) return;
+  // Actualizar contador (solo no cancelados)
+  var noCancel = ventas.filter(function(v){ return !v.cancelado; });
+  var cEl = document.getElementById('urg-prod-contador');
+  if(cEl) cEl.textContent = noCancel.length;
   if(!ventas.length){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin tickets urgentes recientes</p>'; return; }
   var MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   cont.innerHTML = ventas.filter(function(v){ return !v.cancelado; }).map(function(v){
@@ -4964,7 +4972,11 @@ function cobrarCalculadora(){
             var cfg=CALC_CFG[k];
             var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
             var paq=Math.ceil(v.cant/cfg.xPaq);
-            itemsBase.push({nombre:v.cant+' '+cfg.nombre+(v.color==='bn'?' B/N':' Color')+(v.adherible?' adherible':'')+(v.forma==='oval'?' Oval':' Rect'), precio:paq*precio});
+            var colorTxt=v.color==='bn'?'B/N':'Color';
+            var adhTxt=cfg.tieneAdh?(v.adherible?' adherible':''):'';
+            var tbTxt=v.tb?' TB':'';
+            var formaTxt=v.forma==='oval'?' Oval':' Rect';
+            itemsBase.push({nombre:v.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt, precio:paq*precio});
           }
         });
       }
@@ -4980,7 +4992,25 @@ function cobrarCalculadora(){
   var nombresVendidos = lineas.map(function(i){return i.nombre;});
   var agregados = nombresVendidos.filter(function(n){ return !nombresBase.includes(n); });
   var quitados = nombresBase.filter(function(n){ return !nombresVendidos.includes(n); });
-  var hayModificaciones = agregados.length > 0 || quitados.length > 0;
+  var hayCambioItems = agregados.length > 0 || quitados.length > 0;
+
+  // Comparar specs contra el original guardado
+  var hayCambioSpecs = false;
+  if(escuelaActual && escuelas[escuelaActual.idx] && escuelas[escuelaActual.idx].calcData){
+    var cdOrig2 = escuelas[escuelaActual.idx].calcData;
+    var specsOrig = cdOrig2.specs || {};
+    var camposSpec = ['fondo','vestimenta_h','vestimenta_m','dig_vest_h','dig_vest_m','cabello','aretes','barba','notas'];
+    camposSpec.forEach(function(campo){
+      var valOrig = specsOrig[campo] || '';
+      var valAct  = calcData.specs[campo] || '';
+      if(valOrig !== valAct) hayCambioSpecs = true;
+    });
+    // Comparar descuentos y ajuste
+    if((cdOrig2.descuento_pesos||0) !== calcData.descuento_pesos) hayCambioSpecs = true;
+    if((cdOrig2.descuento_pct||0)   !== calcData.descuento_pct)   hayCambioSpecs = true;
+    if((cdOrig2.ajuste||0)          !== calcData.ajuste)          hayCambioSpecs = true;
+  }
+  var hayModificaciones = hayCambioItems || hayCambioSpecs;
 
   // Guardar referencia para uso en callbacks
   // Calcular barba precio antes de cerrar el contexto
@@ -5005,7 +5035,8 @@ function cobrarCalculadora(){
     _fondo: fondo, _cab: cab, _aretes: aretes, _barba: barba,
     _notas: notas, _specsPersonas: specsPersonas, _barbaPrecioFinal: barbaPrecioFinalCtx
   };
-  _huboCambios = hayModificaciones || !escuelaActual;
+  // Solo mostrar popup si hubo cambios reales; !escuelaActual = calc libre (sin escuela base) no es "modificado"
+  _huboCambios = hayModificaciones;
 
   if(_huboCambios){
     // Pre-fill nombre field with current school name
