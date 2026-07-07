@@ -730,7 +730,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
               <tr style="background:#f7f7f5;border-bottom:2px solid #e0e0e0;">
-                <th id="prod-th-sel" style="display:none;padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:36px;"><input type="checkbox" id="prod-sel-all" onchange="toggleSelAll(this)" title="Seleccionar todas"></th>
+                <th id="arch-th-sel" style="display:none;padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:36px;"><input type="checkbox" id="arch-sel-all" title="Seleccionar todas"></th>
                 <th style="padding:10px 12px;text-align:left;font-size:11px;color:#666;font-weight:600;min-width:220px;">INFORMACIÓN</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:80px;">PROCESO</th>
                 <th style="padding:10px 12px;text-align:center;font-size:11px;color:#666;font-weight:600;min-width:80px;">IMPRESIÓN</th>
@@ -760,6 +760,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
         </div>
       </div>
       <!-- Botones rápidos -->
+      <!-- RESPALDO EN DISCO -->
+      <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div>
+            <p style="font-size:12px;font-weight:600;color:#111;margin-bottom:2px;"><i class="ti ti-device-floppy"></i> Respaldo en disco</p>
+            <p id="respaldo-estado" style="font-size:11px;color:#A32D2D;margin:0;">Respaldo desactivado</p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn bgreen" style="font-size:11px;" onclick="RESPALDO._reactivar()"><i class="ti ti-folder"></i> Activar / archivo</button>
+            <button class="btn bgray" style="font-size:11px;" onclick="RESPALDO.reconciliarCompleto()"><i class="ti ti-download"></i> Exportar todo ahora</button>
+            <button class="btn bgray" style="font-size:11px;" onclick="RESPALDO.restaurar()"><i class="ti ti-upload"></i> Restaurar → Firebase</button>
+          </div>
+        </div>
+      </div>
       <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;" id="rep-tabs">
         <div class="tab active" onclick="cambiarPeriodo('hoy',this)"><i class="ti ti-sun" style="font-size:12px;"></i> Hoy</div>
         <div class="tab" onclick="cambiarPeriodo('semana',this)"><i class="ti ti-calendar-week" style="font-size:12px;"></i> Esta semana</div>
@@ -1059,7 +1073,7 @@ function addCatProd(catId, i){
 
 function eliminarCat(catId){
   const clave=prompt('Clave para eliminar categoría:');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
   const cat=categoriasDinamicas.find(c=>c.id===catId);
   if(!confirm('¿Eliminar categoría "'+cat.nombre+'" y todos sus productos?'))return;
   categoriasDinamicas=categoriasDinamicas.filter(c=>c.id!==catId);
@@ -1082,7 +1096,7 @@ function editarCatProd(catId, i){
 
 function eliminarCatProd(catId, i){
   const clave=prompt('Clave para eliminar:');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
   const cat=categoriasDinamicas.find(c=>c.id===catId);
   if(!cat||!confirm('¿Eliminar "'+cat.productos[i].nombre+'"?'))return;
   cat.productos.splice(i,1);
@@ -1874,7 +1888,8 @@ async function cobrar(){
       items:itemsU.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,specs:c.specs||null,clienteData:c.clienteData||null})),
       total:totalU,pago:hayO?totalU:pago,cambio:hayO?0:pago-total
     };
-    if(db) db.collection('ventas').doc(folio).set({...ventaU, tickets:[ventaU]}).catch(e=>console.error(e));
+    if(db){ try{ await db.collection('ventas').doc(folio).set({...ventaU, tickets:[ventaU]}); }catch(e){ console.error(e); alert('⚠️ La venta '+folio+' no se pudo guardar en la nube. Revisa tu conexión e intenta de nuevo.'); } }
+    RESPALDO.merge('ventas', folio, {...ventaU, tickets:[ventaU]});
     ventas.push({f:folio,desc:itemsU.map(c=>c.nombre).join(', '),total:totalU});
     tickets.push(ventaU);
   }
@@ -1894,7 +1909,8 @@ async function cobrar(){
       items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null,calcData:c.calcData||null,modData:c.modData||null})),
       total:totalEsc,pago:(hayU||hayImp)?totalEsc:pago,cambio:(hayU||hayImp)?0:pago-total
     };
-    if(db) db.collection('ventas').doc(folio).set({...ventaEsc, tickets:[ventaEsc]}).catch(e=>console.error(e));
+    if(db){ try{ await db.collection('ventas').doc(folio).set({...ventaEsc, tickets:[ventaEsc]}); }catch(e){ console.error(e); alert('⚠️ La venta '+folio+' no se pudo guardar en la nube. Revisa tu conexión e intenta de nuevo.'); } }
+    RESPALDO.merge('ventas', folio, {...ventaEsc, tickets:[ventaEsc]});
     ventas.push({f:folio,desc:itemsEsc.map(c=>c.nombre).join(', '),total:totalEsc});
     tickets.push(ventaEsc);
     crearOrdenProduccion(folio,'escuelas',itemsEsc,fechaEntregaSeleccionada||'');
@@ -1910,7 +1926,8 @@ async function cobrar(){
       items:itemsImp.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,copias:c.copias||1,descripcion:c.descripcion||''})),
       total:totalImp,pago:(hayU||hayEsc)?totalImp:pago,cambio:(hayU||hayEsc)?0:pago-total
     };
-    if(db) db.collection('ventas').doc(folio).set({...ventaImp, tickets:[ventaImp]}).catch(e=>console.error(e));
+    if(db){ try{ await db.collection('ventas').doc(folio).set({...ventaImp, tickets:[ventaImp]}); }catch(e){ console.error(e); alert('⚠️ La venta '+folio+' no se pudo guardar en la nube. Revisa tu conexión e intenta de nuevo.'); } }
+    RESPALDO.merge('ventas', folio, {...ventaImp, tickets:[ventaImp]});
     ventas.push({f:folio,desc:itemsImp.map(c=>c.nombre).join(', '),total:totalImp});
     tickets.push(ventaImp);
     crearOrdenProduccion(folio,'impresiones',itemsImp,fechaEntregaSeleccionada||'');
@@ -3773,7 +3790,7 @@ function abrirImgEsc(i){
 
 function eliminarEsc(i){
   const clave=prompt('Clave para eliminar escuela:');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
   if(!confirm('¿Eliminar "'+escuelas[i].n+'"?'))return;
   const docId=escuelas[i]._id||('e'+i);
   escuelas.splice(i,1);
@@ -3804,7 +3821,7 @@ function guardarEscImg(){
 }
 function eliminarImp(i){
   const clave=prompt('Clave para eliminar:');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
   if(!confirm('¿Eliminar impresión "'+impresiones[i].sz+'"?'))return;
   impresiones.splice(i,1);
   rendImp();
@@ -3833,6 +3850,7 @@ function abrirModalImp(i){
   document.getElementById('mi-idx').value=i;
   document.getElementById('mi-cant').value=1;
   document.getElementById('mi-desc').value='';
+  document.getElementById('mi-ajuste').value='';
   document.getElementById('mi-total').textContent='$'+im.p;
   openM('m-imp-modal');
 }
@@ -3841,17 +3859,22 @@ function calcTotalImp(){
   const i=parseInt(document.getElementById('mi-idx').value);
   const cant=parseInt(document.getElementById('mi-cant').value)||1;
   const precio=impresiones[i]?impresiones[i].p:0;
-  document.getElementById('mi-total').textContent='$'+(cant*precio);
+  const ajuste=parseInt(document.getElementById('mi-ajuste').value)||0;
+  document.getElementById('mi-total').textContent='$'+(cant*precio+ajuste);
 }
 
 function agregarImpCarrito(){
   const i=parseInt(document.getElementById('mi-idx').value);
   const cant=parseInt(document.getElementById('mi-cant').value)||1;
   const desc=document.getElementById('mi-desc').value.trim();
+  const ajuste=parseInt(document.getElementById('mi-ajuste').value)||0;
   const im=impresiones[i];
   const sz=im.sz.split('x')[0]+'x';
-  const nombre=sz+' x'+cant+(desc?' — '+desc:'');
-  carrito.push({nombre,precio:cant*im.p,tipo:'impresion',copias:cant,descripcion:desc,tamanio:sz});
+  let descFull=desc;
+  if(ajuste>0) descFull+=(descFull?' · ':'')+'con edición';
+  else if(ajuste<0) descFull+=(descFull?' · ':'')+'descuento';
+  const nombre=sz+' x'+cant+(descFull?' — '+descFull:'');
+  carrito.push({nombre,precio:cant*im.p+ajuste,tipo:'impresion',copias:cant,descripcion:descFull,tamanio:sz});
   renderCarrito();
   closeM('m-imp-modal');
   showToast('✓ Agregado al carrito');
@@ -3912,7 +3935,7 @@ function closeM(id){
 
 function eliminarProd(cat,i){
   const clave=prompt('Ingresa la clave para eliminar:');
-  if(clave!=='8888'){alert('Clave incorrecta');return;}
+  if(clave!==CLAVE){alert('Clave incorrecta');return;}
   if(!confirm('¿Eliminar "'+productos[cat][i].nombre+'"?'))return;
   productos[cat].splice(i,1);
   const gridMap={infantil:'inf-grid',credencial:'cred-grid',cartilla:'cart-grid',digital:'dig-grid'};
@@ -4121,6 +4144,7 @@ function iniciarFirebase(){
     rendCatsDinamicas();
     categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
     guardarLocal();
+    RESPALDO.reconciliarCompleto();
     setDriveStatus(true,'Datos cargados ✓');
     if(!precDoc.exists) guardarFirebase();
     // Si el usuario recargó estando en reportes, recargar automáticamente
@@ -4208,8 +4232,9 @@ setInterval(function(){ if(db) cargarProduccion(); }, 5 * 60 * 1000);
 cargarLocal();
 cargarHistorialPrecios(); // restaurar historial de precios desde localStorage
 window.addEventListener('load', function(){
+  RESPALDO.init();
   setTimeout(function(){
-    try{ iniciarFirebase(); } 
+    try{ iniciarFirebase(); }
     catch(e){ console.warn('Firebase error:', e); }
   }, 600);
 });
@@ -5252,6 +5277,7 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     acabado:    {hecho:false, quien:'', hora:''},
     entrega:    {hecho:false, quien:'', hora:''},
   };
+  RESPALDO.merge('produccion', folio, orden);
   db.collection('produccion').doc(folio).set(orden)
     .then(function(){ cargarProduccion(); })
     .catch(function(e){ console.error('Error crear orden:', e); });
@@ -5473,6 +5499,7 @@ function cargarProduccion(){
     .then(function(snap){
       var arr = [];
       snap.forEach(function(d){ arr.push(d.data()); });
+      RESPALDO.mergeMuchos('produccion', arr, 'folio');
       arr.sort(function(a,b){
         var aUrg = esOrdenUrgente(a);
         var bUrg = esOrdenUrgente(b);
@@ -5800,7 +5827,7 @@ function marcarPaso(folio, paso){ abrirMarcarPaso(folio, paso); }
 
 function deshacerPaso(folio, paso){
   var clave = prompt('Clave para deshacer:');
-  if(clave !== '8888'){ if(clave !== null) alert('Clave incorrecta'); return; }
+  if(clave !== CLAVE){ if(clave !== null) alert('Clave incorrecta'); return; }
   if(!db) return;
   var update = {}; update[paso] = {hecho:false, quien:'', hora:''};
   db.collection('produccion').doc(folio).update(update)
@@ -5939,6 +5966,138 @@ function mostrarEmailStatus(tipo, msg){
   st.style.borderRadius = '7px';
   st.textContent = msg;
 }
+
+// ============================================================
+// RESPALDO EN DISCO (Chrome/Edge) + RESTAURAR A FIREBASE
+//   • Guarda TODO (ventas, produccion, escuelas, productos, contadores)
+//     en un archivo .json del disco, automáticamente.
+//   • Permite volver a subir ese archivo a Firebase si se bloquea.
+// ============================================================
+const RESPALDO = (function(){
+  let fileHandle = null;
+  let datos = { meta:{}, ventas:{}, produccion:{}, escuelas:{}, datos:{}, contadores:{} };
+  let writeTimer = null;
+
+  // ---- IndexedDB mínimo: recordar el archivo elegido entre sesiones ----
+  function _idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('fb_respaldo',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+  async function _set(k,v){ const d=await _idb(); return new Promise((res,rej)=>{ const tx=d.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+  async function _get(k){ const d=await _idb(); return new Promise((res,rej)=>{ const tx=d.transaction('kv','readonly'); const rq=tx.objectStore('kv').get(k); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+
+  function setEstado(txt, ok){ const el=document.getElementById('respaldo-estado'); if(el){ el.textContent=txt; el.style.color = ok?'#085041':'#A32D2D'; } }
+
+  async function permiso(handle, pedir){
+    if(!handle) return false;
+    const opts={mode:'readwrite'};
+    if((await handle.queryPermission(opts))==='granted') return true;
+    if(pedir && (await handle.requestPermission(opts))==='granted') return true;
+    return false;
+  }
+
+  async function escribir(){
+    if(!fileHandle) return;
+    if(!(await permiso(fileHandle,false))){ setEstado('Toca "Activar / archivo" para reactivar', false); return; }
+    try{
+      datos.meta = { app:'PuntodeVentaFB', exportado:new Date().toISOString() };
+      const w = await fileHandle.createWritable();
+      await w.write(new Blob([JSON.stringify(datos)], {type:'application/json'}));
+      await w.close();
+      setEstado('Respaldado a las '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}), true);
+    }catch(e){ console.error('Respaldo error:',e); setEstado('Error al respaldar en disco', false); }
+  }
+  function programar(){ clearTimeout(writeTimer); writeTimer=setTimeout(escribir, 2500); }
+
+  // Mezcla incremental (sin leer Firebase): se llama tras cada venta/orden
+  function merge(col, id, obj){ if(!id||!fileHandle) return; if(!datos[col]) datos[col]={}; datos[col][id]=obj; programar(); }
+  function mergeMuchos(col, arr, idKey){ if(!fileHandle||!arr) return; if(!datos[col]) datos[col]={}; arr.forEach(o=>{ const id=o[idKey||'folio']; if(id) datos[col][id]=o; }); programar(); }
+
+  // Respaldo COMPLETO leyendo todo Firebase (al iniciar y con el botón)
+  async function reconciliarCompleto(){
+    if(!fileHandle){ setEstado('Primero activa el respaldo (botón "Activar / archivo")', false); return; }
+    if(!db){ setEstado('Sin conexión a Firebase — no se pudo leer todo', false); return; }
+    try{
+      setEstado('Respaldando todo...', true);
+      const [vSnap,pSnap,eSnap,precDoc,prodDoc,cSnap] = await Promise.all([
+        db.collection('ventas').get(),
+        db.collection('produccion').get(),
+        db.collection('escuelas').get(),
+        db.collection('datos').doc('precios').get(),
+        db.collection('datos').doc('productos').get(),
+        db.collection('contadores').get()
+      ]);
+      const d = { meta:{}, ventas:{}, produccion:{}, escuelas:{}, datos:{}, contadores:{} };
+      vSnap.forEach(x=>d.ventas[x.id]=x.data());
+      pSnap.forEach(x=>d.produccion[x.id]=x.data());
+      eSnap.forEach(x=>d.escuelas[x.id]=x.data());
+      if(precDoc.exists) d.datos.precios=precDoc.data();
+      if(prodDoc.exists) d.datos.productos=prodDoc.data();
+      cSnap.forEach(x=>d.contadores[x.id]=x.data());
+      datos = d;
+      await escribir();
+    }catch(e){ console.error('Reconciliar error:',e); setEstado('Error al respaldar todo', false); }
+  }
+
+  async function elegirArchivo(){
+    if(!window.showSaveFilePicker){ alert('Tu navegador no soporta respaldo automático. Usa Chrome o Edge.'); return; }
+    try{
+      fileHandle = await window.showSaveFilePicker({ suggestedName:'respaldo-fotoestudio.json', types:[{description:'Respaldo JSON',accept:{'application/json':['.json']}}] });
+      await _set('handle', fileHandle);
+      setEstado('Respaldo activo ✓', true);
+      await reconciliarCompleto();
+    }catch(e){ if(e.name!=='AbortError') console.error(e); }
+  }
+
+  // Botón "Activar / archivo": reactiva el archivo guardado o pide uno nuevo
+  async function _reactivar(){
+    if(fileHandle && await permiso(fileHandle,true)){ setEstado('Respaldo activo ✓', true); programar(); }
+    else { await elegirArchivo(); }
+  }
+
+  async function restaurar(){
+    if(!window.showOpenFilePicker){ alert('Usa Chrome o Edge para restaurar.'); return; }
+    if(!db){ alert('No hay conexión a Firebase. No se puede restaurar ahora.'); return; }
+    let handle;
+    try{ [handle] = await window.showOpenFilePicker({types:[{description:'Respaldo JSON',accept:{'application/json':['.json']}}]}); }
+    catch(e){ return; }
+    let json;
+    try{ const f=await handle.getFile(); json=JSON.parse(await f.text()); }
+    catch(e){ alert('El archivo no es un respaldo válido.'); return; }
+    const nV=Object.keys(json.ventas||{}).length, nP=Object.keys(json.produccion||{}).length, nE=Object.keys(json.escuelas||{}).length;
+    if(!confirm('Restaurar a Firebase:\n\n• '+nV+' ventas\n• '+nP+' órdenes de producción\n• '+nE+' escuelas\n\nSe SOBREESCRIBEN en la nube los registros con el mismo folio. ¿Continuar?')) return;
+    try{
+      setEstado('Restaurando a Firebase...', true);
+      await _subir('ventas', json.ventas);
+      await _subir('produccion', json.produccion);
+      await _subir('escuelas', json.escuelas);
+      if(json.datos && json.datos.precios)   await db.collection('datos').doc('precios').set(json.datos.precios);
+      if(json.datos && json.datos.productos) await db.collection('datos').doc('productos').set(json.datos.productos);
+      await _subir('contadores', json.contadores);
+      setEstado('Restaurado ✓', true);
+      alert('✅ Restauración completa.\nLas otras computadoras lo verán al recargar la página.');
+    }catch(e){ console.error('Restaurar error:',e); setEstado('Error al restaurar', false); alert('Error al restaurar: '+(e.message||e)); }
+  }
+  async function _subir(col, mapa){
+    if(!mapa) return;
+    const ids=Object.keys(mapa);
+    for(let i=0;i<ids.length;i+=400){
+      const batch=db.batch();
+      ids.slice(i,i+400).forEach(id=>{ batch.set(db.collection(col).doc(id), mapa[id]); });
+      await batch.commit();
+    }
+  }
+
+  async function init(){
+    try{
+      const h=await _get('handle');
+      if(h){
+        fileHandle=h;
+        if(await permiso(h,false)) setEstado('Respaldo activo ✓', true);
+        else setEstado('Toca "Activar / archivo" para reactivar', false);
+      } else setEstado('Respaldo desactivado — toca "Activar / archivo"', false);
+    }catch(e){ setEstado('Respaldo desactivado', false); }
+  }
+
+  return { init, elegirArchivo, _reactivar, reconciliarCompleto, restaurar, merge, mergeMuchos };
+})();
 
 </script>
 <div class="modal-ov" id="m-imp-edit"><div class="modal-box"><p class="modal-t">Editar — <span id="ei-sz"></span></p>
@@ -6201,6 +6360,11 @@ function mostrarEmailStatus(tipo, msg){
   <div class="frow">
     <label>¿Qué se manda a imprimir?</label>
     <input type="text" id="mi-desc" placeholder="Ej: foto de graduación, quinceañera...">
+  </div>
+  <div class="frow">
+    <label>Precio extra o descuento (opcional)</label>
+    <input type="number" id="mi-ajuste" placeholder="0" oninput="calcTotalImp()" style="font-size:15px;text-align:center;">
+    <span style="font-size:10px;color:#888;">+ para edición/IA · − para descuento (ej: 50 o -30). No cambia el precio base.</span>
   </div>
   <input type="hidden" id="mi-idx">
   <div style="background:#E1F5EE;border-radius:8px;padding:10px;text-align:center;margin:10px 0;">
