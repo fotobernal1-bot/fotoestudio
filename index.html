@@ -1299,7 +1299,11 @@ function fechaKeyDeVenta(v){
 // persona) y vuelve a separarlo. Las etiquetas Persona 1,2,3... se calculan solas.
 var nombresPersona = {};   // {personaId: 'Sra. López'} — opcional
 var ADHERIBLE_EXTRA = 20;  // sobreprecio por persona cuando se pide adherible
-var URG_PROD_DIAS = 3;     // días de urgentes que se muestran en Producción
+// Días de urgentes que se muestran en Producción. Va en 1 a propósito: el
+// tablero tiene que amanecer en CERO cada día. Si algún día quieres ver los
+// atrasados, sube este número (los de días anteriores salen marcados en rojo y
+// NO se suman al contador de hoy).
+var URG_PROD_DIAS = 1;
 
 function _escH(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function nuevoPersonaId(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
@@ -3931,11 +3935,14 @@ function _badgeDiaUrg(v){
 function renderUrgProd(ventas){
   var cont = document.getElementById('urg-prod-body');
   if(!cont) return;
-  // Actualizar contador (solo no cancelados)
+  // El contador es de HOY, siempre. Aunque la lista traiga días anteriores
+  // (URG_PROD_DIAS > 1), los atrasados no inflan el número del día.
+  var hoyKey = fechaKeyDe(new Date());
   var noCancel = ventas.filter(function(v){ return !v.cancelado; });
+  var deHoy = noCancel.filter(function(v){ return fechaKeyDeVenta(v)===hoyKey; });
   var cEl = document.getElementById('urg-prod-contador');
-  if(cEl) cEl.textContent = noCancel.length;
-  if(!ventas.length){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin tickets urgentes recientes</p>'; return; }
+  if(cEl) cEl.textContent = deHoy.length;
+  if(!ventas.length){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin urgentes hoy</p>'; return; }
   var MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   cont.innerHTML = ventas.filter(function(v){ return !v.cancelado; }).map(function(v){
     var itemsHtml = agruparItemsPorPersona(v.items, v.personas).map(function(g){
