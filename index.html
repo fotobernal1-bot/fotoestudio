@@ -2149,18 +2149,20 @@ async function reintentarPendientes(){
   else showToast('Faltan '+quedan.length+' por subir');
 }
 function renderPendientesBadge(){
-  var n=_leerPendientes().length;
+  var nV=_leerPendientes().length;
+  var nO=(typeof _leerOrdenes==='function')?_leerOrdenes().length:0;
+  var n=nV+nO;
   var el=document.getElementById('pendientes-badge');
   if(!n){ if(el) el.remove(); return; }
   if(!el){
     el=document.createElement('div'); el.id='pendientes-badge';
     el.style.cssText='position:fixed;bottom:16px;left:16px;background:#A32D2D;color:#fff;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:9998;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);';
-    el.onclick=reintentarPendientes;
+    el.onclick=function(){ reintentarPendientes(); reintentarOrdenes(); };
     document.body.appendChild(el);
   }
-  el.textContent='⚠ '+n+' venta(s) sin subir — toca para reintentar';
+  el.textContent='⚠ '+n+' pendiente(s) sin subir — toca para reintentar';
 }
-window.addEventListener('online', reintentarPendientes);
+window.addEventListener('online', function(){ reintentarPendientes(); reintentarOrdenes(); });
 
 var _cobroEnCurso=false;
 
@@ -2287,6 +2289,9 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
   anticipo = anticipo || 0;
   const el=document.getElementById('ticket-content');
   if(!el)return;
+  // Qué venta está en pantalla, para que el botón Nota imprima ESTA y no la
+  // última cobrada (al reimprimir un ticket viejo salía la nota equivocada)
+  _ticketsEnPantalla = tickets || [];
   // Mostrar botón Nota solo para ordinarios
   var btnNota = document.getElementById('btn-nota-trabajo');
   if(btnNota){
@@ -2508,51 +2513,48 @@ function imprimirTicket(){
 
 
 
-// ── IMPRIMIR NOTA DE TRABAJO ─────────────────────────────────
-// LOGO_BERNAL definido en el <head>
+// ── NOTA DE TRABAJO ──────────────────────────────────────────
+// Antes leía `window.ultimaVenta`, que NO existe (ultimaVenta es un `let` de
+// nivel superior y no se cuelga de window): la nota salía sin folio, con
+// importe $0 y sin fecha de entrega. Además leía la global `window._calcSpecs`,
+// así que con dos paquetes en la venta imprimía sólo el último.
+// Ahora recibe la venta, y saca las specs de CADA ítem (item.calcSpecs).
 
-function imprimirNotaTrabajo(){
-  // Recopilar datos de la última venta de ordinarios
-  var cs = window._calcSpecs || {};
-  var ultimaV = null;
-  // Buscar la última venta de escuelas en el array
-  if(window.ultimaVenta && Array.isArray(window.ultimaVenta)){
-    ultimaV = window.ultimaVenta.find(function(v){ return v.origen === 'escuelas'; }) || null;
-  }
-  
-  var folio = ultimaV ? (ultimaV.folio||'') : '';
-  var fecha = ultimaV ? (ultimaV.fecha||'') : new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
-  var nombreEscuela = cs.nombre || (ultimaV&&ultimaV.items?ultimaV.items.map(function(i){return i.nombre;}).join(', '):'');
-  var totalBase = ultimaV ? (ultimaV.total||0) : 0;
-  // Si hay clienteData con fotografiados, el precio ya está multiplicado en la venta
-  // Usamos el total real de la venta directamente
-  var total = totalBase;
-  var fechaEntrega = cs.fechaEntrega || (ultimaV&&ultimaV.fechaEntrega) || '';
-  
-  // Detectar tipos de foto del paquete
+function _notaChk(v){ return v ? '&#9746;' : '&#9744;'; }
+
+// Desglose "Niño H:1 · Adulto M:2" a partir de clienteData.fotografiados
+function _notaDesglose(cd){
+  if(!cd || !cd.fotografiados) return '';
+  var f = cd.fotografiados, partes = [];
+  var grupos = [['Niño','nino'],['Joven','joven'],['Adulto','adulto'],['Ad. mayor','adulto_plus']];
+  grupos.forEach(function(g){
+    var h = f[g[1]+'_h']||0, m = f[g[1]+'_m']||0;
+    if(h||m) partes.push(g[0]+(h?' H:'+h:'')+(m?' M:'+m:''));
+  });
+  return partes.join(' · ');
+}
+
+function _notaHTMLDeItem(v, it){
+  var cs = it.calcSpecs || {};
+  var cd = it.clienteData || {};
+  var folio = v.folio || '';
+  var fecha = v.fecha || new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var nombreEscuela = cs.nombre || it.productoNombre || it.nombre || '';
+  var importe = it.precio || 0;
+  var fechaEntrega = v.fechaEntrega || '';
+
   var lineas = cs.lineas || [];
-  var tieneInfantil = lineas.some(function(l){return /infantil/i.test(l.nombre||l);});
-  var tieneCredencial = lineas.some(function(l){return /credencial/i.test(l.nombre||l);});
-  var tieneDiploma = lineas.some(function(l){return /diploma/i.test(l.nombre||l);});
-  var tieneTitulo = lineas.some(function(l){return /t.tulo/i.test(l.nombre||l);});
-  var tieneDigital = lineas.some(function(l){return /digital/i.test(l.nombre||l);});
-  var tieneAdherible = lineas.some(function(l){return /adh/i.test(l.nombre||l)||/adherible/i.test(l.nombre||l);})||cs.adherible;
-  var tieneTB = lineas.some(function(l){return /\bTB\b/i.test(l.nombre||l);});
+  var txtL = function(l){ return (l && l.nombre) ? l.nombre : String(l||''); };
+  var tiene = function(re){ return lineas.some(function(l){ return re.test(txtL(l)); }); };
 
-  // Specs
-  var fondo = cs.fondo||'';
-  var vestH = cs.vestimenta_h||'';
-  var vestM = cs.vestimenta_m||'';
-  var cabello = cs.cabello||'';
-  var aretes = cs.aretes||'';
-  var barba = cs.barba||'';
-  var sexo = cs.sexo||'';
-  var notas = cs.notas||'';
-  var descuento = cs.descuento||0;
+  var fondo = cs.fondo||'', vestH = cs.vestimenta_h||'', vestM = cs.vestimenta_m||'';
+  var cabello = cs.cabello||'', aretes = cs.aretes||'', barba = cs.barba||'';
+  var notas = cs.notas||'', descuento = cs.descuento||0;
+  var sexo = cd.sexo ? (cd.sexo==='H'?'Hombre':'Mujer') : (cs.sexo||'');
+  var nPersonas = cd.personas || 0;
+  var desglose = _notaDesglose(cd);
 
-  function chk(v){ return v ? '&#9746;' : '&#9744;'; }
-
-  var notaHTML = '<div class="nota">'
+  return '<div class="nota">'
     +'<div class="nota-hdr">'
     +'<img src="'+LOGO_BERNAL+'" style="height:52px;width:auto;filter:grayscale(100%);object-fit:contain;" />'
     +'<div class="nota-info">'
@@ -2566,35 +2568,22 @@ function imprimirNotaTrabajo(){
     +'<div class="nota-row"><span class="nota-lbl">NOMBRE / ESCUELA:</span><span class="nota-val nota-underline">'+nombreEscuela+'</span></div>'
     +'<div class="nota-row"><span class="nota-lbl">FECHA:</span><span class="nota-val">'+fecha+'</span>'
     +(sexo?'<span class="nota-lbl" style="margin-left:8px;">SEXO:</span><span class="nota-val">'+sexo+'</span>':'')
-    // clienteData del carrito
-    +(ultimaV&&ultimaV.items?function(){
-        var partes=[];
-        (ultimaV.items||[]).forEach(function(it){
-          if(it.clienteData){
-            var cd=it.clienteData;
-            if(cd.personas>1) partes.push(cd.personas+' personas');
-            if(cd.sexo) partes.push(cd.sexo==='H'?'Hombre':'Mujer');
-          }
-        });
-        return partes.length?'<span class="nota-lbl" style="margin-left:8px;">'+partes.join(' · ')+'</span>':'';
-      }():'')
+    +(nPersonas?'<span class="nota-lbl" style="margin-left:8px;">PERSONAS:</span><span class="nota-val">'+nPersonas+'</span>':'')
     +'</div>'
+    +(desglose?'<div class="nota-row"><span class="nota-lbl">SE FOTOGRAFÍAN:</span><span class="nota-val">'+desglose+'</span></div>':'')
     +'<div class="nota-checks">'
-    +'<span>'+chk(tieneInfantil)+' Infantil</span>'
-    +'<span>'+chk(tieneCredencial)+' Credencial</span>'
-    +'<span>'+chk(tieneDiploma)+' Diploma</span>'
-    +'<span>'+chk(tieneTitulo)+' Título</span>'
-    +'<span>'+chk(tieneDigital)+' Digital</span>'
-    +'<span>'+chk(tieneAdherible)+' Adherible</span>'
-    +'<span>'+chk(tieneTB)+' TB</span>'
+    +'<span>'+_notaChk(tiene(/infantil/i))+' Infantil</span>'
+    +'<span>'+_notaChk(tiene(/credencial/i))+' Credencial</span>'
+    +'<span>'+_notaChk(tiene(/diploma/i))+' Diploma</span>'
+    +'<span>'+_notaChk(tiene(/t.tulo/i))+' Título</span>'
+    +'<span>'+_notaChk(tiene(/digital/i))+' Digital</span>'
+    +'<span>'+_notaChk(tiene(/adh/i)||cs.adherible)+' Adherible</span>'
+    +'<span>'+_notaChk(tiene(/\bTB\b/i))+' TB</span>'
     +'</div>'
+    +(lineas.length?'<div class="nota-lineas">'+lineas.map(function(l){ return '<div>• '+txtL(l)+'</div>'; }).join('')+'</div>':'')
     +(function(){
-      var _f=fondo&&fondo!=='No especificado'?fondo:'';
-      var _vh=vestH&&vestH!=='No especificado'?vestH:'';
-      var _vm=vestM&&vestM!=='No especificado'?vestM:'';
-      var _c=cabello&&cabello!=='No especificado'?cabello:'';
-      var _a=aretes&&aretes!=='No especificado'?aretes:'';
-      var _b=barba&&barba!=='No especificado'?barba:'';
+      var ok = function(x){ return (x && x!=='No especificado') ? x : ''; };
+      var _f=ok(fondo), _vh=ok(vestH), _vm=ok(vestM), _c=ok(cabello), _a=ok(aretes), _b=ok(barba);
       if(!_f&&!_vh&&!_vm&&!_c&&!_a&&!_b) return '';
       return '<div class="nota-specs">'
         +(_f?'<div><b>Fondo:</b> '+_f+'</div>':'')
@@ -2607,10 +2596,10 @@ function imprimirNotaTrabajo(){
     }())
     +'<div class="nota-entrega">'
     +'<span class="nota-lbl">FECHA DE ENTREGA:</span> '
-    +'<span class="nota-val nota-entrega-val">'+fechaEntrega+'</span>'
+    +'<span class="nota-val nota-entrega-val">'+(fechaEntrega||'— POR DEFINIR —')+'</span>'
     +'</div>'
     +'<div class="nota-montos">'
-    +'<div class="nota-monto"><span>IMPORTE</span><span class="nota-monto-val">$'+total+'</span></div>'
+    +'<div class="nota-monto"><span>IMPORTE</span><span class="nota-monto-val">$'+importe+'</span></div>'
     +'<div class="nota-monto"><span>ANTICIPO</span><span class="nota-monto-val nota-blank">________</span></div>'
     +'<div class="nota-monto"><span>SALDO</span><span class="nota-monto-val nota-blank">________</span></div>'
     +'</div>'
@@ -2618,12 +2607,34 @@ function imprimirNotaTrabajo(){
     +(descuento?'<div class="nota-nota"><b>DESCUENTO:</b> $'+descuento+'</div>':'')
     +'</div>'
     +'</div>';
+}
+
+var _ticketsEnPantalla = [];
+
+// venta opcional: si no se pasa, usa la venta del ticket que está en pantalla
+// (y si no hay, la última venta de escuelas cobrada)
+function imprimirNotaTrabajo(venta){
+  var v = venta;
+  if(!v){
+    var buscar = function(lista){
+      return (lista && lista.find) ? lista.find(function(x){ return x.origen === 'escuelas'; }) : null;
+    };
+    v = buscar(_ticketsEnPantalla) || buscar(ultimaVenta);
+  }
+  if(!v){ alert('No hay ninguna venta de paquete escolar para imprimir la nota.'); return; }
+
+  var itemsEsc = (v.items||[]).filter(function(it){ return it.tipo === 'escuela'; });
+  if(!itemsEsc.length){ alert('Esta venta no tiene paquetes escolares.'); return; }
+
+  // Una nota por paquete: antes se imprimía una sola con las specs del último
+  var notasHTML = itemsEsc.map(function(it){ return _notaHTMLDeItem(v, it); }).join('<div class="salto"></div>');
 
   var css = `
     @page { size: letter; margin: 10mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; font-size: 9px; }
-    .sheet { display: flex; width: 100%; justify-content: center; }
+    .sheet { display: flex; flex-direction: column; width: 100%; align-items: center; gap: 8mm; }
+    .salto { break-after: page; page-break-after: always; }
     .nota { border: 1px solid #333; border-radius: 3px; padding: 8px; width: 100%; max-width: 180mm; }
     .nota-hdr { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 2px; }
     .nota-info { flex: 1; }
@@ -2637,6 +2648,7 @@ function imprimirNotaTrabajo(){
     .nota-underline { border-bottom: 1px solid #333; min-width: 80px; }
     .nota-checks { display: flex; flex-wrap: wrap; gap: 4px 10px; background: #f5f5f5; padding: 3px 5px; border-radius: 2px; }
     .nota-checks span { font-size: 8px; }
+    .nota-lineas { font-size: 8px; padding: 2px 5px; border-left: 2px solid #333; }
     .nota-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; background: #fafafa; padding: 3px 5px; border: 1px dashed #ccc; border-radius: 2px; font-size: 8px; }
     .nota-entrega { background: #111; color: white; padding: 3px 6px; border-radius: 2px; display: flex; align-items: center; gap: 4px; }
     .nota-entrega .nota-lbl { color: #ccc; }
@@ -2650,13 +2662,22 @@ function imprimirNotaTrabajo(){
 
   var win = window.open('','_blank');
   if(!win){ alert('Activa los popups en tu navegador para imprimir'); return; }
-  win.document.write('<html><head><title>Nota de trabajo</title><style>'+css+'</style></head><body>'
-    +'<div class="sheet">'
-    +notaHTML
-    +'</div></body></html>');
+  win.document.write('<html><head><title>Nota de trabajo '+(v.folio||'')+'</title><style>'+css+'</style></head><body>'
+    +'<div class="sheet">'+notasHTML+'</div></body></html>');
   win.document.close();
   win.focus();
   setTimeout(function(){ win.print(); }, 600);
+}
+
+// Reimprimir la nota de una venta anterior (desde el historial de Reportes).
+// Antes esto era imposible: el botón del ticket usaba las specs de lo último
+// calculado en la sesión, así que reimprimía una nota silenciosamente incorrecta.
+function reimprimirNota(folio){
+  if(!db){ alert('Sin conexión a Firebase'); return; }
+  db.collection('ventas').doc(folio).get().then(function(doc){
+    if(!doc.exists){ alert('No se encontró la venta '+folio); return; }
+    imprimirNotaTrabajo(doc.data());
+  }).catch(function(e){ alert('Error: '+e.message); });
 }
 
 
@@ -4041,7 +4062,10 @@ function renderHistorialRows(sorted, elH){
     }).join('');
 
     const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:3px 8px;cursor:pointer;">✕ Cancelar</button>`;
-    const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:3px 8px;cursor:pointer;">🖨 Reimprimir</button>`;
+    const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:3px 8px;cursor:pointer;">🖨 Reimprimir</button>`
+      + ((v.origen==='escuelas'||(v.items||[]).some(function(i){return i.tipo==='escuela';}))
+        ? `<button onclick="reimprimirNota('${v.folio}')" style="background:transparent;border:1px solid #a0c4e8;border-radius:6px;color:#0C447C;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:4px;">📋 Nota</button>`
+        : '');
 
     return '<div style="border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:white;'+(v.cancelado?'opacity:0.55;':'')+'">'      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'      +'<div>'      +'<span style="color:'+color+';font-weight:700;font-size:13px;">'+(v.folio||'—')+'</span>'      +cancelBadge      +'<div style="font-size:10px;color:#888;margin-top:2px;">'+(v.fecha||'—')+' '+(v.hora||'')+' · '+iconMetodo+' '+metodo+'</div>'      +'</div>'      +'<div style="text-align:right;">'      +'<div style="font-size:16px;font-weight:700;color:'+color+';">$'+v.total+'</div>'      +'<div style="display:flex;gap:5px;margin-top:4px;">'+cancelBtn+reimpBtn+'</div>'      +'</div>'      +'</div>'      +'<div style="border-top:1px dashed #e0e0e0;padding-top:8px;">'+itemsHtml+'</div>'      +'</div>';
   }).join('');
@@ -4145,6 +4169,62 @@ function rendEsc(){
   renderEscGrid(filtradas);
 }
 
+// Recalcula el precio del paquete desde calcData + las tarifas actuales.
+// El campo `p` guardado ("$350") es una foto congelada: si cambian las tarifas
+// base, la tarjeta cotizaba un precio y la calculadora cobraba otro.
+function precioEscuela(e){
+  var cd = e && e.calcData;
+  if(!cd) return null;
+  var sub = 0;
+  ['infantil','credencial','diploma','titulo'].forEach(function(k){
+    var cfg = CALC_CFG[k]; if(!cfg || !cd[k]) return;
+    // Mismo soporte que precargarCalculadora: variantes (nuevo) y {cant,...} (viejo).
+    // Sin esto, las escuelas antiguas daban $0.
+    var vars = (cd[k].variantes && cd[k].variantes.length) ? cd[k].variantes
+             : (cd[k].cant !== undefined ? [cd[k]] : []);
+    vars.forEach(function(v){ sub += _precioVariante(k, v); });
+  });
+  if(cd.digital && cd.digital.cant > 0) sub += _precioVariante('digital', {cant:cd.digital.cant});
+  var descPesos = cd.descuento_pesos || 0;
+  var descPct   = cd.descuento_pct || 0;
+  var ajuste    = cd.ajuste || 0;
+  var desc = Math.min(sub, descPesos + Math.round(sub * descPct / 100));
+  return Math.max(0, sub - desc + ajuste);
+}
+// Nombre de línea — antes estaba escrito en 2 lugares y cualquier diferencia
+// entre ellos hacía que el paquete se marcara como "modificado" sin serlo
+function _nombreLinea(cat, v){
+  var cfg = CALC_CFG[cat]; if(!cfg) return '';
+  var colorTxt = v.color==='bn' ? 'B/N' : 'Color';
+  var adhTxt   = cfg.tieneAdh ? (v.adherible ? ' adherible' : '') : '';
+  var tbTxt    = v.tb ? ' TB' : '';
+  var formaTxt = v.forma==='oval' ? ' Oval' : ' Rect';
+  return v.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt;
+}
+// Precio de una variante — fórmula única (antes estaba copiada en 4 lugares)
+function _precioVariante(cat, v){
+  var cfg = CALC_CFG[cat]; if(!cfg) return 0;
+  var cant = v.cant || 0;
+  if(cant <= 0) return 0;
+  var precio = (cfg.tieneAdh && v.adherible) ? cfg.precioAdh : cfg.precioBase;
+  return Math.ceil(cant / cfg.xPaq) * precio;
+}
+function _precioTarjetaEsc(e){
+  var real = precioEscuela(e);
+  var guardado = parseInt(String(e.p||'').replace(/[^0-9]/g,'')) || null;
+  // Si el calcData no da un precio válido pero sí hay uno guardado, se muestra el
+  // guardado: más vale el precio viejo que un $0 en la tarjeta.
+  if(real === 0 && guardado) real = null;
+  if(real === null){
+    return '<span style="font-size:12px;color:#1D9E75;font-weight:600;white-space:nowrap;">'+_escH(e.p||'')+' <span style="font-size:9px;color:#aaa;font-weight:400;">c/u</span></span>';
+  }
+  var desfasado = (guardado !== null && guardado !== real);
+  return '<span style="font-size:12px;color:#1D9E75;font-weight:600;white-space:nowrap;text-align:right;">$'+real
+    +' <span style="font-size:9px;color:#aaa;font-weight:400;">c/u</span>'
+    +(desfasado?'<br><span style="font-size:8px;color:#BA7517;font-weight:600;" title="El precio guardado era $'+guardado+'; cambiaron las tarifas">⚠ antes $'+guardado+'</span>':'')
+    +'</span>';
+}
+
 function renderEscGrid(lista){
   const grid=document.getElementById('esc-grid');
   if(!grid)return;
@@ -4160,7 +4240,7 @@ function renderEscGrid(lista){
       </div>
       <div class="esc-body">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:6px;">
-          <p class="esc-n">${e.n}</p><span style="font-size:12px;color:#1D9E75;font-weight:600;white-space:nowrap;">${e.p}</span>
+          <p class="esc-n">${e.n}</p>${_precioTarjetaEsc(e)}
         </div>
         <p class="esc-s">${(e.s||"").replace(/\s*\|\s*Ajuste:[^|]*/g,"").replace(/\s*\|\s*Desc:[^|]*/g,"").trim().replace(/\|\s*$/,"").trim()}</p>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
@@ -4685,7 +4765,7 @@ window.addEventListener('load', function(){
   }, 600);
   // Recuperar una venta a medias y reintentar ventas sin subir
   setTimeout(function(){ restaurarCarritoLocal(); }, 900);
-  setTimeout(function(){ reintentarPendientes(); }, 3000);
+  setTimeout(function(){ reintentarPendientes(); reintentarOrdenes(); }, 3000);
 });
 
 
@@ -4809,8 +4889,7 @@ function renderVariantes(k){
         +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
         +(v.tb?'background:#1D9E75;color:white;':'background:white;color:#333;')
         +'">TB</button>';
-    var precio = cfg.tieneAdh && v.adherible ? cfg.precioAdh : cfg.precioBase;
-    var paq = v.cant > 0 ? Math.ceil(v.cant/cfg.xPaq)*precio : 0;
+    var paq = _precioVariante(k, v);
     var delBtn = calcState[k].variantes.length > 1
       ? '<button onclick="eliminarVariante(\''+k+'\','+idx+')" title="Eliminar variante" '
         +'style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px;padding:2px 4px;">✕</button>'
@@ -5046,10 +5125,7 @@ function calcTotal(){
   ['infantil','credencial','diploma','titulo'].forEach(function(k){
     var cfg=CALC_CFG[k];
     calcState[k].variantes.forEach(function(v){
-      if(v.cant>0){
-        var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
-        subtotal+=Math.ceil(v.cant/cfg.xPaq)*precio;
-      }
+      if(v.cant>0) subtotal += _precioVariante(k, v);
     });
   });
   // Digital (sin variantes)
@@ -5383,14 +5459,7 @@ function cobrarCalculadora(){
     var cfg=CALC_CFG[k];
     calcState[k].variantes.forEach(function(v){
       if(v.cant>0){
-        var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
-        var paq=Math.ceil(v.cant/cfg.xPaq);
-        var colorTxt=v.color==='bn'?'B/N':'Color';
-        var adhTxt=cfg.tieneAdh?(v.adherible?' adherible':''):'';
-        var tbTxt=v.tb?' TB':'';
-        var formaTxt=v.forma==='oval'?' Oval':' Rect';
-        var linea=v.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt;
-        lineas.push({nombre:linea, precio:paq*precio});
+        lineas.push({nombre:_nombreLinea(k, v), precio:_precioVariante(k, v)});
       }
     });
   });
@@ -5475,21 +5544,17 @@ function cobrarCalculadora(){
       if(cdOrig[k] && cdOrig[k].variantes){
         cdOrig[k].variantes.forEach(function(v){
           if(v.cant>0){
-            var cfg=CALC_CFG[k];
-            var precio=cfg.tieneAdh&&v.adherible?cfg.precioAdh:cfg.precioBase;
-            var paq=Math.ceil(v.cant/cfg.xPaq);
-            var colorTxt=v.color==='bn'?'B/N':'Color';
-            var adhTxt=cfg.tieneAdh?(v.adherible?' adherible':''):'';
-            var tbTxt=v.tb?' TB':'';
-            var formaTxt=v.forma==='oval'?' Oval':' Rect';
-            itemsBase.push({nombre:v.cant+' '+cfg.nombre+' '+colorTxt+adhTxt+tbTxt+formaTxt, precio:paq*precio});
+            itemsBase.push({nombre:_nombreLinea(k, v), precio:_precioVariante(k, v)});
           }
         });
       }
     });
     if(cdOrig.digital && cdOrig.digital.cant>0){
       var dCfg=CALC_CFG.digital;
-      itemsBase.push({nombre:cdOrig.digital.cant+' Digital', precio:Math.ceil(cdOrig.digital.cant/dCfg.xPaq)*dCfg.precioBase});
+      // el `espec` va incluido igual que en la línea vendida: si no, el paquete
+      // con digital siempre salía marcado como modificado
+      var eBase=(cdOrig.digital.espec||'').trim();
+      itemsBase.push({nombre:cdOrig.digital.cant+' Digital'+(eBase?' ('+eBase+')':''), precio:Math.ceil(cdOrig.digital.cant/dCfg.xPaq)*dCfg.precioBase});
     }
   }
 
@@ -5610,8 +5675,10 @@ function _continuarAgregarCarrito(){
   closeM('m-calc');
   closeM('m-guardar-paquete');
 
-  // Guardar pendiente y abrir popup sexo+edad
-  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
+  // Guardar pendiente y abrir popup sexo+edad.
+  // El contador arranca en 1 persona (el caso normal): antes arrancaba en 0 y el
+  // botón "Omitir" cobraba UN paquete aunque fueran 3 hermanos, sin avisar.
+  _calcPendiente = {nombreBase:'Paquete '+nombre, total:total, precioBase:total, personas:1, foto:{nino_h:1,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0}};
   ['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'].forEach(function(id){
     var b=document.getElementById(id); if(!b) return;
     var esH=id.startsWith('esc-h');
@@ -5621,8 +5688,9 @@ function _continuarAgregarCarrito(){
   });
   _calcPendiente.sexo=''; _calcPendiente.edad='';
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
-    var el=document.getElementById('esc-foto-'+k); if(el) el.textContent='0';
+    var el=document.getElementById('esc-foto-'+k); if(el) el.textContent=(_calcPendiente.foto[k]||0);
   });
+  _escRenderTotal();
   openM('m-calc-pagador');
 
   // Reset flujo de personas
@@ -5648,16 +5716,37 @@ function escSetSexoEdad(sexo, edad, btnIds){
   if(sel){ sel.style.background=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.borderColor=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.color='white'; }
 }
 
+function _escTotalFotos(){
+  var f = _calcPendiente.foto || {};
+  return (f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)+(f.adulto_h||0)+(f.adulto_m||0);
+}
+// Total en vivo dentro del modal, para que nadie confirme sin ver cuánto se cobra
+function _escRenderTotal(){
+  var el = document.getElementById('esc-total-txt');
+  if(!el) return;
+  var n = _calcPendiente.personas || 1;
+  var box = document.getElementById('esc-total-box');
+  if(_escTotalFotos() === 0){
+    el.innerHTML = '⚠ Sin personas — se cobrará 1 paquete de $'+_calcPendiente.precioBase;
+    if(box){ box.style.background='#FFF6E5'; box.style.borderColor='#e8d0a0'; }
+    el.style.color='#7A4500';
+    return;
+  }
+  el.innerHTML = n+' persona'+(n!==1?'s':'')+' × $'+_calcPendiente.precioBase+' = <span style="font-size:16px;">$'+_calcPendiente.total+'</span>';
+  el.style.color='#085041';
+  if(box){ box.style.background='#E1F5EE'; box.style.borderColor='#9ad9c2'; }
+}
+
 function escAjFoto(tipo, delta){
   if(!_calcPendiente.foto) _calcPendiente.foto={nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0};
   _calcPendiente.foto[tipo] = Math.max(0, (_calcPendiente.foto[tipo]||0) + delta);
   var el = document.getElementById('esc-foto-'+tipo);
   if(el) el.textContent = _calcPendiente.foto[tipo];
   // Precio × total fotografiados
-  var f = _calcPendiente.foto;
-  var totalFotos = (f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)+(f.adulto_h||0)+(f.adulto_m||0);
+  var totalFotos = _escTotalFotos();
   _calcPendiente.total = totalFotos > 0 ? _calcPendiente.precioBase * totalFotos : _calcPendiente.precioBase;
   _calcPendiente.personas = totalFotos || 1;
+  _escRenderTotal();
 }
 
 function confirmarCalcPagador(){
@@ -5688,13 +5777,11 @@ function confirmarCalcPagador(){
   closeM('m-calc-pagador');
 }
 
-function omitirCalcPagador(){
-  var nombreFinal = _calcPendiente.nombreBase||'Paquete';
-  carrito.push({nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', personaId:nuevoPersonaId(),
-    productoId:'esc_'+_slug(_nombreLimpio(nombreFinal)), productoNombre:nombreFinal,
-    calcSpecs: _snapCalcSpecs()});
-  renderCarrito();
+// Cancelar = no agregar nada al carrito. Antes este botón decía "Omitir" y sí
+// agregaba el paquete, pero cobrando una sola persona.
+function cerrarPagadorSinAgregar(){
   closeM('m-calc-pagador');
+  showToast('Paquete no agregado');
 }
 
 // ── SISTEMA DE PRODUCCIÓN ────────────────────────────────
@@ -5716,7 +5803,8 @@ function _specsDeItem(it){
 }
 
 function crearOrdenProduccion(folio, origen, items, fechaEntrega){
-  if(!db) return;
+  // Antes: if(!db) return; -> sin internet la venta se guardaba pero el trabajo
+  // NUNCA llegaba al tablero, sin aviso. Ahora se encola igual que las ventas.
   var info = '';
   var specs = {};
   if(origen === 'escuelas'){
@@ -5783,9 +5871,33 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     entrega:    {hecho:false, quien:'', hora:''},
   };
   RESPALDO.merge('produccion', folio, orden);
+  if(!db){ _encolarOrden(orden); return; }
   db.collection('produccion').doc(folio).set(orden)
     .then(function(){ cargarProduccion(); })
-    .catch(function(e){ console.error('Error crear orden:', e); });
+    .catch(function(e){ console.error('Error crear orden:', e); _encolarOrden(orden); });
+}
+
+// ── COLA DE ÓRDENES DE PRODUCCIÓN SIN SUBIR ──────────────────
+var ORDENES_KEY = 'fs_produccion_pendiente';
+function _leerOrdenes(){ try{ return JSON.parse(localStorage.getItem(ORDENES_KEY)||'[]'); }catch(e){ return []; } }
+function _escribirOrdenes(a){ try{ localStorage.setItem(ORDENES_KEY, JSON.stringify(a)); }catch(e){} }
+function _encolarOrden(orden){
+  var a=_leerOrdenes();
+  if(!a.some(function(x){ return x.folio===orden.folio; })) a.push(orden);
+  _escribirOrdenes(a);
+  renderPendientesBadge();
+}
+async function reintentarOrdenes(){
+  var a=_leerOrdenes();
+  if(!a.length || !db) return;
+  var quedan=[];
+  for(var i=0;i<a.length;i++){
+    try{ await db.collection('produccion').doc(a[i].folio).set(a[i]); }
+    catch(e){ quedan.push(a[i]); }
+  }
+  _escribirOrdenes(quedan);
+  renderPendientesBadge();
+  if(!quedan.length){ showToast('✓ '+a.length+' orden(es) de producción subida(s)'); cargarProduccion(); }
 }
 
 // ── ALERTA SONORA ÓRDENES URGENTES ──────────────────────────
@@ -7190,7 +7302,10 @@ const RESPALDO = (function(){
 <!-- MODAL PAGADOR ORDINARIOS -->
 <div class="modal-ov" id="m-calc-pagador"><div class="modal-box" style="width:300px;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> ¿Quién paga?</p>
-  <p style="font-size:11px;color:#888;margin-bottom:12px;">Opcional — toca un botón o presiona Omitir</p>
+  <p style="font-size:11px;color:#888;margin-bottom:10px;">Cuenta a TODAS las personas que se fotografían — el precio se multiplica por cada una.</p>
+  <div id="esc-total-box" style="background:#E1F5EE;border:1px solid #9ad9c2;border-radius:10px;padding:8px 12px;text-align:center;margin-bottom:12px;">
+    <span id="esc-total-txt" style="font-size:13px;font-weight:700;color:#085041;"></span>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
     <button id="esc-h1" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','18-30',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">1</button>
     <button id="esc-h2" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','30-50',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">2</button>
@@ -7262,7 +7377,7 @@ const RESPALDO = (function(){
   </div>
 
   <div class="modal-btns">
-    <button class="btn bgray" onclick="omitirCalcPagador()">Omitir</button>
+    <button class="btn bgray" onclick="cerrarPagadorSinAgregar()">Cancelar</button>
     <button class="btn bgreen" onclick="confirmarCalcPagador()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
   </div>
 </div></div>
