@@ -51,7 +51,7 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
 .bgreen{background:#1D9E75;color:white;}.bgreen:hover{background:#085041;}
 .bgray{background:#f7f7f5;border:1px solid #e0e0e0;color:#333;}.bgray:hover{border-color:#999;}
-input[type=number],input[type=text],input[type=password],select,textarea{border:1px solid #d0d0d0;border-radius:7px;padding:7px 9px;font-size:13px;background:white;color:#111;width:100%;}
+input[type=number],input[type=text],input[type=password],input[type=date],input[type=month],input[type=time],select,textarea{border:1px solid #d0d0d0;border-radius:7px;padding:7px 9px;font-size:13px;background:white;color:#111;width:100%;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 .frow{margin-bottom:10px;}
 .frow label{font-size:11px;color:#666;display:block;margin-bottom:4px;}
@@ -360,6 +360,42 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   }
 }
 
+/* ── REPORTES EN PANTALLA TÁCTIL ─────────────────────────────
+   La media query táctil de arriba agranda la navegación y el carrito pero no
+   tocaba ni un control de Reportes: los tabs medían ~26px, los botones del
+   calendario ~23px y los de cada venta del historial ~18px. Mínimo 44px. */
+@media (pointer: coarse) {
+  #page-reportes .tab,
+  #page-reportes .btn,
+  #page-reportes button,
+  #page-reportes input[type=date],
+  #page-reportes input[type=month],
+  #page-reportes input[type=text],
+  #page-reportes select {
+    min-height: 44px;
+  }
+  #page-reportes .btn,
+  #page-reportes button { padding-top: 10px; padding-bottom: 10px; }
+  #page-reportes .tab { padding: 12px 16px; font-size: 13px; }
+  /* Los botones de cada venta del historial iban a 10px con padding 3px */
+  #page-reportes .hist-btn { font-size: 12px !important; padding: 10px 14px !important; }
+}
+
+/* Reportes: piso de legibilidad. Había texto de 9px en #bbb (ilegible a
+   distancia de brazo) y todo el detalle del historial en 10px/#888. */
+#page-reportes { --rep-min: 12px; }
+#page-reportes .rep-mini { font-size: 12px; color: #666; }
+
+/* Monitor 1024x768 o ventana a media pantalla CON MOUSE: no lo cubría ninguna
+   media query, así que quedaba el layout de escritorio de 3 columnas apretado */
+@media (min-width: 600px) and (max-width: 1100px) and (pointer: fine) {
+  .page { padding: 14px; }
+  #page-reportes .g2 { grid-template-columns: 1fr; }
+}
+
+/* El carrito de 240px seguía ocupando el 23% del ancho dentro de Reportes */
+body.en-reportes .cart-panel { display: none !important; }
+
 /* ============================================================
    RESPONSIVE — iPhone, iPad, Desktop
    ============================================================ */
@@ -531,8 +567,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   </div>
 
   <div class="main">
-    <!-- Zona toque secreto móvil -->
-    <div id="secret-tap-zone" style="position:fixed;top:0;left:0;width:100%;height:44px;z-index:5;background:transparent;pointer-events:none;display:none;" onclick="secretTap()"></div>
 
     <!-- URGENTES -->
     <div id="page-urgentes" class="page active">
@@ -821,7 +855,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
           <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
             <span style="font-size:11px;color:#0C7ED6;font-weight:600;"><span id="rep-total-urg">$0</span> urgentes</span>
             <span style="font-size:11px;color:#0C447C;font-weight:600;"><span id="rep-total-ord">$0</span> escolares</span>
-            <span style="font-size:11px;color:#1D9E75;font-weight:600;"><span id="rep-total-imp" style="display:none;"></span></span>
+            <span id="rep-total-imp-wrap" style="font-size:12px;color:#1D9E75;font-weight:600;display:none;"><span id="rep-total-imp"></span></span>
           </div>
         </div>
       </div>
@@ -1138,6 +1172,8 @@ function showPage(id,el){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
+  // El carrito no pinta nada en Reportes y se comía el 23% del ancho
+  document.body.classList.toggle('en-reportes', id==='reportes');
   if(id==='reportes')setTimeout(cargarReportes,300);
   if(id==='produccion'){setTimeout(cargarProduccion,300);setTimeout(cargarUrgProd,350);}
 }
@@ -1963,6 +1999,12 @@ async function generarFolioImp(now){
 
 // Variable global para fecha de entrega
 let fechaEntregaSeleccionada = '';
+// La fecha de entrega vivia SOLO como frase en espanol ('Martes 5 Agosto 2026 a
+// las 1:00 pm') y esOrdenUrgente tenia que re-parsearla con regex y un
+// diccionario de meses, con catch->false silencioso. Ahora se guarda tambien
+// estructurada y el texto queda solo para imprimir.
+let fechaEntregaKeySel = '';   // 'YYYY-MM-DD'
+let horaEntregaSel = '';       // 'HH:MM' 24h
 
 function iniciarCobro(){
   if(_cobroEnCurso) return;
@@ -1977,7 +2019,7 @@ function iniciarCobro(){
 }
 
 function abrirModalEntrega(){
-  fechaEntregaSeleccionada='';
+  fechaEntregaSeleccionada=''; fechaEntregaKeySel=''; horaEntregaSel='';
   // Calcular fechas reales
   const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const MESES_NOMBRE=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1988,8 +2030,10 @@ function abrirModalEntrega(){
   };
   document.getElementById('ent-btn-hoy').textContent='Hoy — '+fmtFecha(hoy);
   document.getElementById('ent-btn-hoy').dataset.fecha=fmtFecha(hoy);
+  document.getElementById('ent-btn-hoy').dataset.key=fechaKeyDe(hoy);
   document.getElementById('ent-btn-manana').textContent='Mañana — '+fmtFecha(manana);
   document.getElementById('ent-btn-manana').dataset.fecha=fmtFecha(manana);
+  document.getElementById('ent-btn-manana').dataset.key=fechaKeyDe(manana);
   // Reset botones
   document.getElementById('ent-btn-hoy').className='btn bgray';
   document.getElementById('ent-btn-manana').className='btn bgray';
@@ -2008,7 +2052,9 @@ function abrirModalEntrega(){
   var horaPrev = localStorage.getItem('fs_ultima_hora_entrega') || '1:00 pm';
   document.getElementById('ent-btn-manana').className='btn bgreen';
   document.getElementById('ent-dia-sel').value=fmtFecha(manana);
+  fechaEntregaKeySel=fechaKeyDe(manana);
   document.getElementById('ent-hora-sel').value=horaPrev;
+  horaEntregaSel=_hora24(horaPrev);
   if(horaPrev==='1:00 pm') document.getElementById('ent-btn-1pm').className='btn bgreen';
   validarEntrega();
 }
@@ -2019,6 +2065,7 @@ function selDiaEntrega(btn){
   });
   btn.className='btn bgreen';
   document.getElementById('ent-dia-sel').value=btn.dataset.fecha;
+  fechaEntregaKeySel = btn.dataset.key || '';
   document.getElementById('ent-cal-fecha').style.display='none';
   validarEntrega();
 }
@@ -2041,6 +2088,7 @@ function confirmarOtraFecha(){
   var fechaStr = DIAS[d.getDay()]+' '+d.getDate()+' '+MESES[d.getMonth()]+' '+d.getFullYear();
   document.getElementById('ent-btn-otra-fecha').textContent = '📅 '+fechaStr;
   document.getElementById('ent-dia-sel').value = fechaStr;
+  fechaEntregaKeySel = val;   // el input date ya viene en YYYY-MM-DD
   validarEntrega();
 }
 
@@ -2056,8 +2104,19 @@ function selHoraEntrega(val, btnId){
     document.getElementById('ent-hora-txt').style.display='none';
     document.getElementById('ent-hora-txt').value='';
     document.getElementById('ent-hora-sel').value=val;
+    horaEntregaSel = _hora24(val);
   }
   validarEntrega();
+}
+
+// '1:00 pm' -> '13:00'
+function _hora24(txt){
+  var m = String(txt||'').match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if(!m) return '';
+  var h = parseInt(m[1]), min = m[2], ap = m[3] ? m[3].toLowerCase() : '';
+  if(ap==='pm' && h<12) h+=12;
+  if(ap==='am' && h===12) h=0;
+  return String(h).padStart(2,'0')+':'+min;
 }
 
 function syncHoraLibre(){
@@ -2071,6 +2130,7 @@ function syncHoraLibre(){
   var h12 = h % 12 || 12;
   var horaLegible = h12+':'+m+' '+ampm;
   document.getElementById('ent-hora-sel').value = horaLegible;
+  horaEntregaSel = val;   // el input time ya viene en 24h
   validarEntrega();
 }
 
@@ -2234,11 +2294,11 @@ async function cobrar(){
     const folio=await generarFolioEsc(now);
     const totalEsc=itemsEsc.reduce((s,c)=>s+c.precio,0);
     const ventaEsc={
-      folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
+      folio,origen:'escuelas',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',fechaEntregaKey:fechaEntregaKeySel||'',horaEntrega:horaEntregaSel||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),fechaKey,esquemaV:ESQUEMA_V,
       personas:_personasDeItems(itemsEsc,etq),
-      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null,calcData:c.calcData||null,modData:c.modData||null,calcSpecs:c.calcSpecs||null,productoId:c.productoId||null,productoNombre:c.productoNombre||c.nombre,..._itemPersona(c,etq)})),
+      items:itemsEsc.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,detalle:c.detalle||'',clienteData:c.clienteData||null,calcData:c.calcData||null,modData:c.modData||null,calcSpecs:c.calcSpecs||null,escuelaId:c.escuelaId||null,productoId:c.productoId||null,productoNombre:c.productoNombre||c.nombre,..._itemPersona(c,etq)})),
       total:totalEsc,pago:(hayU||hayImp)?totalEsc:pago,cambio:(hayU||hayImp)?0:pago-total
     };
     if(!await _guardarVenta(ventaEsc)) ventaEsc._pendiente=true;
@@ -2251,11 +2311,11 @@ async function cobrar(){
     const folio=await generarFolioImp(now);
     const totalImp=itemsImp.reduce((s,c)=>s+c.precio,0);
     const ventaImp={
-      folio,origen:'impresiones',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',
+      folio,origen:'impresiones',metodoPago:metodo,cancelado:false,fechaEntrega:fechaEntregaSeleccionada||'',fechaEntregaKey:fechaEntregaKeySel||'',horaEntrega:horaEntregaSel||'',
       fecha,hora,timestamp:now.toISOString(),
       year:now.getFullYear(),month:now.getMonth()+1,dia:now.getDate(),fechaKey,esquemaV:ESQUEMA_V,
       personas:_personasDeItems(itemsImp,etq),
-      items:itemsImp.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,copias:c.copias||1,descripcion:c.descripcion||'',productoId:c.productoId||null,productoNombre:c.productoNombre||c.nombre,..._itemPersona(c,etq)})),
+      items:itemsImp.map(c=>({nombre:c.nombre,precio:c.precio,tipo:c.tipo,copias:c.copias||1,descripcion:c.descripcion||'',descLibre:c.descLibre||'',tamanio:c.tamanio||'',ajuste:c.ajuste||0,precioUnitario:c.precioUnitario||0,productoId:c.productoId||null,productoNombre:c.productoNombre||c.nombre,..._itemPersona(c,etq)})),
       total:totalImp,pago:(hayU||hayEsc)?totalImp:pago,cambio:(hayU||hayEsc)?0:pago-total
     };
     if(!await _guardarVenta(ventaImp)) ventaImp._pendiente=true;
@@ -2268,7 +2328,7 @@ async function cobrar(){
   // Actualizar ventasFB en tiempo real para que reportes refleje la venta inmediatamente
   tickets.forEach(function(t){ ventasFB.push(t); });
   carrito=[];resetPersonas();document.getElementById('pago').value='';
-  fechaEntregaSeleccionada='';
+  fechaEntregaSeleccionada=''; fechaEntregaKeySel=''; horaEntregaSel='';
   // Resetear método de pago a efectivo
   selMetodo('efectivo');
   renderCarrito();
@@ -3120,10 +3180,13 @@ function renderReportes(){
   set('rep-total-ord', '$'+sumOrd.toLocaleString());
   var impEl = document.getElementById('rep-total-imp');
   if(impEl){
+    var impWrap = document.getElementById('rep-total-imp-wrap');
     if(sumImp>0){
       impEl.textContent = '$'+sumImp.toLocaleString()+' impresiones';
       impEl.style.display='inline';
+      if(impWrap) impWrap.style.display='inline';
     } else {
+      if(impWrap) impWrap.style.display='none';
       impEl.style.display='none';
     }
   }
@@ -3218,35 +3281,15 @@ function renderDesgloseSpecs(ventas){
       }
     });
   });
-  // Escuelas ordinarias con fecha
-  ventas.forEach(function(v){
-    if(v.origen !== 'escuelas') return;
-    var mes = v.month ? MESES_NOMBRE[(v.month-1)] : (v.fecha||'').split('/')[1];
-    (v.items||[]).forEach(function(it){
-      if(it.tipo !== 'escuela') return;
-      // Extraer nombre base de la escuela (sin " — H" o " — M")
-      var nombre = it.nombre.replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim();
-      if(!nombre) return;
-      if(!escuelasTemporales[nombre]) escuelasTemporales[nombre]={ventas:0, meses:{}, total:0, personas:0, modificaciones:{}};
-      escuelasTemporales[nombre].ventas++;
-      escuelasTemporales[nombre].total+=(it.precio||0);
-      if(mes) escuelasTemporales[nombre].meses[mes]=(escuelasTemporales[nombre].meses[mes]||0)+1;
-      // Registrar modificaciones al paquete
-      if(it.modData && it.modData.modificaciones){
-        var mods = it.modData.modificaciones;
-        (mods.agregados||[]).forEach(function(a){ escuelasTemporales[nombre].modificaciones['+ '+a]=(escuelasTemporales[nombre].modificaciones['+ '+a]||0)+1; });
-        (mods.quitados||[]).forEach(function(q){ escuelasTemporales[nombre].modificaciones['- '+q]=(escuelasTemporales[nombre].modificaciones['- '+q]||0)+1; });
-      }
-      // Sumar personas fotografiadas
-      if(it.clienteData && it.clienteData.fotografiados){
-        var f=it.clienteData.fotografiados;
-        escuelasTemporales[nombre].personas+=(f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)+(f.adulto_h||0)+(f.adulto_m||0)+(f.adulto_plus_h||0)+(f.adulto_plus_m||0);
-      }
-    });
-  });
+  // Escuelas ordinarias: misma agrupacion que el otro reporte (por _id, no por texto)
+  escuelasTemporales = agruparEscuelas(ventas).porEscuela;
 
+  // La tabla de escuelas por mes vive dentro de esta seccion, asi que el corte
+  // no puede depender solo de los datos de urgentes: un periodo con ventas
+  // escolares pero sin specs de urgentes hacia DESAPARECER la tabla entera.
+  var hayEscuelas = Object.keys(escuelasTemporales).length > 0;
   var totalDatos = itemsConSpecs.length + clientesData.length;
-  if(!totalDatos){ sec.style.display='none'; return; }
+  if(!totalDatos && !hayEscuelas){ sec.style.display='none'; return; }
   sec.style.display='block';
 
   // --- Análisis de quien paga (clienteData) ---
@@ -3331,7 +3374,7 @@ function renderDesgloseSpecs(ventas){
   // Sexo pagador
   if(clientesData.length){
     // Columna izquierda: Sexo + Edad (del pagador) + resumen total fotografiados
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:9px;color:#bbb;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +((fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Total fotografiados (real)</p>'          +barra('Hombre', (fotoNinoH+fotoJovenH+fotoAdultoH+fotoAdultoPlusH), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#0C447C')          +barra('Mujer', (fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#7C0C44')          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong> personas fotografiadas</div>'          +'</div>'        : '')      +'</div>';
+    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +((fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Total fotografiados (real)</p>'          +barra('Hombre', (fotoNinoH+fotoJovenH+fotoAdultoH+fotoAdultoPlusH), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#0C447C')          +barra('Mujer', (fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#7C0C44')          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong> personas fotografiadas</div>'          +'</div>'        : '')      +'</div>';
 
     // Columna derecha: Personas fotografiadas + Color/B&N
     html += '<div style="background:white;border-radius:8px;padding:10px;">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
@@ -3355,7 +3398,7 @@ function renderDesgloseSpecs(ventas){
           var prods = (typeof e[1]==='object' && e[1].productos) ? e[1].productos : {};
           var pct = maxProp>0 ? Math.round(val/maxProp*100) : 0;
           var prodStr = Object.entries(prods).sort(function(a,b){return b[1]-a[1];}).map(function(p){
-            return '<span style="background:#f0f0f0;border-radius:4px;padding:1px 6px;font-size:9px;color:#555;margin-right:3px;">'+p[0]+(p[1]>1?' ×'+p[1]:'')+'</span>';
+            return '<span style="background:#f0f0f0;border-radius:4px;padding:2px 7px;font-size:11px;color:#555;margin-right:3px;display:inline-block;margin-top:2px;">'+p[0]+(p[1]>1?' ×'+p[1]:'')+'</span>';
           }).join('');
           return '<div style="margin-bottom:8px;">'
             +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
@@ -3430,8 +3473,9 @@ function renderDesgloseSpecs(ventas){
   if(escTemp.length){
     sec.style.display='block';
     html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;margin-top:4px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">📅 Escuelas ordinarias — actividad por mes</p>'
-      +'<table style="width:100%;border-collapse:collapse;font-size:11px;">'
+      +'<p style="font-size:11px;font-weight:600;color:#666;margin-bottom:8px;text-transform:uppercase;">📅 Escuelas ordinarias — actividad por mes</p>'
+      +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+      +'<table style="width:100%;min-width:460px;border-collapse:collapse;font-size:12px;">'
       +'<thead><tr style="border-bottom:1px solid #e0e0e0;">'
       +'<th style="padding:5px 8px;text-align:left;color:#888;font-size:10px;">Escuela</th>'
       +'<th style="padding:5px 8px;text-align:center;color:#888;font-size:10px;">Paquetes</th>'
@@ -3447,16 +3491,16 @@ function renderDesgloseSpecs(ventas){
         var modsEntries = Object.entries(e[1].modificaciones||{}).sort(function(a,b){return b[1]-a[1];});
         var modsStr = modsEntries.map(function(m){
           var color = m[0].startsWith('+') ? '#1D9E75' : '#A32D2D';
-          return '<span style="font-size:9px;background:#f5f5f5;border-radius:4px;padding:1px 5px;color:'+color+';margin-right:3px;">'+m[0]+' ('+m[1]+'×)</span>';
+          return '<span style="font-size:11px;background:#f5f5f5;border-radius:4px;padding:2px 6px;color:'+color+';margin-right:3px;display:inline-block;margin-top:2px;">'+m[0]+' ('+m[1]+'×)</span>';
         }).join('');
         return '<tr style="border-bottom:1px solid #f5f5f5;">'
-          +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+e[0]+(modsStr?'<div style="margin-top:3px;">'+modsStr+'</div>':'')+'</td>'
+          +'<td style="padding:6px 8px;font-weight:600;color:#0C447C;">'+_escH(e[1].nombre||e[0])+(modsStr?'<div style="margin-top:3px;">'+modsStr+'</div>':'')+'</td>'
           +'<td style="padding:6px 8px;text-align:center;">'+e[1].ventas+'</td>'
           +'<td style="padding:6px 8px;text-align:center;">'+personasStr+'</td>'
           +'<td style="padding:6px 8px;text-align:center;color:#1D9E75;font-weight:600;">$'+e[1].total+'</td>'
           +'<td style="padding:6px 8px;">'+mesesStr+'</td>'
           +'</tr>';      }).join('')
-      +'</tbody></table></div>';
+      +'</tbody></table></div></div>';
   }
 
   html += '</div>';
@@ -3467,45 +3511,93 @@ function renderDesgloseSpecs(ventas){
   grid.innerHTML = html;
 }
 
+// ── AGRUPAR VENTAS DE ESCUELA (una sola implementacion) ──────
+// Antes habia DOS bloques que agrupaban con la misma expresion regular sobre el
+// nombre y sumaban las personas distinto. Renombrar una escuela, un acento o un
+// espacio de mas partia el historico en dos filas.
+// Ahora la llave es el _id de la escuela (o el productoId), y el nombre solo
+// se usa para mostrar.
+// Mapa _id -> nombre actual del catálogo, para que una venta nueva (que trae el
+// _id) caiga en el MISMO grupo que las viejas, que sólo traen el nombre.
+var _mapaIdEscuela = null;
+function _construirMapaIdEscuela(){
+  _mapaIdEscuela = {};
+  (escuelas||[]).forEach(function(e){ if(e._id) _mapaIdEscuela[e._id] = e.n||''; });
+  return _mapaIdEscuela;
+}
+function _claveEscuela(it){
+  return _normClaveEsc(_claveEscuelaRaw(it));
+}
+// El nombre se guarda a veces con el prefijo "Paquete " y a veces sin él; sin
+// esto, "Paquete AMERIVENT" y "AMERIVENT" quedaban en dos filas distintas.
+function _normClaveEsc(k){ return String(k||'').replace(/^esc_paquete_/, 'esc_'); }
+function _claveEscuelaRaw(it){
+  var mapa = _mapaIdEscuela || _construirMapaIdEscuela();
+  if(it.escuelaId && mapa[it.escuelaId]){
+    // La escuela sigue en el catálogo: se agrupa por su nombre actual, así el
+    // histórico sin _id se suma con las ventas nuevas.
+    return 'esc_'+_slug(_nombreLimpio(mapa[it.escuelaId]));
+  }
+  if(it.escuelaId) return 'id:'+it.escuelaId;   // escuela borrada del catálogo
+  var pd = productoDeItem(it);
+  if(pd && pd.id && pd.id.indexOf('esc_')===0) return pd.id;
+  return 'esc_'+_slug(_nombreLimpio(it.nombre||'').replace(/^Paquete\s+/i,''));
+}
+function _nombreEscuela(it){
+  var n = it.productoNombre || it.nombre || '';
+  return n.replace(/\s*—\s*[HM]$/,'').replace(/^Paquete\s+/i,'').trim() || 'Sin nombre';
+}
+function agruparEscuelas(ventas){
+  var MESES_N = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var out = {}, totalH = 0, totalM = 0, totalVentas = 0, itemsTotal = 0, itemsConPersonas = 0;
+  (ventas||[]).forEach(function(v){
+    if(v.origen !== 'escuelas') return;
+    totalVentas++;
+    var mes = v.month ? MESES_N[v.month-1] : '';
+    (v.items||[]).forEach(function(it){
+      if(it.tipo !== 'escuela') return;
+      var k = _claveEscuela(it);
+      if(!out[k]) out[k] = {nombre:_nombreEscuela(it), ventas:0, total:0, H:0, M:0, personas:0, meses:{}, modificaciones:{}, conDatos:0};
+      var d = out[k];
+      d.ventas++; d.total += (it.precio||0);
+      itemsTotal++;
+      if(mes) d.meses[mes] = (d.meses[mes]||0)+1;
+      if(it.modData && it.modData.modificaciones){
+        var m = it.modData.modificaciones;
+        (m.agregados||[]).forEach(function(a){ d.modificaciones['+ '+a] = (d.modificaciones['+ '+a]||0)+1; });
+        (m.quitados||[]).forEach(function(q){ d.modificaciones['- '+q] = (d.modificaciones['- '+q]||0)+1; });
+      }
+      var f = it.clienteData && it.clienteData.fotografiados;
+      if(f){
+        var iH = (f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var iM = (f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        d.H += iH; d.M += iM; d.personas += iH+iM;
+        totalH += iH; totalM += iM;
+        if(iH+iM > 0){ d.conDatos++; itemsConPersonas++; }
+      }
+    });
+  });
+  return {porEscuela:out, totalH:totalH, totalM:totalM, totalVentas:totalVentas,
+          itemsTotal:itemsTotal, itemsConPersonas:itemsConPersonas};
+}
+// "18 de 20 paquetes con personas capturadas (90%)" — antes no se distinguia
+// "0 personas" de "no capturado"
+function _coberturaHTML(a){
+  if(!a.itemsTotal) return '';
+  var pct = Math.round(a.itemsConPersonas/a.itemsTotal*100);
+  var color = pct>=80 ? '#085041' : (pct>=50 ? '#7A4500' : '#A32D2D');
+  return '<div style="font-size:10px;color:'+color+';margin-top:6px;">Cobertura del dato: '
+    +a.itemsConPersonas+' de '+a.itemsTotal+' paquetes con personas capturadas ('+pct+'%)</div>';
+}
+
 function renderDesgloseOrdinarios(ventas){
   var sec = document.getElementById('rep-ordinarios-desglose');
   var grid = document.getElementById('rep-ord-grid');
   if(!sec || !grid) return;
 
-  // Acumular datos de TODAS las ventas de escuelas en el período
-  var totalH = 0, totalM = 0;
-  var totalVentas = 0;
-  // Por escuela: {ventas, H, M, meses:{}}
-  var porEscuela = {};
-  var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-  ventas.forEach(function(v){
-    if(v.origen !== 'escuelas') return;
-    totalVentas++;
-    var mes = v.month ? MESES_NOMBRE[(v.month-1)] : '';
-
-    (v.items||[]).forEach(function(it){
-      if(it.tipo !== 'escuela') return;
-      // Extraer nombre limpio de la escuela
-      var escNombre = (it.nombre||'').replace(/\s*—\s*[HM]$/, '').replace(/^Paquete\s+/i,'').trim() || 'Sin nombre';
-
-      if(!porEscuela[escNombre]) porEscuela[escNombre] = {ventas:0, H:0, M:0, total:0, meses:{}};
-      porEscuela[escNombre].ventas++;
-      porEscuela[escNombre].total += (it.precio||0);
-      if(mes) porEscuela[escNombre].meses[mes] = (porEscuela[escNombre].meses[mes]||0) + 1;
-
-      // Sumar fotografiados desde clienteData
-      if(it.clienteData && it.clienteData.fotografiados){
-        var f = it.clienteData.fotografiados;
-        var iH = (f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-        var iM = (f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
-        porEscuela[escNombre].H += iH;
-        porEscuela[escNombre].M += iM;
-        totalH += iH;
-        totalM += iM;
-      }
-    });
-  });
+  var _agr = agruparEscuelas(ventas);
+  var porEscuela = _agr.porEscuela;
+  var totalH = _agr.totalH, totalM = _agr.totalM, totalVentas = _agr.totalVentas;
 
   var escEntries = Object.entries(porEscuela).sort(function(a,b){ return b[1].ventas - a[1].ventas; });
 
@@ -3522,11 +3614,11 @@ function renderDesgloseOrdinarios(ventas){
   var html = '<div class="g2" style="gap:10px;">';
 
   // Columna izquierda: Total H/M fotografiados
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Fotografiados (total período)</p>'    +barra('Hombre', totalH, totalFotos, '#0C447C')    +barra('Mujer', totalM, totalFotos, '#7C0C44')    +'<div style="font-size:10px;color:#888;margin-top:6px;">Total: <strong>'+(totalH+totalM)+'</strong> personas · <strong>'+totalVentas+'</strong> venta'+(totalVentas!==1?'s':'')+'</div>'    +'</div>';
+  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Fotografiados (total período)</p>'    +barra('Hombre', totalH, totalFotos, '#0C447C')    +barra('Mujer', totalM, totalFotos, '#7C0C44')    +'<div style="font-size:10px;color:#888;margin-top:6px;">Total: <strong>'+(totalH+totalM)+'</strong> personas · <strong>'+totalVentas+'</strong> venta'+(totalVentas!==1?'s':'')+'</div>'+_coberturaHTML(_agr)    +'</div>';
 
   // Columna derecha: Desglose por escuela (barras H y M)
   html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Por escuela</p>'    +escEntries.map(function(e){
-      var nombre = e[0]; var d = e[1];
+      var d = e[1]; var nombre = d.nombre || e[0];
       var totalEsc = d.H + d.M;
       return '<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f0f0f0;">'        +'<div style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:4px;">'+nombre+'</div>'        +'<div style="display:flex;gap:12px;font-size:10px;color:#555;margin-bottom:4px;">'        +'<span>'+d.ventas+' venta'+(d.ventas!==1?'s':'')+' · $'+d.total+'</span>'        +(totalEsc>0?'<span style="color:#085041;font-weight:600;">'+totalEsc+' fotografiad'+(totalEsc!==1?'os':'o')+(d.H&&d.M?' (H:'+d.H+' M:'+d.M+')':d.H?' ('+d.H+'H)':' ('+d.M+'M)')+'</span>':'')        +'</div>'        +(totalEsc>0          ? barra('H', d.H, totalEsc, '#0C447C') + barra('M', d.M, totalEsc, '#7C0C44')          : '<div style="font-size:10px;color:#aaa;font-style:italic;">Sin datos de fotografiados</div>')        +'</div>';
     }).join('')    +'</div>';
@@ -3971,19 +4063,45 @@ function renderUrgProd(ventas){
   }).join('');
 }
 
+// El historial no tenia limite: con "Este año" eran cientos de tarjetas de
+// ~150px cada una. Ahora se muestran de 50 en 50.
+var HIST_PAGINA = 50;
+var _histLista = [], _histMostrados = 0;
+
+function verMasHistorial(){
+  _histMostrados += HIST_PAGINA;
+  _pintarHistorial();
+}
+function _pintarHistorial(){
+  var elH = document.getElementById('rep-historial');
+  if(!elH) return;
+  var total = _histLista.length;
+  if(!total){ elH.innerHTML='<p style="font-size:12px;color:#666;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
+  var n = Math.min(_histMostrados, total);
+  elH.innerHTML = _histFilasHTML(_histLista.slice(0, n))
+    + (n < total
+      ? '<div style="text-align:center;padding:10px;"><button class="btn bgray" onclick="verMasHistorial()">Ver más — '+(total-n)+' venta'+((total-n)!==1?'s':'')+' restante'+((total-n)!==1?'s':'')+'</button></div>'
+      : (total>HIST_PAGINA ? '<div style="text-align:center;font-size:12px;color:#666;padding:8px;">'+total+' ventas en total</div>' : ''));
+}
+
 function renderHistorialRows(sorted, elH){
-  if(!sorted.length){ elH.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
-  elH.innerHTML = sorted.map(v=>{
+  _histLista = sorted || [];
+  _histMostrados = HIST_PAGINA;
+  _pintarHistorial();
+}
+
+function _histFilasHTML(sorted){
+  return sorted.map(v=>{
     const esU=v.origen==='urgentes'||(v.folio||'').startsWith('F-U');
     const color=v.cancelado?'#999':(esU?'#0C7ED6':'#0C447C');
     const metodo=v.metodoPago||'efectivo';
     const iconMetodo=metodo==='transferencia'?'🔄':metodo==='tarjeta'?'💳':'💵';
-    const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:600;margin-left:6px;">CANCELADA</span>'
-      +(v.canceladoFecha?'<div style="font-size:9px;color:#A32D2D;margin-top:2px;">'+v.canceladoFecha+(v.canceladoPor?' · '+v.canceladoPor:'')+'</div>':''):'';
+    const cancelBadge=v.cancelado?'<span style="background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-left:6px;">CANCELADA</span>'
+      +(v.canceladoFecha?'<div style="font-size:11px;color:#A32D2D;margin-top:2px;">'+v.canceladoFecha+(v.canceladoPor?' · '+v.canceladoPor:'')+'</div>':''):'';
 
     // Items detallados
     let itemsHtml = agruparItemsPorPersona(v.items, v.personas).map(function(g){
-      var cab = mostrarCabPersona(g) ? '<div style="font-size:10px;font-weight:700;color:#0C447C;padding:4px 0 1px;">👤 '+_escH(tituloGrupo(g))+'</div>' : '';
+      var cab = mostrarCabPersona(g) ? '<div style="font-size:12px;font-weight:700;color:#0C447C;padding:4px 0 1px;">👤 '+_escH(tituloGrupo(g))+'</div>' : '';
       return cab + g.items.map(function(_x){ var i=_x.item;
       var linea = '<div style="font-size:11px;font-weight:600;padding:2px 0;">• '+i.nombre+' <span style="color:'+color+';font-weight:700;">$'+i.precio+'</span></div>';
       // specs de urgentes
@@ -3992,7 +4110,7 @@ function renderHistorialRows(sorted, elH){
         if(s.sexo) d.push(s.sexo==='H'?'Hombre':'Mujer');
         if(s.colorBN) d.push(s.colorBN==='bn'?'B/N':'Color');
         if(s.adherible) d.push('Adherible');
-        if(d.length) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+d.join(' · ')+'</div>';
+        if(d.length) linea+='<div style="font-size:12px;color:#555;padding-left:10px;">'+d.join(' · ')+'</div>';
       }
       // clienteData (propósito, escuela, etc.)
       if(i.clienteData){
@@ -4002,40 +4120,40 @@ function renderHistorialRows(sorted, elH){
           if(cd.proposito==='Escolar'&&cd.escuela) propLabel='Escolar: '+cd.escuela;
           else if(cd.proposito==='Otro'&&cd.otroDesc) propLabel='Otro: '+cd.otroDesc;
           else if(cd.proposito==='Trámite gobierno'&&cd.tramiteDesc) propLabel='Trámite: '+cd.tramiteDesc;
-          linea+='<div style="font-size:10px;color:#0C7ED6;padding-left:10px;">📋 '+propLabel+'</div>';
+          linea+='<div style="font-size:12px;color:#0C7ED6;padding-left:10px;">📋 '+propLabel+'</div>';
         }
         if(cd.fotografiados){
           var f=cd.fotografiados;
           var fH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
           var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
-          if(fH||fM) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
+          if(fH||fM) linea+='<div style="font-size:12px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
         }
-        if(cd.colorBN) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
+        if(cd.colorBN) linea+='<div style="font-size:12px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
         var extras=[];
         if(cd.adherible) extras.push('Adherible');
         if(cd.camisa_blanca) extras.push('Camisa blanca');
         if(cd.barba_edicion>0) extras.push('Editar barba');
-        if(extras.length) linea+='<div style="font-size:10px;color:#BA7517;padding-left:10px;">+ '+extras.join(', ')+'</div>';
+        if(extras.length) linea+='<div style="font-size:12px;color:#BA7517;padding-left:10px;">+ '+extras.join(', ')+'</div>';
       }
       // Modificaciones al paquete base
       if(i.modData && i.modData.modificaciones){
         var mods = i.modData.modificaciones;
         if(mods.agregados && mods.agregados.length)
-          linea+='<div style="font-size:10px;color:#1D9E75;padding-left:10px;">+ Agregado: '+mods.agregados.join(', ')+'</div>';
+          linea+='<div style="font-size:12px;color:#1D9E75;padding-left:10px;">+ Agregado: '+mods.agregados.join(', ')+'</div>';
         if(mods.quitados && mods.quitados.length)
-          linea+='<div style="font-size:10px;color:#A32D2D;padding-left:10px;">− Quitado: '+mods.quitados.join(', ')+'</div>';
+          linea+='<div style="font-size:12px;color:#A32D2D;padding-left:10px;">− Quitado: '+mods.quitados.join(', ')+'</div>';
       }
       return linea;
       }).join('');
     }).join('');
 
-    const cancelBtn=v.cancelado?'':`<button onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:10px;padding:3px 8px;cursor:pointer;">✕ Cancelar</button>`;
-    const reimpBtn=`<button onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:10px;padding:3px 8px;cursor:pointer;">🖨 Reimprimir</button>`
+    const cancelBtn=v.cancelado?'':`<button class="hist-btn" onclick="cancelarVenta('${v.folio}')" style="background:transparent;border:1px solid #f5c0c0;border-radius:6px;color:#A32D2D;font-size:12px;padding:6px 10px;cursor:pointer;">✕ Cancelar</button>`;
+    const reimpBtn=`<button class="hist-btn" onclick="reimprimirTicket('${v.folio}')" style="background:transparent;border:1px solid #a0dcc8;border-radius:6px;color:#085041;font-size:12px;padding:6px 10px;cursor:pointer;">🖨 Reimprimir</button>`
       + ((v.origen==='escuelas'||(v.items||[]).some(function(i){return i.tipo==='escuela';}))
-        ? `<button onclick="reimprimirNota('${v.folio}')" style="background:transparent;border:1px solid #a0c4e8;border-radius:6px;color:#0C447C;font-size:10px;padding:3px 8px;cursor:pointer;margin-left:4px;">📋 Nota</button>`
+        ? `<button class="hist-btn" onclick="reimprimirNota('${v.folio}')" style="background:transparent;border:1px solid #a0c4e8;border-radius:6px;color:#0C447C;font-size:12px;padding:6px 10px;cursor:pointer;margin-left:4px;">📋 Nota</button>`
         : '');
 
-    return '<div style="border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:white;'+(v.cancelado?'opacity:0.55;':'')+'">'      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'      +'<div>'      +'<span style="color:'+color+';font-weight:700;font-size:13px;">'+(v.folio||'—')+'</span>'      +cancelBadge      +'<div style="font-size:10px;color:#888;margin-top:2px;">'+(v.fecha||'—')+' '+(v.hora||'')+' · '+iconMetodo+' '+metodo+'</div>'      +'</div>'      +'<div style="text-align:right;">'      +'<div style="font-size:16px;font-weight:700;color:'+color+';">$'+v.total+'</div>'      +'<div style="display:flex;gap:5px;margin-top:4px;">'+cancelBtn+reimpBtn+'</div>'      +'</div>'      +'</div>'      +'<div style="border-top:1px dashed #e0e0e0;padding-top:8px;">'+itemsHtml+'</div>'      +'</div>';
+    return '<div style="border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:white;'+(v.cancelado?'opacity:0.55;':'')+'">'      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'      +'<div>'      +'<span style="color:'+color+';font-weight:700;font-size:13px;">'+(v.folio||'—')+'</span>'      +cancelBadge      +'<div style="font-size:12px;color:#666;margin-top:2px;">'+(v.fecha||'—')+' '+(v.hora||'')+' · '+iconMetodo+' '+metodo+'</div>'      +'</div>'      +'<div style="text-align:right;">'      +'<div style="font-size:16px;font-weight:700;color:'+color+';">$'+v.total+'</div>'      +'<div style="display:flex;gap:5px;margin-top:4px;">'+cancelBtn+reimpBtn+'</div>'      +'</div>'      +'</div>'      +'<div style="border-top:1px dashed #e0e0e0;padding-top:8px;">'+itemsHtml+'</div>'      +'</div>';
   }).join('');
 }
 
@@ -4194,6 +4312,7 @@ function _precioTarjetaEsc(e){
 }
 
 function renderEscGrid(lista){
+  _mapaIdEscuela = null;   // el catalogo pudo cambiar
   const grid=document.getElementById('esc-grid');
   if(!grid)return;
   if(!lista.length){
@@ -4312,7 +4431,7 @@ function rendImp(){
   document.getElementById('imp-grid').innerHTML=impresiones.map((im,i)=>`
     <div class="foto-card" style="position:relative;">
       <div onclick="abrirModalImp(${i})" style="cursor:pointer;">
-        <div class="fc-n">${im.sz.split('x')[0]}x</div>
+        <div class="fc-n">${im.sz}</div>
         <div class="fc-l">Impresión fotográfica</div>
         <div class="fc-p">$${im.p}</div>
       </div>
@@ -4325,7 +4444,7 @@ function rendImp(){
 
 function abrirModalImp(i){
   const im=impresiones[i];
-  document.getElementById('mi-sz').textContent=im.sz.split('x')[0]+'x';
+  document.getElementById('mi-sz').textContent=im.sz;
   document.getElementById('mi-precio-u').textContent='$'+im.p+' c/u';
   document.getElementById('mi-idx').value=i;
   document.getElementById('mi-cant').value=1;
@@ -4349,12 +4468,12 @@ function agregarImpCarrito(){
   const desc=document.getElementById('mi-desc').value.trim();
   const ajuste=parseInt(document.getElementById('mi-ajuste').value)||0;
   const im=impresiones[i];
-  const sz=im.sz.split('x')[0]+'x';
+  const sz=im.sz;   // antes se recortaba a '6x' y se perdia la segunda medida
   let descFull=desc;
   if(ajuste>0) descFull+=(descFull?' · ':'')+'con edición';
   else if(ajuste<0) descFull+=(descFull?' · ':'')+'descuento';
   const nombre=sz+' x'+cant+(descFull?' — '+descFull:'');
-  carrito.push({nombre,precio:cant*im.p+ajuste,tipo:'impresion',copias:cant,descripcion:descFull,tamanio:sz,personaId:nuevoPersonaId(),productoId:im.pid||('im_'+_slug(sz)),productoNombre:'Impresion '+sz});
+  carrito.push({nombre,precio:cant*im.p+ajuste,tipo:'impresion',copias:cant,descripcion:descFull,descLibre:desc,tamanio:sz,ajuste:ajuste,precioUnitario:im.p,personaId:nuevoPersonaId(),productoId:im.pid||('im_'+_slug(sz)),productoNombre:'Impresion '+sz});
   renderCarrito();
   closeM('m-imp-modal');
   showToast('✓ Agregado al carrito');
@@ -4782,12 +4901,22 @@ document.addEventListener('keydown',function(e){
   }
 });
 
+// Acceso oculto a Reportes: 5 toques rapidos en la franja de arriba.
+// Antes esto era un div fijo con pointer-events:auto que SOLO se activaba si
+// window.innerWidth<=768 al cargar, porque de lo contrario bloqueaba los clics
+// de los primeros 44px. Resultado: en un iPad Air (820), iPad Pro (834/1024),
+// Galaxy Tab (800) o cualquier tablet en horizontal NO habia forma de entrar.
+// Ahora se escucha en document sin preventDefault: no intercepta nada, funciona
+// con dedo y con mouse, y no depende del ancho ni de la orientacion.
 function secretTap(){
   tapCount++;
   clearTimeout(tapTimer);
-  tapTimer=setTimeout(()=>{tapCount=0;},1500);
+  tapTimer=setTimeout(function(){tapCount=0;},1500);
   if(tapCount>=5){tapCount=0;toggleReportes();}
 }
+document.addEventListener('pointerdown', function(e){
+  if(e.clientY < 48) secretTap();
+}, true);
 
 function toggleReportes(){
   const nav=document.getElementById('nav-rep');
@@ -4799,13 +4928,6 @@ function toggleReportes(){
   }
   nav.style.display=visible?'none':'flex';
 }
-
-window.addEventListener('load',function(){
-  if(window.innerWidth<=768){
-    const zone=document.getElementById('secret-tap-zone');
-    if(zone){zone.style.display='block';zone.style.pointerEvents='auto';}
-  }
-});
 
 // ── CALCULADORA DE PAQUETE ESCOLAR ───────────────────────────
 // Estado por grupo — sin generar HTML dinámico
@@ -5515,6 +5637,11 @@ function cobrarCalculadora(){
     itemsVendidos: lineasConBarba,
     modificaciones: hayModificaciones ? {agregados: agregados, quitados: quitados} : null,
     escuelaBase: nombre,
+    // Origen real del paquete: el _id de la escuela y su imagen de specs, para
+    // que lleguen a la venta y a la orden de produccion (el laboratorio trabajaba
+    // solo con texto, sin la foto de referencia que si ve el vendedor)
+    escuelaId: escuelaActual && escuelaActual.escuela ? (escuelaActual.escuela._id||'') : '',
+    escuelaImg: escuelaActual && escuelaActual.escuela ? (escuelaActual.escuela.img||'') : '',
     // Guardar todas las variables de contexto para _continuarAgregarCarrito
     _lineas: lineasConBarba, _specs: specs, _nombre: nombre,
     _descuento: descuento, _subtotal: subtotal, _total: total,
@@ -5748,8 +5875,10 @@ function confirmarCalcPagador(){
         itemsBase: window._calcPendienteGuardar.itemsBase,
         modificaciones: window._calcPendienteGuardar.modificaciones }
     : null;
+  var _g = window._calcPendienteGuardar || {};
   var nuevo = {nombre:nombreFinal, precio:_calcPendiente.total, tipo:'escuela', personaId:nuevoPersonaId(), clienteData:clienteData,
     productoId:'esc_'+_slug(_nombreLimpio(nombreFinal)), productoNombre:nombreFinal,
+    escuelaId: _g.escuelaId||'', escuelaImg: _g.escuelaImg||'',
     calcSpecs: _snapCalcSpecs(),
     calcData: window._calcPendienteGuardar ? window._calcPendienteGuardar.calcData : null,
     modData: modData};
@@ -5844,8 +5973,17 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     }
   } else if(origen === 'impresiones'){
     info = items.map(function(i){ return i.nombre; }).join(', ');
+    // El laboratorio recibía solo "6x x3 — con edición": sin la medida completa
+    // y sin saber cuánto se cobró de edición. Ahora va desglosado.
     specs = {lineas: items.map(function(i){
-      return i.nombre + (i.descripcion ? ' — '+i.descripcion : '');
+      var partes = [];
+      partes.push((i.copias||1)+' × '+(i.tamanio || _nombreLimpio(i.nombre)));
+      // el texto que escribio el vendedor, sin las etiquetas automaticas
+      var d = (i.descLibre!==undefined) ? i.descLibre : i.descripcion;
+      if(d) partes.push(d);
+      if(i.ajuste>0) partes.push('edición +$'+i.ajuste);
+      else if(i.ajuste<0) partes.push('descuento −$'+Math.abs(i.ajuste));
+      return partes.join(' — ');
     })};
   }
   var orden = {
@@ -5853,7 +5991,11 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
     origen: origen,
     info: info,
     specs: specs,
+    imgEscuela: (items[0] && items[0].escuelaImg) || '',
+    escuelaId: (items[0] && items[0].escuelaId) || '',
     fechaEntrega: fechaEntrega || '',
+    fechaEntregaKey: fechaEntregaKeySel || '',
+    horaEntrega: horaEntregaSel || '',
     timestamp: new Date().toISOString(),
     fecha: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
     archivada: false,
@@ -5953,7 +6095,19 @@ function esOrdenUrgente(o){
   // La alerta aplica solo hasta acabado — entrega no es responsabilidad del estudio
   var pasosAlerta = ['proceso','impresion','acabado'];
   var acabadoHecho = pasosAlerta.every(function(p){ return o[p] && o[p].hecho; });
-  if(acabadoHecho || !o.fechaEntrega) return false;
+  if(acabadoHecho) return false;
+
+  // Camino nuevo: fecha y hora estructuradas, sin parsear español con regex
+  if(o.fechaEntregaKey){
+    var hh = o.horaEntrega || '23:59';
+    var entregaTs = new Date(o.fechaEntregaKey+'T'+hh+':00').getTime();
+    if(isNaN(entregaTs)) return false;
+    var diff = entregaTs - Date.now();
+    return diff <= 2*60*60*1000;   // urgente desde 2 h antes, y sigue urgente si ya pasó
+  }
+
+  // Órdenes anteriores: se sigue parseando el texto
+  if(!o.fechaEntrega) return false;
   try{
     var fe = o.fechaEntrega;
     var ahora = new Date();
@@ -6141,6 +6295,85 @@ function cargarProduccion(){
     .catch(function(e){ console.error('Error cargar produccion:', e); });
 }
 
+// ── SPECS DE UNA ORDEN PARA EL TABLERO DE PRODUCCIÓN ─────────
+// Resumen "👤 2 personas · Niño H:1 M:1" a partir de un clienteData
+function _cdResumenHTML(cd){
+  if(!cd) return '';
+  var partes=[];
+  if(cd.personas && cd.personas>1) partes.push(cd.personas+' personas');
+  var f=cd.fotografiados;
+  if(f){
+    var fStr=[];
+    if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
+    if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
+    if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
+    if(f.adulto_plus_h||f.adulto_plus_m) fStr.push('Ad. mayor H:'+(f.adulto_plus_h||0)+' M:'+(f.adulto_plus_m||0));
+    if(fStr.length) partes.push(fStr.join(', '));
+  }
+  return partes.length ? '<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>' : '';
+}
+// Fondo / vestimenta / cabello / aretes / barba / notas de un objeto de specs
+function _specLinesHTML(sp){
+  if(!sp) return '';
+  var vestH=sp.vestimenta_h||'', vestM=sp.vestimenta_m||'';
+  var digVH=sp.dig_vest_h||'', digVM=sp.dig_vest_m||'';
+  var vestLine = (vestH&&vestM) ? 'Vest H: '+vestH+' / M: '+vestM : ((vestH||vestM)?'Vest: '+(vestH||vestM):'');
+  var digVLine = (digVH&&digVM) ? 'Vest dig H: '+digVH+' / M: '+digVM : ((digVH||digVM)?'Vest dig: '+(digVH||digVM):'');
+  var personasLine='';
+  if(sp.sexo) personasLine='Persona: '+(sp.sexo==='H'?'Hombre':'Mujer');
+  else if(sp.personas && sp.personas.length===1) personasLine='Persona: '+sp.personas[0].sexo;
+  else if(sp.personas && sp.personas.length>1){
+    var hc=sp.personas.filter(function(p){return p.sexo==='H';}).length;
+    var mc=sp.personas.filter(function(p){return p.sexo==='M';}).length;
+    personasLine='Personas: '+(hc?hc+'H ':'')+(mc?mc+'M':'');
+  }
+  var lines=[personasLine, sp.fondo?'Fondo: '+sp.fondo:'', vestLine, digVLine,
+    sp.cabello?'Cabello: '+sp.cabello:'', sp.aretes?'Aretes: '+sp.aretes:'',
+    sp.barba?'Barba: '+sp.barba:'', sp.notas?'📝 '+sp.notas:''].filter(Boolean);
+  return lines.length
+    ? '<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'
+      + lines.map(function(s){ return '<div>'+s+'</div>'; }).join('') + '</div>'
+    : '';
+}
+function _lineasHTML(lineas){
+  return (lineas && lineas.length)
+    ? lineas.map(function(l){ return '<div>• '+(l && l.nombre ? l.nombre : l)+'</div>'; }).join('')
+    : '';
+}
+
+function _specsOrdenHTML(o){
+  if(!o || !o.specs) return '';
+  var sp = o.specs;
+  var items = sp.items || [];
+  // ¿Hay más de un paquete y cada uno trae sus propias specs? Entonces se pinta
+  // un bloque por paquete. (specs.items[].specs se guarda desde v05.)
+  var conSpecs = items.filter(function(it){ return it && it.specs; });
+  if(items.length > 1 && conSpecs.length > 1){
+    return items.map(function(it, n){
+      var propias = it.specs || {};
+      return '<div style="margin-bottom:6px;padding-left:6px;border-left:3px solid #0C447C;">'
+        + '<div style="font-weight:700;color:#0C447C;">Paquete '+(n+1)+': '+_escH(it.nombre||'')+'</div>'
+        + _lineasHTML(propias.lineas)
+        + _cdResumenHTML(it.clienteData)
+        + _specLinesHTML(propias)
+        + '</div>';
+    }).join('');
+  }
+
+  // Un solo paquete (o histórico sin specs por ítem): como siempre
+  var html = '';
+  if(sp.fotografiadosResumen){
+    html += '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+sp.fotografiadosResumen+'</div>';
+  }
+  html += _lineasHTML(sp.lineas);
+  var cdHtml = '';
+  items.forEach(function(it){ cdHtml += _cdResumenHTML(it.clienteData); });
+  if(!cdHtml && o.items) o.items.forEach(function(it){ cdHtml += _cdResumenHTML(it.clienteData); });
+  html += cdHtml;
+  html += _specLinesHTML(sp);
+  return html;
+}
+
 function renderProduccion(lista){
   var tbody = document.getElementById('prod-body');
   if(!tbody) return;
@@ -6182,69 +6415,13 @@ function renderProduccion(lista){
     var fechaEnt = o.fechaEntrega ? '<div style="font-size:10px;color:#A32D2D;margin-top:2px;font-weight:600;">📅 '+o.fechaEntrega+'</div>' : '';
     var notaBtn = '<button onclick="editarNota(\x27'+o.folio+'\x27,\x27'+(o.nota||'').replace(/'/g,'\x27')+'\x27)" style="background:transparent;border:none;cursor:pointer;font-size:13px;color:'+(o.nota?'#1D9E75':'#ccc')+';" title="'+(o.nota?'Ver/editar nota':'Agregar nota')+'"><i class="ti ti-pencil"></i></button>';
     var notaDisplay = o.nota ? '<div style="font-size:10px;color:#666;margin-top:3px;font-style:italic;max-width:200px;">📝 '+o.nota+'</div>' : '';
-    var specsDetail = '';
-    if(o.specs){
-      var sp=o.specs;
-      var lineasHtml=sp.lineas&&sp.lineas.length?sp.lineas.map(function(l){return '<div>• '+l+'</div>';}).join(''):'';
-      var vestH=sp.vestimenta_h||'';var vestM=sp.vestimenta_m||'';
-      var digVH=sp.dig_vest_h||'';var digVM=sp.dig_vest_m||'';
-      var vestLine=vestH&&vestM?'Vest H: '+vestH+' / M: '+vestM:(vestH||vestM?'Vest: '+(vestH||vestM):'');
-      var digVLine=digVH&&digVM?'Vest dig H: '+digVH+' / M: '+digVM:(digVH||digVM?'Vest dig: '+(digVH||digVM):'');
-      var personasLine='';
-      if(sp.sexo) personasLine='Persona: '+(sp.sexo==='H'?'Hombre':'Mujer');
-      else if(sp.personas&&sp.personas.length===1){personasLine='Persona: '+sp.personas[0].sexo;}
-      else if(sp.personas&&sp.personas.length>1){
-        var hc=sp.personas.filter(function(p){return p.sexo==='H';}).length;
-        var mc=sp.personas.filter(function(p){return p.sexo==='M';}).length;
-        personasLine='Personas: '+(hc?hc+'H ':'')+( mc?mc+'M':'');
-      }
-      // clienteData del item (nuevo flujo)
-      var clienteDataLine='';
-      if(o.specs&&o.specs.items){
-        o.specs.items.forEach(function(it){
-          if(it.clienteData){
-            var cd=it.clienteData;
-            var partes=[];
-            if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-            if(cd.fotografiados){
-              var f=cd.fotografiados;
-              var fStr=[];
-              if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-              if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-              if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-              if(fStr.length) partes.push(fStr.join(', '));
-            }
-            if(partes.length) clienteDataLine+='<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>';
-          }
-        });
-      }
-      // También leer clienteData directo en items de la orden
-      if(!clienteDataLine && o.items){
-        o.items.forEach(function(it){
-          if(it.clienteData){
-            var cd=it.clienteData;
-            var partes=[];
-            if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-            if(cd.fotografiados){
-              var f=cd.fotografiados;
-              var fStr=[];
-              if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-              if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-              if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-              if(fStr.length) partes.push(fStr.join(', '));
-            }
-            if(partes.length) clienteDataLine+='<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>';
-          }
-        });
-      }
-      var specLines=[personasLine,sp.fondo?'Fondo: '+sp.fondo:'',vestLine,digVLine,sp.cabello?'Cabello: '+sp.cabello:'',sp.aretes?'Aretes: '+sp.aretes:'',sp.barba?'Barba: '+sp.barba:'',sp.notas?'📝 '+sp.notas:''].filter(Boolean);
-      specsDetail=lineasHtml+(specLines.length?'<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #eee;">'+specLines.map(function(s){return '<div>'+s+'</div>';}).join('')+'</div>':'');
-    }
-    // Mostrar fotografiadosResumen si existe (evita duplicados)
-    if(o.specs && o.specs.fotografiadosResumen){
-      var fResumen = '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+o.specs.fotografiadosResumen+'</div>';
-      specsDetail = fResumen + specsDetail;
-    }
+    // Specs que ve el laboratorio.
+    // Cuando la orden trae DOS paquetes distintos, cada uno se pinta con SUS
+    // specs. Antes se pintaban los campos de nivel superior, que vienen del
+    // primer paquete, así que el segundo salía con el fondo/vestimenta/cabello
+    // equivocados aunque el dato correcto sí estaba guardado en specs.items[].
+    var specsDetail = _specsOrdenHTML(o);
+
     return '<tr style="'+rowStyle+'" id="prod-row-'+o.folio+'">'
       + '<td id="prod-chk-td-'+o.folio+'" style="display:none;text-align:center;padding:10px 8px;vertical-align:top;"><input type="checkbox" class="prod-sel-chk" data-folio="'+o.folio+'" onchange="actualizarSelCount()"></td>'
       + '<td style="padding:10px 12px;vertical-align:top;">'
@@ -6253,6 +6430,9 @@ function renderProduccion(lista){
       + notaBtn
       + '</div>'
       + '<div style="font-size:11px;color:#333;margin-top:3px;max-width:240px;">'+(o.info||'').replace(/\s*\([HM](,\s*[^)]*)?\)/g,'').trim()+'</div>'
+      // Foto de especificaciones de la escuela: el vendedor la ve en el lightbox
+      // y el laboratorio trabajaba solo con texto
+      + (o.imgEscuela?'<img src="'+o.imgEscuela+'" onclick="abrirSpecFullscreen(this,\x27Especificaciones — '+String(o.info||'').replace(/'/g,'').slice(0,40)+'\x27)" style="width:64px;height:64px;object-fit:cover;border:1px solid #e0e0e0;border-radius:6px;margin-top:5px;cursor:zoom-in;" title="Toca para ver en grande">':'')
       + (specsDetail?'<div style="font-size:10px;color:#555;margin-top:4px;max-width:240px;">'+specsDetail+'</div>':'')
       + notaDisplay
       + alertaBadge
