@@ -360,6 +360,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
   }
 }
 
+/* Una sola clase de card para Reportes. Antes había 6 variantes escritas
+   inline con radios de 8 y 10 y paddings de 10/12/14. */
+.rcard{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;}
+.rtitle{font-size:12px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+#page-reportes .stat{padding:12px;}
+
 /* ── REPORTES EN PANTALLA TÁCTIL ─────────────────────────────
    La media query táctil de arriba agranda la navegación y el carrito pero no
    tocaba ni un control de Reportes: los tabs medían ~26px, los botones del
@@ -786,60 +792,50 @@ body.en-reportes .cart-panel { display: none !important; }
     <div id="page-reportes" class="page">
       <div class="hrow">
         <div><p class="ptitle">Reportes</p><p class="psub" style="margin:0;">Historial permanente de ventas</p></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn bgray" style="font-size:11px;" onclick="exportarCSV()"><i class="ti ti-file-spreadsheet"></i> Exportar CSV</button>
-          <button class="btn bgray" style="font-size:11px;" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial precios</button>
-          <button class="btn bgray" style="font-size:11px;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Limpiar ventas</button>
-        </div>
-      </div>
-      <!-- Botones rápidos -->
-      <!-- RESPALDO EN DISCO -->
-      <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <div>
-            <p style="font-size:12px;font-weight:600;color:#111;margin-bottom:2px;"><i class="ti ti-device-floppy"></i> Respaldo en disco</p>
-            <p id="respaldo-estado" style="font-size:11px;color:#A32D2D;margin:0;">Respaldo desactivado</p>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn bgreen" style="font-size:11px;" onclick="RESPALDO._reactivar()"><i class="ti ti-folder"></i> Activar / archivo</button>
-            <button class="btn bgray" style="font-size:11px;" onclick="RESPALDO.reconciliarCompleto()"><i class="ti ti-download"></i> Exportar todo ahora</button>
-            <button class="btn bgray" style="font-size:11px;" onclick="RESPALDO.restaurar()"><i class="ti ti-upload"></i> Restaurar → Firebase</button>
-          </div>
-        </div>
-      </div>
-      <div class="tabs" style="margin-bottom:12px;flex-wrap:nowrap;overflow-x:auto;" id="rep-tabs">
-        <div class="tab active" onclick="cambiarPeriodo('hoy',this)"><i class="ti ti-sun" style="font-size:12px;"></i> Hoy</div>
-        <div class="tab" onclick="cambiarPeriodo('semana',this)"><i class="ti ti-calendar-week" style="font-size:12px;"></i> Esta semana</div>
-        <div class="tab" onclick="cambiarPeriodo('mes',this)"><i class="ti ti-calendar-month" style="font-size:12px;"></i> Este mes</div>
-        <div class="tab" onclick="cambiarPeriodo('anio',this)"><i class="ti ti-calendar" style="font-size:12px;"></i> Este año</div>
+        <button class="btn bgray" onclick="openM('m-rep-herramientas')"><i class="ti ti-settings"></i> Herramientas</button>
       </div>
 
-      <!-- Calendario avanzado -->
-      <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:14px;">
-        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-          <button id="cal-btn-dia" class="btn bgreen" style="font-size:11px;padding:5px 12px;" onclick="selModo('dia')"><i class="ti ti-calendar-event"></i> Día</button>
-          <button id="cal-btn-rango" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="selModo('rango')"><i class="ti ti-calendar-stats"></i> Rango</button>
-          <button id="cal-btn-mes" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="selModo('mes_cal')"><i class="ti ti-calendar-month"></i> Mes</button>
+      <!-- PERÍODO — un solo control. Antes había dos widgets apilados (tabs y
+           calendario) que hacían lo mismo y solo se distinguían por el color. -->
+      <div class="rcard" style="margin-bottom:12px;">
+        <div class="tabs" style="margin-bottom:0;flex-wrap:wrap;" id="rep-tabs">
+          <div class="tab active" onclick="cambiarPeriodo('hoy',this)"><i class="ti ti-sun" style="font-size:12px;"></i> Hoy</div>
+          <div class="tab" onclick="cambiarPeriodo('semana',this)"><i class="ti ti-calendar-week" style="font-size:12px;"></i> Esta semana</div>
+          <div class="tab" onclick="cambiarPeriodo('mes',this)"><i class="ti ti-calendar-month" style="font-size:12px;"></i> Este mes</div>
+          <div class="tab" onclick="cambiarPeriodo('anio',this)"><i class="ti ti-calendar" style="font-size:12px;"></i> Este año</div>
+          <div class="tab" id="rep-tab-otro" onclick="toggleCalAvanzado(this)"><i class="ti ti-calendar-event" style="font-size:12px;"></i> Otro…</div>
         </div>
-        <!-- Modo Día -->
-        <div id="cal-dia" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <input type="date" id="cal-dia-val" style="flex:1;min-width:140px;font-size:13px;">
-          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+
+        <div id="rep-cal-avanzado" style="display:none;margin-top:10px;padding-top:10px;border-top:1px dashed #e0e0e0;">
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <button id="cal-btn-dia" class="btn bgreen" onclick="selModo('dia')"><i class="ti ti-calendar-event"></i> Día</button>
+            <button id="cal-btn-rango" class="btn bgray" onclick="selModo('rango')"><i class="ti ti-calendar-stats"></i> Rango</button>
+            <button id="cal-btn-mes" class="btn bgray" onclick="selModo('mes_cal')"><i class="ti ti-calendar-month"></i> Mes</button>
+          </div>
+          <div id="cal-dia" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="date" id="cal-dia-val" style="flex:1;min-width:150px;">
+            <button class="btn bgreen" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+          </div>
+          <div id="cal-rango" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="date" id="cal-desde" style="flex:1;min-width:140px;">
+            <span style="font-size:12px;color:#666;">hasta</span>
+            <input type="date" id="cal-hasta" style="flex:1;min-width:140px;">
+            <button class="btn bgreen" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+          </div>
+          <div id="cal-mes" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="month" id="cal-mes-val" style="flex:1;min-width:150px;">
+            <button class="btn bgreen" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+          </div>
         </div>
-        <!-- Modo Rango -->
-        <div id="cal-rango" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-          <input type="date" id="cal-desde" style="flex:1;min-width:130px;font-size:13px;">
-          <span style="font-size:12px;color:#888;">hasta</span>
-          <input type="date" id="cal-hasta" style="flex:1;min-width:130px;font-size:13px;">
-          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
-        </div>
-        <!-- Modo Mes -->
-        <div id="cal-mes" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-          <input type="month" id="cal-mes-val" style="flex:1;min-width:140px;font-size:13px;">
-          <button class="btn bgreen" style="font-size:12px;" onclick="consultarCal()"><i class="ti ti-search"></i> Consultar</button>
+
+        <div style="margin-top:8px;font-size:12px;color:#666;">
+          Mostrando: <strong id="rep-periodo-txt" style="color:#111;">—</strong>
+          <span id="rep-cargando" style="display:none;color:#BA7517;font-weight:600;margin-left:8px;">· cargando…</span>
         </div>
       </div>
-      <div class="g2" style="margin-bottom:8px;">
+
+      <!-- KPIs — antes aparecían a ~330px de scroll, después del respaldo -->
+      <div class="g2" style="margin-bottom:12px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
           <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
           <div class="ss" id="rep-periodo">—</div>
@@ -848,95 +844,90 @@ body.en-reportes .cart-panel { display: none !important; }
           <div class="sl">Ventas</div><div class="sv" id="rep-numventas">0</div>
           <div class="ss" id="rep-ticketprom">Ticket prom: $0</div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e0e0e0;display:flex;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:#0C7ED6;">⚡ <span id="rep-cnt-urg">0</span> urg</span>
-            <span style="font-size:11px;color:#0C447C;">📅 <span id="rep-cnt-ord">0</span> ord</span>
-            <span style="font-size:11px;color:#1D9E75;">🖨 <span id="rep-cnt-imp">0</span> imp</span>
-          </div>
-          <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:#0C7ED6;font-weight:600;"><span id="rep-total-urg">$0</span> urgentes</span>
-            <span style="font-size:11px;color:#0C447C;font-weight:600;"><span id="rep-total-ord">$0</span> escolares</span>
-            <span id="rep-total-imp-wrap" style="font-size:12px;color:#1D9E75;font-weight:600;display:none;"><span id="rep-total-imp"></span></span>
+            <span style="font-size:12px;color:#0C7ED6;">⚡ <span id="rep-cnt-urg">0</span> urg · <span id="rep-total-urg">$0</span></span>
+            <span style="font-size:12px;color:#0C447C;">📅 <span id="rep-cnt-ord">0</span> esc · <span id="rep-total-ord">$0</span></span>
+            <span id="rep-total-imp-wrap" style="font-size:12px;color:#1D9E75;display:none;">🖨 <span id="rep-cnt-imp">0</span> imp · <span id="rep-total-imp"></span></span>
           </div>
         </div>
       </div>
-      <div class="g2" style="margin-bottom:14px;">
-        <div class="stat" style="background:#EBF3FF;border-color:#90BEFF;">
-          <div class="sl">Personas fotografiadas (urgentes)</div>
-          <div class="sv" style="color:#0C447C;" id="rep-fotos-urg">—</div>
-          <div class="ss" id="rep-fotos-urg-hm" style="color:#555;">—</div>
+
+      <!-- PESTAÑAS: cada dato vive en un solo lugar -->
+      <div class="tabs" style="margin-bottom:12px;flex-wrap:wrap;" id="rep-subtabs">
+        <div class="tab active" onclick="showRepTab('resumen',this)">Resumen</div>
+        <div class="tab" onclick="showRepTab('productos',this)">Productos</div>
+        <div class="tab" onclick="showRepTab('escuelas',this)">Escuelas</div>
+        <div class="tab" onclick="showRepTab('historial',this)">Historial</div>
+      </div>
+
+      <!-- ── RESUMEN ── -->
+      <div id="rt-resumen" class="rep-tab-panel">
+        <div class="g2" style="margin-bottom:12px;">
+          <div class="stat" style="background:#EBF3FF;border-color:#90BEFF;">
+            <div class="sl">Personas fotografiadas (urgentes)</div>
+            <div class="sv" style="color:#0C447C;" id="rep-fotos-urg">—</div>
+            <div class="ss" id="rep-fotos-urg-hm" style="color:#555;">—</div>
+          </div>
+          <div class="stat" style="background:#f7f7f5;border-color:#e0e0e0;">
+            <div class="sl">Fotografiados (escolares)</div>
+            <div class="sv" style="color:#0C447C;" id="rep-fotos-ord">—</div>
+            <div class="ss" id="rep-fotos-ord-hm" style="color:#555;">—</div>
+          </div>
         </div>
-        <div class="stat" style="background:#f7f7f5;border-color:#e0e0e0;">
-          <div class="sl">Fotografiados (ordinarios)</div>
-          <div class="sv" style="color:#0C447C;" id="rep-fotos-ord">—</div>
-          <div class="ss" id="rep-fotos-ord-hm" style="color:#555;">—</div>
+        <div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;margin-bottom:12px;">
+          <p class="slabel" style="margin-bottom:6px;">Cómo pagan</p>
+          <div id="rep-mkt-pago" style="margin-bottom:12px;"></div>
+          <p class="slabel" style="margin-bottom:6px;">Ventas por día</p>
+          <div id="rep-mkt-dias"></div>
+        </div>
+        <div id="rep-urgentes-specs" style="display:none;">
+          <div class="rcard" style="background:#FAEEDA;border-color:#e8d0a0;">
+            <p class="rtitle" style="color:#633806;"><i class="ti ti-chart-bar"></i> Quién compra y cómo</p>
+            <div id="rep-specs-grid"></div>
+          </div>
         </div>
       </div>
-      <!-- Consulta por producto -->
-      <div style="margin-bottom:16px;">
-        <p class="slabel" style="margin-bottom:10px;"><i class="ti ti-search"></i> Consulta por producto</p>
-        <div style="background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-            <div style="flex:2;min-width:160px;">
-              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Producto</div>
-              <select id="cprod-nombre" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;background:white;">
-                <option value="">— Selecciona —</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:130px;">
-              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Desde</div>
-              <input type="date" id="cprod-desde" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;box-sizing:border-box;">
-            </div>
-            <div style="flex:1;min-width:130px;">
-              <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;">Hasta</div>
-              <input type="date" id="cprod-hasta" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid #d0d0d0;border-radius:8px;box-sizing:border-box;">
-            </div>
-            <button class="btn bgreen" style="font-size:12px;padding:8px 16px;white-space:nowrap;" onclick="consultarProducto()"><i class="ti ti-search"></i> Consultar</button>
+
+      <!-- ── PRODUCTOS ── -->
+      <div id="rt-productos" class="rep-tab-panel" style="display:none;">
+        <div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;margin-bottom:12px;">
+          <p class="slabel" style="margin-bottom:6px;">Ranking de productos</p>
+          <div id="rep-mkt-productos" style="margin-bottom:12px;"></div>
+          <p class="slabel" style="margin-bottom:6px;">Para qué vienen (por producto)</p>
+          <div id="rep-mkt-prop"></div>
+        </div>
+        <div class="rcard" style="margin-bottom:8px;">
+          <p class="slabel" style="margin-bottom:8px;"><i class="ti ti-search"></i> Consulta un producto</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="cprod-nombre" style="flex:2;min-width:180px;">
+              <option value="">— Selecciona —</option>
+            </select>
+            <button class="btn bgreen" onclick="consultarProducto()"><i class="ti ti-search"></i> Consultar</button>
           </div>
+          <p style="font-size:12px;color:#666;margin-top:8px;margin-bottom:0;">Dentro del período seleccionado arriba: <strong id="cprod-periodo">—</strong></p>
         </div>
         <div id="cprod-resultado" style="display:none;"></div>
       </div>
 
-      <!-- PANEL DE MARKETING: qué se vende, para qué, cómo pagan y qué días -->
-      <div style="background:#F2F8F5;border:1px solid #bfe3d2;border-radius:10px;padding:12px;margin-bottom:16px;">
-        <p style="font-size:11px;font-weight:600;color:#085041;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-chart-bar"></i> Qué vendo y para qué</p>
-        <p class="slabel" style="margin-bottom:6px;">Ranking de productos</p>
-        <div id="rep-mkt-productos" style="margin-bottom:12px;"></div>
-        <p class="slabel" style="margin-bottom:6px;">Para qué vienen (por producto)</p>
-        <div id="rep-mkt-prop" style="margin-bottom:12px;"></div>
-        <p class="slabel" style="margin-bottom:6px;">Cómo pagan</p>
-        <div id="rep-mkt-pago" style="margin-bottom:12px;"></div>
-        <p class="slabel" style="margin-bottom:6px;">Ventas por día</p>
-        <div id="rep-mkt-dias"></div>
+      <!-- ── ESCUELAS ── -->
+      <div id="rt-escuelas" class="rep-tab-panel" style="display:none;">
+        <div id="rep-ordinarios-desglose" style="margin-bottom:12px;display:none;">
+          <div class="rcard" style="background:#EEF4FA;border-color:#a0c4e8;">
+            <p class="rtitle" style="color:#0C447C;"><i class="ti ti-school"></i> Por escuela</p>
+            <div id="rep-ord-grid"></div>
+          </div>
+        </div>
+        <div id="rep-esc-meses"></div>
       </div>
 
-      <p class="slabel">Urgentes</p>
-      <div id="rep-urgentes" style="margin-bottom:8px;"></div>
-      <!-- Desglose specs urgentes -->
-      <div id="rep-urgentes-specs" style="margin-bottom:14px;display:none;">
-        <div style="background:#FAEEDA;border:1px solid #e8d0a0;border-radius:10px;padding:12px;">
-          <p style="font-size:11px;font-weight:600;color:#633806;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-chart-bar"></i> Desglose con especificaciones</p>
-          <div id="rep-specs-grid"></div>
+      <!-- ── HISTORIAL ── -->
+      <div id="rt-historial" class="rep-tab-panel" style="display:none;">
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <input type="text" id="rep-buscar-folio" placeholder="Buscar por folio (ej: ESC-0017-MAY-2026)..." style="flex:1;" oninput="filtrarHistorial()">
+          <button class="btn bgray" onclick="document.getElementById('rep-buscar-folio').value='';filtrarHistorial()"><i class="ti ti-x"></i></button>
         </div>
+        <p style="font-size:12px;color:#666;margin-bottom:10px;">Busca dentro del período cargado arriba.</p>
+        <div id="rep-historial"><p style="font-size:12px;color:#666;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
       </div>
-      <p class="slabel">Visas y Pasaportes</p>
-      <div id="rep-visas" style="margin-bottom:14px;"></div>
-      <p class="slabel">Paquetes escolares</p>
-      <div id="rep-escuelas" style="margin-bottom:8px;"></div>
-      <!-- Desglose ordinarios -->
-      <div id="rep-ordinarios-desglose" style="margin-bottom:14px;display:none;">
-        <div style="background:#EEF4FA;border:1px solid #a0c4e8;border-radius:10px;padding:12px;">
-          <p style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-school"></i> Desglose paquetes escolares</p>
-          <div id="rep-ord-grid"></div>
-        </div>
-      </div>
-      <p class="slabel">Impresiones</p>
-      <div id="rep-impresiones" style="margin-bottom:14px;"></div>
-      <p class="slabel">Historial de ventas</p>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <input type="text" id="rep-buscar-folio" placeholder="Buscar por folio (ej: ESC-0017-MAY-2026)..." style="flex:1;font-size:12px;" oninput="filtrarHistorial()">
-        <button class="btn bgray" style="font-size:11px;padding:6px 12px;" onclick="document.getElementById('rep-buscar-folio').value='';filtrarHistorial()"><i class="ti ti-x"></i></button>
-      </div>
-      <div id="rep-historial"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
     </div>
 
   </div>
@@ -2904,10 +2895,11 @@ function selModo(modo){
   // Resaltar botón activo
   ['dia','rango','mes_cal'].forEach(m=>{
     const btn=document.getElementById('cal-btn-'+( m==='mes_cal'?'mes':m));
-    if(btn){btn.className=m===modo?'btn bgreen':'btn bgray';btn.style.fontSize='11px';btn.style.padding='5px 12px';}
+    if(btn) btn.className = (m===modo) ? 'btn bgreen' : 'btn bgray';
   });
-  // Quitar activo de tabs rápidos
   document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+  var tOtro=document.getElementById('rep-tab-otro');
+  if(tOtro) tOtro.classList.add('active');
 }
 
 function consultarCal(){
@@ -2919,12 +2911,38 @@ function cambiarPeriodo(p,el){
   periodoActual=p;
   document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
-  // Quitar resaltado de botones calendario
   ['dia','rango','mes'].forEach(m=>{
     const btn=document.getElementById('cal-btn-'+m);
-    if(btn){btn.className='btn bgray';btn.style.fontSize='11px';btn.style.padding='5px 12px';}
+    if(btn) btn.className='btn bgray';
   });
+  var cal=document.getElementById('rep-cal-avanzado');
+  if(cal) cal.style.display='none';   // se eligió un período rápido
   cargarReportes();
+}
+
+// El calendario ya no es un widget permanente compitiendo con los tabs:
+// se despliega desde el tab "Otro…"
+function toggleCalAvanzado(el){
+  var cal=document.getElementById('rep-cal-avanzado');
+  if(!cal) return;
+  var abierto = cal.style.display!=='none';
+  cal.style.display = abierto ? 'none' : 'block';
+  if(!abierto){
+    document.querySelectorAll('#rep-tabs .tab').forEach(t=>t.classList.remove('active'));
+    if(el) el.classList.add('active');
+    if(!calModo) calModo='dia';
+    selModo(calModo);
+  }
+}
+
+// Pestañas internas de Reportes
+function showRepTab(id, el){
+  ['resumen','productos','escuelas','historial'].forEach(function(k){
+    var p=document.getElementById('rt-'+k);
+    if(p) p.style.display = (k===id) ? 'block' : 'none';
+  });
+  document.querySelectorAll('#rep-subtabs .tab').forEach(function(t){ t.classList.remove('active'); });
+  if(el) el.classList.add('active');
 }
 
 function getFechaStr(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});}
@@ -2935,10 +2953,18 @@ function fechaInputToStr(val){
   return d+'/'+m+'/'+y;
 }
 
+function _repCargando(on){
+  var c=document.getElementById('rep-cargando');
+  if(c) c.style.display = on ? 'inline' : 'none';
+  var p=document.getElementById('page-reportes');
+  if(p) p.style.opacity = on ? '.65' : '1';
+}
+
 async function cargarReportes(){
   if(!db){mostrarReportesLocal();return;}
   const el=document.getElementById('rep-historial');
-  if(el)el.innerHTML='<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
+  if(el)el.innerHTML='<p style="font-size:12px;color:#666;text-align:center;padding:16px;">Cargando...</p>';
+  _repCargando(true);
   try{
     const now=new Date();
     let snap;
@@ -2996,6 +3022,7 @@ async function cargarReportes(){
     }
     renderReportes();
   }catch(e){console.error(e);mostrarReportesLocal();}
+  finally{ _repCargando(false); }
 }
 
 function mostrarReportesLocal(){
@@ -3146,6 +3173,37 @@ function renderMarketing(ventasActivas){
   }
 }
 
+// Texto legible del período cargado. Antes el estado solo se deducía de qué
+// botón había quedado verde entre dos widgets distintos.
+function _periodoTexto(){
+  var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var hoy=new Date();
+  var bonito=function(k){
+    if(!k) return '';
+    var p=k.split('-');
+    return parseInt(p[2])+' '+MES[parseInt(p[1])-1]+' '+p[0];
+  };
+  if(periodoActual==='hoy')    return 'hoy, '+bonito(fechaKeyDe(hoy));
+  if(periodoActual==='semana') return 'últimos 7 días';
+  if(periodoActual==='mes')    return MES[hoy.getMonth()]+' '+hoy.getFullYear();
+  if(periodoActual==='anio')   return 'año '+hoy.getFullYear();
+  if(periodoActual==='dia'){
+    var v=(document.getElementById('cal-dia-val')||{}).value;
+    return v ? bonito(v) : 'un día';
+  }
+  if(periodoActual==='rango'){
+    var d=(document.getElementById('cal-desde')||{}).value, h=(document.getElementById('cal-hasta')||{}).value;
+    return (d&&h) ? (bonito(d)+' a '+bonito(h)) : 'un rango';
+  }
+  if(periodoActual==='mes_cal'){
+    var m=(document.getElementById('cal-mes-val')||{}).value;
+    if(!m) return 'un mes';
+    var q=m.split('-');
+    return MES[parseInt(q[1])-1]+' '+q[0];
+  }
+  return '—';
+}
+
 function renderReportes(){
   // Excluir ventas canceladas de todos los contadores
   const ventasActivas=ventasFB.filter(v=>!v.cancelado);
@@ -3157,6 +3215,8 @@ function renderReportes(){
   set('rep-total','$'+total.toLocaleString());
   set('rep-numventas',num);
   set('rep-periodo',labels[periodoActual]||'—');
+  set('rep-periodo-txt', _periodoTexto());
+  set('cprod-periodo', _periodoTexto());
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
   // Conteo por tipo
   var cntUrg=0, cntOrd=0, cntImp=0;
@@ -3251,6 +3311,7 @@ function renderReportes(){
   set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
   renderSeccion('rep-impresiones',imp);
   renderMarketing(ventasActivas);
+  renderTablaEscuelasMes(ventasActivas);
   renderDesgloseSpecs(ventasActivas);
   renderDesgloseOrdinarios(ventasActivas);
   poblarSelectProductos();
@@ -3268,7 +3329,6 @@ function renderDesgloseSpecs(ventas){
   var itemsConSpecs = [];
   var clientesData = [];
   // Análisis temporal escuelas ordinarias
-  var escuelasTemporales = {}; // {nombre: {ventas:0, meses:{}, total:0}}
   var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   ventas.forEach(function(v){
     if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
@@ -3281,15 +3341,12 @@ function renderDesgloseSpecs(ventas){
       }
     });
   });
-  // Escuelas ordinarias: misma agrupacion que el otro reporte (por _id, no por texto)
-  escuelasTemporales = agruparEscuelas(ventas).porEscuela;
 
   // La tabla de escuelas por mes vive dentro de esta seccion, asi que el corte
   // no puede depender solo de los datos de urgentes: un periodo con ventas
   // escolares pero sin specs de urgentes hacia DESAPARECER la tabla entera.
-  var hayEscuelas = Object.keys(escuelasTemporales).length > 0;
   var totalDatos = itemsConSpecs.length + clientesData.length;
-  if(!totalDatos && !hayEscuelas){ sec.style.display='none'; return; }
+  if(!totalDatos){ sec.style.display='none'; return; }
   sec.style.display='block';
 
   // --- Análisis de quien paga (clienteData) ---
@@ -3435,17 +3492,8 @@ function renderDesgloseSpecs(ventas){
 
   // Specs (mini calculadora)
   if(itemsConSpecs.length){
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Sexo (con specs)</p>'
-      +barra('Hombre', sSexo.H, totalSpecs, '#0C447C')
-      +barra('Mujer', sSexo.M, totalSpecs, '#7C0C44')
-      +'</div>';
-
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
-      +barra('Color', color, totalSpecs, '#1D9E75')
-      +barra('B/N', bn, totalSpecs, '#555')
-      +'</div>';
+    // Se quitaron las cards "Sexo (con specs)" y su Color/B&N: repetían las de
+    // arriba ("Sexo (quien paga)" y el Color/B&N de la columna derecha).
 
     html += '<div style="background:white;border-radius:8px;padding:10px;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Adherible</p>'
@@ -3468,11 +3516,28 @@ function renderDesgloseSpecs(ventas){
       +'</div></div>';
   }
 
-  // Tabla temporal escuelas ordinarias
-  var escTemp = Object.entries(escuelasTemporales).sort(function(a,b){return b[1].ventas-a[1].ventas;});
+
+  html += '</div>';
+  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'
+    +(clientesData.length?clientesData.length+' venta'+(clientesData.length!==1?'s':'')+' rápida'+(clientesData.length!==1?'s':'')+' con datos':'')
+    +(itemsConSpecs.length?' · '+itemsConSpecs.length+' con especificaciones':'')
+    +'</div>';
+  grid.innerHTML = html;
+}
+
+// Tabla de actividad por mes. Antes vivía DENTRO del bloque naranja que
+// cuelga de la etiqueta Urgentes, y por eso desaparecía cuando el período no
+// tenía datos de urgentes. Ahora es su propia sección, en la pestaña Escuelas.
+function renderTablaEscuelasMes(ventas){
+  var cont = document.getElementById('rep-esc-meses');
+  if(!cont) return;
+  var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var agr = agruparEscuelas(ventas);
+  var html = '';
+
+  var escTemp = Object.entries(agr.porEscuela).sort(function(a,b){return b[1].ventas-a[1].ventas;});
   if(escTemp.length){
-    sec.style.display='block';
-    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;margin-top:4px;">'
+    html = '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;margin-top:4px;">'
       +'<p style="font-size:11px;font-weight:600;color:#666;margin-bottom:8px;text-transform:uppercase;">📅 Escuelas ordinarias — actividad por mes</p>'
       +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
       +'<table style="width:100%;min-width:460px;border-collapse:collapse;font-size:12px;">'
@@ -3502,13 +3567,7 @@ function renderDesgloseSpecs(ventas){
           +'</tr>';      }).join('')
       +'</tbody></table></div></div>';
   }
-
-  html += '</div>';
-  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'
-    +(clientesData.length?clientesData.length+' venta'+(clientesData.length!==1?'s':'')+' rápida'+(clientesData.length!==1?'s':'')+' con datos':'')
-    +(itemsConSpecs.length?' · '+itemsConSpecs.length+' con especificaciones':'')
-    +'</div>';
-  grid.innerHTML = html;
+  cont.innerHTML = html ? ('<div class="rcard">'+html+'</div>') : '';
 }
 
 // ── AGRUPAR VENTAS DE ESCUELA (una sola implementacion) ──────
@@ -3659,13 +3718,15 @@ function consultarProducto(){
   var sel=document.getElementById('cprod-nombre');
   var prodId = (sel.value||'').trim();
   var nombre = sel.selectedIndex>0 ? sel.options[sel.selectedIndex].text : '';
-  var desde  = document.getElementById('cprod-desde').value;
-  var hasta  = document.getElementById('cprod-hasta').value;
   var res    = document.getElementById('cprod-resultado');
+  // Estos campos ya no existen: la consulta trabaja sobre el periodo cargado
+  // arriba. Antes tenia sus propias fechas pero NO consultaba la base, solo
+  // filtraba lo ya cargado, asi que un rango distinto daba "sin resultados".
+  var _ks = (ventasFB||[]).map(fechaKeyDeVenta).filter(Boolean).sort();
+  var desde = _ks[0] || '0000-00-00';
+  var hasta = _ks[_ks.length-1] || '9999-99-99';
 
   if(!prodId){ alert('Selecciona un producto'); return; }
-  if(!desde || !hasta){ alert('Selecciona rango de fechas'); return; }
-  if(desde > hasta){ alert('La fecha de inicio debe ser anterior a la fecha de fin'); return; }
 
   var itemsFiltrados = [];
   (ventasFB||[]).forEach(function(v){
@@ -7252,6 +7313,34 @@ const RESPALDO = (function(){
     <button class="btn bgray" onclick="saltarGuardarPaquete()">No guardar — solo agregar</button>
     <button class="btn bgray" id="gp-btn-actualizar" style="display:none;color:#0C447C;border-color:#90BEFF;" onclick="actualizarEscuelaExistente()"><i class="ti ti-refresh"></i> Actualizar la escuela</button>
     <button class="btn bgreen" onclick="confirmarGuardarPaquete()"><i class="ti ti-device-floppy"></i> Guardar como nueva</button>
+  </div>
+</div></div>
+
+<!-- MODAL HERRAMIENTAS DE REPORTES -->
+<!-- El card de "Respaldo en disco" estaba arriba del todo en Reportes: era lo
+     segundo que se veía al abrir, por encima de los números de venta. -->
+<div class="modal-ov" id="m-rep-herramientas"><div class="modal-box" style="width:360px;">
+  <p class="modal-t"><i class="ti ti-settings"></i> Herramientas</p>
+
+  <p class="slabel" style="margin-bottom:6px;">Respaldo en disco</p>
+  <p id="respaldo-estado" style="font-size:12px;color:#A32D2D;margin-bottom:8px;">Respaldo desactivado</p>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+    <button class="btn bgreen" onclick="RESPALDO._reactivar()"><i class="ti ti-folder"></i> Activar / archivo</button>
+    <button class="btn bgray" onclick="RESPALDO.reconciliarCompleto()"><i class="ti ti-download"></i> Exportar todo ahora</button>
+    <button class="btn bgray" onclick="RESPALDO.restaurar()"><i class="ti ti-upload"></i> Restaurar → Firebase</button>
+  </div>
+
+  <p class="slabel" style="margin-bottom:6px;">Datos</p>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+    <button class="btn bgray" onclick="exportarCSV()"><i class="ti ti-file-spreadsheet"></i> Exportar CSV</button>
+    <button class="btn bgray" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial de precios</button>
+  </div>
+
+  <p class="slabel" style="margin-bottom:6px;color:#A32D2D;">Zona peligrosa</p>
+  <button class="btn bgray" style="color:#A32D2D;border-color:#f5c0c0;width:100%;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Borrar TODAS las ventas</button>
+
+  <div class="modal-btns" style="margin-top:14px;">
+    <button class="btn bgray" onclick="closeM('m-rep-herramientas')">Cerrar</button>
   </div>
 </div></div>
 
