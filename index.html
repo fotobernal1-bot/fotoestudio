@@ -1296,6 +1296,37 @@ function productoDeItem(it){
   return {id:'txt_'+slug, nombre:limpio};
 }
 
+// ── QUIÉN PAGA: se pregunta la excepción, no lo obvio ────────
+// Antes se pedían sexo y edad del pagador en cada venta con seis botones.
+// Medido sobre 1,331 ventas, la EDAD salió inservible: se registró "30-50" en
+// el 85% de los casos aunque el retratado fuera de 0-17, de 18-30 o de 30-50.
+// Ese es el botón de en medio tocado por reflejo, no una observación.
+// Ahora se asume lo normal —paga el que se retrata— y solo se captura cuando
+// NO es así. Cuando sí lo es, el dato no se pierde: se deduce del contador de
+// fotografiados, que ya estaba capturado. Sale más completo y con menos toques.
+var _EDAD_DE_GRUPO = {nino:'0-17', joven:'18-30', adulto:'30-50', adulto_plus:'50+'};
+
+function _pagadorDeItem(cd){
+  if(!cd) return {sexo:'', edad:'', fuente:'sin-datos'};
+  // Capturado: marcaste que paga otra persona
+  if(cd.pagaOtro) return {sexo:cd.sexo||'', edad:cd.edad||'', fuente:'capturado'};
+  // Deducido: paga el retratado, y hay exactamente uno de quien deducirlo
+  if(cd.pagaOtro===false){
+    var f=cd.fotografiados||{}, total=0, sexo='', edad='';
+    ['nino','joven','adulto','adulto_plus'].forEach(function(g){
+      var h=f[g+'_h']||0, m=f[g+'_m']||0;
+      if(h){ total+=h; sexo='H'; edad=_EDAD_DE_GRUPO[g]; }
+      if(m){ total+=m; sexo='M'; edad=_EDAD_DE_GRUPO[g]; }
+    });
+    // Con dos o más retratados no hay de dónde deducir: mejor vacío que inventado
+    if(total!==1) return {sexo:'', edad:'', fuente:'derivado-ambiguo'};
+    return {sexo:sexo, edad:edad, fuente:'derivado'};
+  }
+  // Ventas anteriores a v23: no traen la marca. Se leen igual que siempre,
+  // pero se etiquetan para poder avisar que su edad arrastra el sesgo.
+  return {sexo:cd.sexo||'', edad:cd.edad||'', fuente:'historico'};
+}
+
 // ── clienteData CON UNA SOLA FORMA ───────────────────────────
 // Antes existían dos objetos distintos con el mismo nombre: el de urgentes
 // (con propósito, color, adherible, adulto_plus) y el de escuelas (sin nada de
@@ -1305,6 +1336,9 @@ function nuevoClienteData(p){
   var f = p.fotografiados || {};
   return {
     sexo: p.sexo||'', edad: p.edad||'', proposito: p.proposito||'',
+    // v23: true solo cuando paga alguien distinto del retratado. Las ventas
+    // viejas no lo traen y _pagadorDeItem las trata como histórico.
+    pagaOtro: !!p.pagaOtro,
     colorBN: p.colorBN||'', escuela: p.escuela||'', otroDesc: p.otroDesc||'',
     tramiteDesc: p.tramiteDesc||'', trabajoDesc: p.trabajoDesc||'',
     inscripcionEscuela: p.inscripcionEscuela||'',
@@ -1492,7 +1526,7 @@ function crLimpiarPrecio(){
 function abrirClienteRapido(nombre, precio, tipo, pid){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     productoId: pid||null, productoNombre: nombre, _editIdx: null,
-    sexo:'', edad:'', proposito:'', colorBN:'color',
+    sexo:'', edad:'', proposito:'', colorBN:'color', pagaOtro:false,
     cantidad:1, formato:'', notas:'', precioManual:null, precioAjustado:false,
     foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0, foto_adulto_plus_h:0, foto_adulto_plus_m:0};
   document.getElementById('cr-titulo').textContent = nombre;
@@ -1505,6 +1539,7 @@ function abrirClienteRapido(nombre, precio, tipo, pid){
 // Deja todos los campos del modal en su estado por defecto (no toca la persona seleccionada)
 function _crResetCampos(){
   _clienteRapido.sexo=''; _clienteRapido.edad=''; _clienteRapido.proposito=''; _clienteRapido.colorBN='color';
+  crSetPagaOtro(false);
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].forEach(function(k){ _clienteRapido['foto_'+k]=0; });
   // Reset Color/BN — default Color
   var crColor=document.getElementById('cr-color'); if(crColor) crColor.className='cbn on';
@@ -1569,6 +1604,28 @@ function crSetFormato(val){
   _clienteRapido.formato = val;
   var txt=document.getElementById('cr-formato-txt');
   if(txt){ txt.value = val; if(val==='') txt.focus(); }
+}
+
+// El interruptor. Marcar "paga quien se fotografía" borra sexo y edad: ese
+// dato se deduce después del contador de retratados, no se guarda a medias.
+function crSetPagaOtro(otro){
+  _clienteRapido.pagaOtro = !!otro;
+  var bM=document.getElementById('cr-paga-mismo'), bO=document.getElementById('cr-paga-otro');
+  if(bM) bM.className = otro ? 'btn bgray' : 'btn bgreen';
+  if(bO) bO.className = otro ? 'btn bgreen' : 'btn bgray';
+  var det=document.getElementById('cr-paga-detalle');
+  if(det) det.style.display = otro ? 'block' : 'none';
+  if(!otro){
+    _clienteRapido.sexo=''; _clienteRapido.edad='';
+    ['cr-h1','cr-h2','cr-h3'].forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){b.style.background='#EBF3FF';b.style.borderColor='#90BEFF';b.style.color='#0C447C';b.style.opacity='1';}
+    });
+    ['cr-m1','cr-m2','cr-m3'].forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){b.style.background='#FFEEF5';b.style.borderColor='#FFB3D4';b.style.color='#7C0C44';b.style.opacity='1';}
+    });
+  }
 }
 
 function crSetSexoEdad(sexo, edad, btnIds){
@@ -1795,7 +1852,8 @@ function confirmarClienteRapido(){
   var barbaPrecio = c.barba_edicion||0;
   _crRecalcPrecio(); // garantiza que el precio del carrito sea el de la fórmula única
   var clienteData = nuevoClienteData({
-    sexo: c.sexo, edad: c.edad, proposito: c.proposito,
+    sexo: c.pagaOtro ? c.sexo : '', edad: c.pagaOtro ? c.edad : '',
+    pagaOtro: !!c.pagaOtro, proposito: c.proposito,
     colorBN: c.colorBN||'color',
     escuela: escuela,
     otroDesc: otroDesc,
@@ -1847,7 +1905,10 @@ function abrirModificarUrgente(i){
   _clienteRapido._editIdx = i;
 
   // Sexo / edad de quien paga
-  if(cd.sexo && cd.edad) crSetSexoEdad(cd.sexo, cd.edad, ['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3']);
+  if(cd.pagaOtro || (cd.pagaOtro===undefined && cd.sexo)){
+    crSetPagaOtro(true);
+    if(cd.sexo && cd.edad) crSetSexoEdad(cd.sexo, cd.edad, ['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3']);
+  }
   // Propósito (y su campo de texto)
   if(cd.proposito){
     var IDS=['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'];
@@ -2959,7 +3020,7 @@ function exportarCSV(){
   var periodo = document.getElementById('rep-periodo') ? document.getElementById('rep-periodo').textContent : 'periodo';
   var cols = ['fecha','hora','folio','origen','metodo_pago','producto_id','producto','variante',
               'precio','proposito','detalle_proposito','escuela','color','adherible','camisa_blanca','cantidad','formato','notas','precio_ajustado',
-              'barba_edicion','sexo_paga','edad_paga','personas_fotografiadas','persona','cancelada'];
+              'barba_edicion','paga_otro','sexo_paga','edad_paga','personas_fotografiadas','persona','cancelada'];
   var filas = [];
   (ventasFB||[]).forEach(function(v){
     var fk = fechaKeyDeVenta(v);
@@ -2979,7 +3040,8 @@ function exportarCSV(){
         color: cd.colorBN||'', adherible: cd.adherible?'si':'', camisa_blanca: cd.camisa_blanca?'si':'',
         cantidad: cd.cantidad||'', formato: cd.formato||'', notas: cd.notas||'', precio_ajustado: cd.precioAjustado?'si':'',
         barba_edicion: cd.barba_edicion||0,
-        sexo_paga: cd.sexo||'', edad_paga: cd.edad||'',
+        paga_otro: cd.pagaOtro?'si':'',
+        sexo_paga: _pagadorDeItem(cd).sexo, edad_paga: _pagadorDeItem(cd).edad,
         personas_fotografiadas: nPersonas,
         persona: it.personaNombre || it.personaEtiqueta || '',
         cancelada: v.cancelado?'si':''
@@ -4405,6 +4467,7 @@ function consultarProducto(){
   var cEdadPag={'18-30':0,'30-50':0,'50+':0};
   var cProposito={};
   var sinDatos=0;
+  var pagaOtro=0, pagaMismo=0, pagHistorico=0;
 
   itemsFiltrados.forEach(function(r){
     var it=r.item;
@@ -4412,8 +4475,15 @@ function consultarProducto(){
     totalPaq++;
     var cd = it.clienteData || it.specs || null;
     if(!cd){ sinDatos++; return; }
-    if(cd.sexo) cSexoPag[cd.sexo]=(cSexoPag[cd.sexo]||0)+1;
-    if(cd.edad) cEdadPag[cd.edad]=(cEdadPag[cd.edad]||0)+1;
+    // El pagador sale de _pagadorDeItem: capturado cuando paga otro, deducido
+    // del contador de retratados cuando paga el mismo, o histórico si la venta
+    // es anterior a v23.
+    var pag=_pagadorDeItem(cd);
+    if(pag.fuente==='capturado') pagaOtro++;
+    else if(pag.fuente==='derivado'||pag.fuente==='derivado-ambiguo') pagaMismo++;
+    else if(pag.fuente==='historico') pagHistorico++;
+    if(pag.sexo) cSexoPag[pag.sexo]=(cSexoPag[pag.sexo]||0)+1;
+    if(pag.edad) cEdadPag[pag.edad]=(cEdadPag[pag.edad]||0)+1;
     if(cd.colorBN==='bn') cBN++; else cColor++;
     if(cd.adherible) cAdh++;
     if(cd.proposito){
@@ -4430,8 +4500,9 @@ function consultarProducto(){
       fotoAdultoH+=(f.adulto_h||0); fotoAdultoM+=(f.adulto_m||0);
       fotoAdultoPlusH+=(f.adulto_plus_h||0); fotoAdultoPlusM+=(f.adulto_plus_m||0);
     } else {
-      // specs de urgentes (sexo directo)
-      if(cd.sexo==='H') fotoH+=1; else if(cd.sexo==='M') fotoM+=1;
+      // specs de urgentes (sexo directo). Ojo: si paga OTRA persona, cd.sexo
+      // ya no es el del retratado y contarlo aquí lo falsearía.
+      if(!cd.pagaOtro){ if(cd.sexo==='H') fotoH+=1; else if(cd.sexo==='M') fotoM+=1; }
     }
   });
 
@@ -4454,7 +4525,38 @@ function consultarProducto(){
     html += '<div class="g2" style="gap:10px;">';
 
     // Col izq: Sexo pagador + Edad
-    html += '<div class="rsub">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexoPag.H, conDatos, '#0C447C')      +barra('Mujer', cSexoPag.M, conDatos, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdadPag['18-30'], conDatos, '#1D9E75')      +barra('30-50', cEdadPag['30-50'], conDatos, '#0C7ED6')      +barra('50+', cEdadPag['50+'], conDatos, '#BA7517')      +'</div>'      +(cColor+cBN>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor, cColor+cBN, '#1D9E75')          +barra('B/N', cBN, cColor+cBN, '#555')          +'</div>'        : '')      +(cAdh>0?'<div style="margin-top:6px;font-size:11px;color:#BA7517;">⊕ '+cAdh+' con adherible</div>':'')      +'</div>';
+    var pagTotal = pagaOtro+pagaMismo;
+    var pctOtro = pagTotal ? Math.round(pagaOtro/pagTotal*100) : 0;
+    html += '<div class="rsub">'
+      // La métrica que antes no existía: cada cuánto paga alguien distinto
+      + (pagTotal
+          ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Quien paga</p>'
+            +barra('Paga otra persona', pagaOtro, pagTotal, '#BA7517')
+            +barra('Paga quien se fotografía', pagaMismo, pagTotal, '#085041')
+            +'<div style="font-size:10px;color:#888;margin:2px 0 8px;">'+pctOtro+'% de las ventas las paga alguien distinto del retratado</div>'
+          : '')
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Sexo (quien paga)</p>'
+      +barra('Hombre', cSexoPag.H, conDatos, '#0C447C')
+      +barra('Mujer', cSexoPag.M, conDatos, '#7C0C44')
+      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'
+      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Edad (quien paga)</p>'
+      +barra('18-30', cEdadPag['18-30'], conDatos, '#1D9E75')
+      +barra('30-50', cEdadPag['30-50'], conDatos, '#0C7ED6')
+      +barra('50+', cEdadPag['50+'], conDatos, '#BA7517')
+      // Sin este aviso el reporte mezclaría dos cosas distintas y nadie lo sabría
+      +(pagHistorico
+          ? '<div style="font-size:10px;color:#BA7517;margin-top:6px;line-height:1.4;">⚠ '+pagHistorico+' venta'+(pagHistorico!==1?'s':'')+' de antes de v23. Su edad se capturaba con seis botones y se registró "30-50" el 85% de las veces aunque no lo fuera: tómala con reserva.</div>'
+          : '')
+      +'</div>'
+      +(cColor+cBN>0
+        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'
+          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Color / B&N</p>'
+          +barra('Color', cColor, cColor+cBN, '#1D9E75')
+          +barra('B/N', cBN, cColor+cBN, '#555')
+          +'</div>'
+        : '')
+      +(cAdh>0?'<div style="margin-top:6px;font-size:11px;color:#BA7517;">⊕ '+cAdh+' con adherible</div>':'')
+      +'</div>';
 
     // Col der: Personas por rango de edad
     var hayFotoDetalle = fotoNinoH+fotoNinoM+fotoJovenH+fotoJovenM+fotoAdultoH+fotoAdultoM+fotoAdultoPlusH+fotoAdultoPlusM;
@@ -6614,7 +6716,7 @@ function _continuarAgregarCarrito(){
     b.style.borderColor=esH?'#90BEFF':'#FFB3D4';
     b.style.color=esH?'#0C447C':'#7C0C44';
   });
-  _calcPendiente.sexo=''; _calcPendiente.edad='';
+  _calcPendiente.sexo=''; _calcPendiente.edad=''; escSetPagaOtro(false);
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
     var el=document.getElementById('esc-foto-'+k); if(el) el.textContent=(_calcPendiente.foto[k]||0);
   });
@@ -6642,6 +6744,26 @@ function escSetSexoEdad(sexo, edad, btnIds){
   var selId = mapa[sexo][edad];
   var sel = document.getElementById(selId);
   if(sel){ sel.style.background=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.borderColor=sexo==='H'?'#0C447C':'#7C0C44'; sel.style.color='white'; }
+}
+
+function escSetPagaOtro(otro){
+  _calcPendiente.pagaOtro = !!otro;
+  var bM=document.getElementById('esc-paga-mismo'), bO=document.getElementById('esc-paga-otro');
+  if(bM) bM.className = otro ? 'btn bgray' : 'btn bgreen';
+  if(bO) bO.className = otro ? 'btn bgreen' : 'btn bgray';
+  var det=document.getElementById('esc-paga-detalle');
+  if(det) det.style.display = otro ? 'block' : 'none';
+  if(!otro){
+    _calcPendiente.sexo=''; _calcPendiente.edad='';
+    ['esc-h1','esc-h2','esc-h3'].forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){b.style.background='#EBF3FF';b.style.borderColor='#90BEFF';b.style.color='#0C447C';}
+    });
+    ['esc-m1','esc-m2','esc-m3'].forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){b.style.background='#FFEEF5';b.style.borderColor='#FFB3D4';b.style.color='#7C0C44';}
+    });
+  }
 }
 
 function _escTotalFotos(){
@@ -6686,7 +6808,8 @@ function confirmarCalcPagador(){
   var foto = _calcPendiente.foto||{};
   var totalFotos = (foto.nino_h||0)+(foto.nino_m||0)+(foto.joven_h||0)+(foto.joven_m||0)+(foto.adulto_h||0)+(foto.adulto_m||0);
   var clienteData = nuevoClienteData({
-    sexo:_calcPendiente.sexo||'', edad:_calcPendiente.edad||'',
+    sexo:_calcPendiente.pagaOtro?(_calcPendiente.sexo||''):'', edad:_calcPendiente.pagaOtro?(_calcPendiente.edad||''):'',
+    pagaOtro: !!_calcPendiente.pagaOtro,
     proposito:'Escolar', escuela:_calcPendiente.nombreBase||'',
     personas: totalFotos || 1,
     fotografiados:{
@@ -8144,32 +8267,31 @@ const RESPALDO = (function(){
 <div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
 
-  <!-- Quien paga: sexo + edad en cuadrícula 2x3. Plegado: es solo demografía,
-       no sale en el ticket ni en producción, y robaba la mejor parte de la
-       pantalla al dato que sí urge capturar. -->
-  <details style="margin-bottom:10px;">
-  <summary class="slabel" style="cursor:pointer;margin-bottom:8px;">Quien paga <span style="font-weight:400;color:#aaa;">(opcional)</span></summary>
-  <div class="frow">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-      <button id="cr-h1" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','18-30',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
-      <button id="cr-h2" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','30-50',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
-      <button id="cr-h3" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','50+',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
-      <button id="cr-m1" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','18-30',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
-      <button id="cr-m2" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','30-50',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
-      <button id="cr-m3" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','50+',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
+  <!-- Quien paga. Por defecto paga el que se retrata, que es lo normal: cero
+       toques. Sexo y edad solo se piden cuando NO es así, que es justo el caso
+       que interesa para marketing. Ver el comentario de _pagadorDeItem. -->
+  <div class="frow" style="margin-bottom:10px;">
+    <div style="display:flex;gap:6px;">
+      <button type="button" id="cr-paga-mismo" class="btn bgreen" style="flex:1;font-size:11px;padding:7px 6px;line-height:1.3;" onclick="crSetPagaOtro(false)">Paga quien se fotografía</button>
+      <button type="button" id="cr-paga-otro" class="btn bgray" style="flex:1;font-size:11px;padding:7px 6px;line-height:1.3;" onclick="crSetPagaOtro(true)">Paga otra persona</button>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px;padding:0 2px;">
-      <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-      <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-      <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:2px;padding:0 2px;">
-      <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
-      <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
-      <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+    <div id="cr-paga-detalle" style="display:none;margin-top:8px;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+        <button id="cr-h1" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','18-30',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
+        <button id="cr-h2" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','30-50',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
+        <button id="cr-h3" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','50+',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
+        <button id="cr-m1" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','18-30',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
+        <button id="cr-m2" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','30-50',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">2</button>
+        <button id="cr-m3" class="btn bgray" style="background:#FFEEF5;border-color:#FFB3D4;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('M','50+',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">3</button>
+      </div>
+      <!-- Una sola fila: el color de cada renglón ya dice el sexo (azul ♂, rosa ♀) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);margin-top:4px;">
+        <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">joven</span>
+        <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">adulto</span>
+        <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">mayor</span>
+      </div>
     </div>
   </div>
-  </details>
 
   <!-- Color / B&N -->
   <div class="frow">
@@ -8352,11 +8474,16 @@ const RESPALDO = (function(){
 <!-- MODAL PAGADOR ORDINARIOS -->
 <div class="modal-ov" id="m-calc-pagador"><div class="modal-box" style="width:300px;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> Datos del paquete</p>
-  <p style="font-size:11px;color:#888;margin-bottom:10px;">Abajo marca <b>quién se fotografía</b> (eso multiplica el precio). Quien paga es opcional y puede ser otra persona.</p>
+  <p style="font-size:11px;color:#888;margin-bottom:10px;">Abajo marca <b>quién se fotografía</b> (eso multiplica el precio). Quien paga solo se pregunta si es alguien distinto.</p>
   <div id="esc-total-box" style="background:#E1F5EE;border:1px solid #9ad9c2;border-radius:10px;padding:8px 12px;text-align:center;margin-bottom:12px;">
     <span id="esc-total-txt" style="font-size:13px;font-weight:700;color:#085041;"></span>
   </div>
-  <p class="slabel" style="margin-bottom:6px;">Quién paga <span style="font-weight:400;color:#888;">(opcional)</span></p>
+  <p class="slabel" style="margin-bottom:6px;">Quién paga</p>
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <button type="button" id="esc-paga-mismo" class="btn bgreen" style="flex:1;font-size:11px;padding:7px 6px;line-height:1.3;" onclick="escSetPagaOtro(false)">Paga quien se fotografía</button>
+    <button type="button" id="esc-paga-otro" class="btn bgray" style="flex:1;font-size:11px;padding:7px 6px;line-height:1.3;" onclick="escSetPagaOtro(true)">Paga otra persona</button>
+  </div>
+  <div id="esc-paga-detalle" style="display:none;">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
     <button id="esc-h1" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','18-30',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">1</button>
     <button id="esc-h2" style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:8px;color:#0C447C;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('H','30-50',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">2</button>
@@ -8365,14 +8492,12 @@ const RESPALDO = (function(){
     <button id="esc-m2" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','30-50',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">2</button>
     <button id="esc-m3" style="background:#FFEEF5;border:1px solid #FFB3D4;border-radius:8px;color:#7C0C44;font-size:18px;font-weight:700;padding:10px;cursor:pointer;" onclick="escSetSexoEdad('M','50+',['esc-h1','esc-h2','esc-h3','esc-m1','esc-m2','esc-m3'])">3</button>
   </div>
-  <div style="display:flex;justify-content:space-between;padding:0 4px;margin-bottom:10px;">
-    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-    <span style="font-size:9px;color:#0C447C;font-weight:600;">♂</span>
-    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
-    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
-    <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);padding:0 4px;margin-bottom:10px;">
+    <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">joven</span>
+    <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">adulto</span>
+    <span style="font-size:9px;color:#888;font-weight:600;text-align:center;">mayor</span>
   </div>
+  </div><!-- /esc-paga-detalle -->
 
   <!-- Quien se fotografía -->
   <p class="slabel" style="margin-bottom:8px;">Quién se fotografía <span style="color:#A32D2D;">*</span> <span style="font-weight:400;color:#888;">(esto define el precio)</span></p>
