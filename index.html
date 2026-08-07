@@ -849,6 +849,7 @@ body.en-reportes .cart-panel { display: none !important; }
       <div class="g2" style="margin-bottom:12px;">
         <div class="stat" style="background:#E1F5EE;border-color:#a0dcc8;">
           <div class="sl">Total vendido</div><div class="sv green" id="rep-total">$0</div>
+          <div class="ss" id="rep-cargas-nota" style="display:none;color:#BA7517;"></div>
           <div class="ss" id="rep-periodo">—</div>
         </div>
         <div class="stat">
@@ -3205,6 +3206,101 @@ async function prepararHistorico(){
   cargarReportes(true);
 }
 
+// ── CARGAS HISTÓRICAS ────────────────────────────────────────
+// Al empezar a usar el programa se metieron semanas enteras de urgentes como
+// un solo ticket. F-U-00517 es una: "6 Inf" por $41,280, o sea ~516 fotos de
+// una semana. Sola vale el 17% del ingreso de toda la base.
+// Como VISITA miente: dice "un cliente el viernes a las 4pm" cuando fue una
+// semana. Pero su DINERO es real. De ahí la regla, que cabe en una línea:
+//    fuera de lo que se mide por visita, dentro del ingreso.
+// La marca se pone a mano desde Herramientas: ningún automatismo distingue una
+// carga de una venta grande de verdad (las impresiones con marco son de $1,200).
+function _esCargaHistorica(v){ return !!(v && v.cargaHistorica); }
+
+// Separa una lista de ventas en las normales y las cargas.
+function _sinCargas(ventas){
+  return (ventas||[]).filter(function(v){ return !_esCargaHistorica(v); });
+}
+function _soloCargas(ventas){
+  return (ventas||[]).filter(_esCargaHistorica);
+}
+
+// Umbral para PROPONER candidatas. No decide: solo acota la lista que se te
+// muestra para que no tengas que revisar 1,300 ventas.
+function _umbralCandidata(ventas){
+  var t = (ventas||[]).map(function(v){ return v.total||0; }).sort(function(a,b){ return a-b; });
+  if(!t.length) return Infinity;
+  var p99 = t[Math.floor(t.length*0.99)] || 0;
+  return Math.max(p99, 750);
+}
+
+async function marcarCargasHistoricas(){
+  if(!db){ alert('Sin conexión a Firebase.'); return; }
+  if(!RESPALDO.hayArchivo || !RESPALDO.hayArchivo()){
+    alert('Primero activa el respaldo en disco y toca "Exportar todo ahora".\n\nEsta operación escribe en tus ventas: no la hagas sin respaldo.');
+    return;
+  }
+
+  var snap;
+  try{ snap = await db.collection('ventas').get(); }
+  catch(e){ alert('No se pudieron leer las ventas: '+e.message); return; }
+
+  var todas = [];
+  snap.forEach(function(d){ var v=d.data(); if(!v.cancelado) todas.push({id:d.id, v:v}); });
+  if(!todas.length){ alert('No hay ventas que revisar.'); return; }
+
+  var umbral = _umbralCandidata(todas.map(function(x){ return x.v; }));
+  var cands = todas.filter(function(x){ return (x.v.total||0) >= umbral; })
+                   .sort(function(a,b){ return (b.v.total||0)-(a.v.total||0); });
+  if(!cands.length){ alert('Ninguna venta pasa de $'+umbral.toLocaleString()+': no hay candidatas.'); return; }
+
+  var yaMarcadas = todas.filter(function(x){ return _esCargaHistorica(x.v); }).length;
+  var marcar = [], desmarcar = [];
+
+  // Una por una: solo tú sabes cuál fue una carga y cuál una venta grande real
+  for(var i=0; i<cands.length; i++){
+    var x = cands[i], v = x.v;
+    var items = (v.items||[]).slice(0,6).map(function(it){ return '   · '+it.nombre+' $'+(it.precio||0); }).join('\n');
+    var mas = (v.items||[]).length > 6 ? '\n   … y '+((v.items||[]).length-6)+' más' : '';
+    var esta = _esCargaHistorica(v);
+    var txt = 'Candidata '+(i+1)+' de '+cands.length+'\n\n'
+      + x.id + '\n' + (v.fecha||'') + '  ' + (v.hora||'') + '\n'
+      + 'Total: $'+(v.total||0).toLocaleString()+'  ·  '+((v.items||[]).length)+' ítem(s)\n\n'
+      + items + mas + '\n\n'
+      + (esta ? '⚠ YA está marcada como carga histórica.\n\nAceptar = QUITARLE la marca.\nCancelar = dejarla marcada.'
+              : '¿Es una CARGA HISTÓRICA (varias ventas metidas juntas)?\n\nAceptar = marcarla.\nCancelar = es una venta normal, no tocarla.');
+    var resp = confirm(txt);
+    if(esta && resp) desmarcar.push(x);
+    else if(!esta && resp) marcar.push(x);
+  }
+
+  if(!marcar.length && !desmarcar.length){ alert('No se marcó nada. Tus ventas quedaron igual.'); return; }
+  if(!confirm('Resumen:\n\n'
+      + (marcar.length ? '  Marcar como carga: '+marcar.length+'\n'+marcar.map(function(x){return '   '+x.id+' · $'+(x.v.total||0).toLocaleString();}).join('\n')+'\n' : '')
+      + (desmarcar.length ? '\n  Quitar la marca: '+desmarcar.length+'\n'+desmarcar.map(function(x){return '   '+x.id;}).join('\n')+'\n' : '')
+      + '\nSolo se escribe la marca. Importes, ítems y folios NO se tocan.\n\n¿Aplicar?')) return;
+
+  var hechas=0, fallos=[];
+  for(var j=0; j<marcar.length; j++){
+    try{ await db.collection('ventas').doc(marcar[j].id).set({cargaHistorica:true}, {merge:true});
+         RESPALDO.merge('ventas', marcar[j].id, Object.assign({}, marcar[j].v, {cargaHistorica:true}));
+         hechas++; }
+    catch(e){ fallos.push(marcar[j].id+': '+(e.message||e)); }
+  }
+  for(var m=0; m<desmarcar.length; m++){
+    try{ await db.collection('ventas').doc(desmarcar[m].id).set({cargaHistorica:false}, {merge:true});
+         RESPALDO.merge('ventas', desmarcar[m].id, Object.assign({}, desmarcar[m].v, {cargaHistorica:false}));
+         hechas++; }
+    catch(e){ fallos.push(desmarcar[m].id+': '+(e.message||e)); }
+  }
+
+  alert('Listo: '+hechas+' venta(s) actualizadas.'
+    + (yaMarcadas ? '\n('+yaMarcadas+' ya estaban marcadas antes de correr esto.)' : '')
+    + (fallos.length ? '\n\nFallaron:\n'+fallos.slice(0,5).join('\n') : '')
+    + '\n\nEl ingreso NO cambia: las cargas siguen sumando dinero.\nLo que cambia es el conteo de clientes y el mapa de horas pico.');
+  cargarReportes(true);
+}
+
 // ── RENUMERAR VENTAS CON FOLIO DE EMERGENCIA ─────────────────
 // Cuando la transacción del contador no responde, la venta se guarda con un
 // folio local único (F-U-LMSJ7634Y4-AGO-2026) para no perderla. Queda completa,
@@ -3549,22 +3645,156 @@ function _idxDiaSemana(fecha){           // getDay(): 0=Dom … 6=Sáb  →  0=L
   return (d===0) ? 6 : d-1;
 }
 
+// ── MEDIANA, NO SUMA NI PROMEDIO ─────────────────────────────
+// Comprobado sobre la base: por SUMA las 4pm parecen la mejor hora del día
+// ($60,550 contra $31,550 de las 11am), pero $41,280 de esos son una sola
+// carga histórica. Sin ella son $16,460 y una hora del montón. La mediana no
+// se deja secuestrar por un ticket enorme: por eso el mapa de dinero la usa.
+function _mediana(arr){
+  if(!arr || !arr.length) return 0;
+  var a = arr.slice().sort(function(x,y){ return x-y; });
+  var m = Math.floor(a.length/2);
+  return a.length%2 ? a[m] : Math.round((a[m-1]+a[m])/2);
+}
+
+// Qué capa se está viendo: 'clientes' o 'dinero'
+var _hpCapa = 'clientes';
+function hpSetCapa(capa){
+  _hpCapa = capa;
+  // Se repinta con lo que ya está cargado: no cuesta ni una lectura más
+  try{ renderHorasPico((ventasFB||[]).filter(function(v){ return !v.cancelado; })); }catch(e){}
+}
+
+// ── EL PERÍODO ANTERIOR, PARA COMPARAR ───────────────────────
+// Hermano de _rangoDelPeriodo: el mismo tamaño de ventana, corrida hacia atrás.
+// Para los meses se usa el mes calendario previo, que es lo que uno espera.
+function _rangoAnterior(){
+  var r = null;
+  try{ r = _rangoDelPeriodo(); }catch(e){ return null; }
+  if(!r || !r.desde || !r.hasta) return null;
+
+  if(periodoActual==='mes' || periodoActual==='mes_cal'){
+    var p = r.desde.split('-');
+    var y = parseInt(p[0]), m = parseInt(p[1]) - 1;      // mes actual, base 0
+    var ini = new Date(y, m-1, 1);
+    var fin = new Date(y, m, 0);                          // último día del mes previo
+    return {desde: fechaKeyDe(ini), hasta: fechaKeyDe(fin)};
+  }
+  if(periodoActual==='anio'){
+    var yy = parseInt(r.desde.split('-')[0]);
+    return {desde:(yy-1)+'-01-01', hasta:(yy-1)+'-12-31'};
+  }
+  // El resto: se recorre la ventana su propia longitud hacia atrás
+  var d1 = new Date(r.desde+'T12:00:00'), d2 = new Date(r.hasta+'T12:00:00');
+  var dias = Math.round((d2-d1)/86400000) + 1;
+  if(!(dias>0)) return null;
+  var nFin = new Date(d1); nFin.setDate(nFin.getDate()-1);
+  var nIni = new Date(nFin); nIni.setDate(nIni.getDate()-(dias-1));
+  return {desde: fechaKeyDe(nIni), hasta: fechaKeyDe(nFin)};
+}
+
+// Celdas del período anterior, para las flechas. Se consulta UNA vez por
+// período y se guarda; cambiar de pestaña no vuelve a leer.
+var _hpAnterior = null;   // {clave, celdas, dias, nDiasMin}
+async function _cargarHorasPicoAnterior(){
+  var ra = _rangoAnterior();
+  if(!ra || !db) return null;
+  var clave = ra.desde+'|'+ra.hasta;
+  if(_hpAnterior && _hpAnterior.clave===clave) return _hpAnterior;
+
+  var snap;
+  try{
+    snap = await db.collection('ventas')
+      .where('fechaKey','>=',ra.desde).where('fechaKey','<=',ra.hasta).get();
+  }catch(e){ return null; }
+
+  var celdas = {}, diasTrab = {};
+  snap.forEach(function(d){
+    var v = d.data();
+    if(v.cancelado || _esCargaHistorica(v)) return;
+    var k = fechaKeyDeVenta(v); if(!k) return;
+    var h = _horaDeVenta(v);    if(h===null) return;
+    var dd = _idxDiaSemana(new Date(k+'T12:00:00'));
+    celdas[dd] = celdas[dd] || {};
+    celdas[dd][h] = celdas[dd][h] || {n:0, importes:[]};
+    celdas[dd][h].n++;
+    celdas[dd][h].importes.push(v.total||0);
+    diasTrab[dd] = diasTrab[dd] || {}; diasTrab[dd][k] = 1;
+  });
+  var minD = null;
+  for(var q=0;q<7;q++){
+    var nd = diasTrab[q] ? Object.keys(diasTrab[q]).length : 0;
+    if(nd) minD = (minD===null) ? nd : Math.min(minD, nd);
+  }
+  _hpAnterior = {clave:clave, rango:ra, celdas:celdas, diasTrab:diasTrab, minDias:minD||0};
+  return _hpAnterior;
+}
+// El día de la semana peor representado de una lista: sobre cuántos días se
+// apoya el renglón más flaco de la tabla.
+function _minDiasPorFila(ventas){
+  var dias = {};
+  _sinCargas(ventas).forEach(function(v){
+    var k = fechaKeyDeVenta(v); if(!k) return;
+    if(_horaDeVenta(v)===null) return;
+    var d = _idxDiaSemana(new Date(k+'T12:00:00'));
+    dias[d] = dias[d] || {}; dias[d][k] = 1;
+  });
+  var min = null;
+  Object.keys(dias).forEach(function(d){
+    var n = Object.keys(dias[d]).length;
+    min = (min===null) ? n : Math.min(min, n);
+  });
+  return min || 0;
+}
+
+async function hpCompararAnterior(){
+  var btn = document.getElementById('hp-btn-comparar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Cargando…'; }
+  var a = await _cargarHorasPicoAnterior();
+  if(btn){ btn.disabled = false; btn.textContent = 'Comparar'; }
+  if(!a){ alert('No se pudo cargar el período anterior.'); return; }
+  // Comparar una muestra de 1 o 2 días es justo el error que v25 vino a
+  // corregir. Se revisan LOS DOS lados: de nada sirve un período anterior
+  // sólido si el actual lleva un solo lunes — la flecha compararía "lo que
+  // pasó ese lunes" contra "un lunes promedio", que no son lo mismo.
+  var minAhora = _minDiasPorFila((ventasFB||[]).filter(function(v){ return !v.cancelado; }));
+  var flaco = (a.minDias && a.minDias < 3) ? {cual:'anterior', n:a.minDias}
+            : (minAhora && minAhora < 3)   ? {cual:'actual',   n:minAhora} : null;
+  if(flaco){
+    alert('El período '+flaco.cual+' solo tiene '+flaco.n+' día(s) por cada día de la semana'
+      + (flaco.cual==='anterior' ? ' ('+a.rango.desde+' a '+a.rango.hasta+')' : '')
+      + '.\n\nCon esa muestra la flecha compararía lo que pasó un día suelto contra un promedio: engaña más de lo que ayuda.\n\nPrueba con un período más largo.');
+    return;
+  }
+  _hpComparando = true;
+  try{ renderHorasPico((ventasFB||[]).filter(function(v){ return !v.cancelado; })); }catch(e){}
+}
+var _hpComparando = false;
+function hpQuitarComparacion(){
+  _hpComparando = false;
+  try{ renderHorasPico((ventasFB||[]).filter(function(v){ return !v.cancelado; })); }catch(e){}
+}
+
 function renderHorasPico(ventasActivas){
   var cont = document.getElementById('rep-horas-pico');
   if(!cont) return;
 
   // celdas[dia][hora] = {n, $}  ·  diasConVenta[dia] = Set de fechas trabajadas
   var celdas = {}, diasTrabajados = {}, horasVistas = {}, sinHora = 0, totalVentas = 0;
-  (ventasActivas||[]).forEach(function(v){
+  // Una carga histórica no fue una visita a esa hora: fue una semana entera
+  // capturada de golpe. Dejarla aquí pondría un cliente fantasma en su celda.
+  var nCargas = _soloCargas(ventasActivas).length;
+  _sinCargas(ventasActivas).forEach(function(v){
     var k = fechaKeyDeVenta(v);
     var h = _horaDeVenta(v);
     if(!k){ return; }
     if(h===null){ sinHora++; return; }
     var d = _idxDiaSemana(new Date(k+'T12:00:00'));
     if(!celdas[d]) celdas[d] = {};
-    if(!celdas[d][h]) celdas[d][h] = {n:0, monto:0};
+    if(!celdas[d][h]) celdas[d][h] = {n:0, monto:0, importes:[]};
     celdas[d][h].n++;
     celdas[d][h].monto += (v.total||0);
+    celdas[d][h].importes.push(v.total||0);
     if(!diasTrabajados[d]) diasTrabajados[d] = {};
     diasTrabajados[d][k] = 1;
     horasVistas[h] = 1;
@@ -3605,7 +3835,7 @@ function renderHorasPico(ventasActivas){
 
   // Promedio por día TRABAJADO (no por día de calendario): un festivo cerrado
   // no debe bajar el promedio del resto.
-  var prom = {}, maxProm = 0, mejor = null;
+  var prom = {}, maxProm = 0, maxMed = 0, mejor = null;
   for(var d=0; d<7; d++){
     var nDias = diasTrabajados[d] ? Object.keys(diasTrabajados[d]).length : 0;
     prom[d] = {nDias:nDias, h:{}};
@@ -3613,7 +3843,9 @@ function renderHorasPico(ventasActivas){
     horas.forEach(function(h){
       var c = (celdas[d] && celdas[d][h]) ? celdas[d][h] : null;
       var p = c ? c.n/nDias : 0;
-      prom[d].h[h] = {p:p, n:c?c.n:0, monto:c?c.monto:0};
+      var med = c ? _mediana(c.importes) : 0;
+      prom[d].h[h] = {p:p, n:c?c.n:0, monto:c?c.monto:0, med:med};
+      if(med > maxMed) maxMed = med;
       if(p > maxProm){ maxProm = p; mejor = {d:d, h:h, p:p}; }
     });
   }
@@ -3635,19 +3867,43 @@ function renderHorasPico(ventasActivas){
   }
 
   var num = function(p){ return p>=10 ? Math.round(p) : (Math.round(p*10)/10); };
+  var esDinero = (_hpCapa==='dinero');
   var celdaHTML = function(d,h){
     var x = prom[d].h[h];
     if(!prom[d].nDias) return '<td style="padding:0;"><div style="height:30px;background:#fafafa;"></div></td>';
-    var inten = maxProm ? x.p/maxProm : 0;
+    // El valor y la escala cambian según la capa; el resto de la tabla es igual
+    var val   = esDinero ? x.med : x.p;
+    var tope  = esDinero ? maxMed : maxProm;
+    var inten = tope ? val/tope : 0;
     var oscura = inten > 0.55;
-    var bg = x.p ? 'rgba(29,158,117,'+(0.10+inten*0.90).toFixed(2)+')' : '#fafafa';
+    var bg = val ? 'rgba(29,158,117,'+(0.10+inten*0.90).toFixed(2)+')' : '#fafafa';
     var titulo = DIAS_SEM[d]+' '+h+':00 — '+x.n+' venta'+(x.n!==1?'s':'')+' en total · $'+x.monto.toLocaleString()
+      +' · ticket mediano $'+x.med
       +' · promedio sobre '+prom[d].nDias+' día'+(prom[d].nDias!==1?'s':'');
+
+    // Flecha contra el mismo día y hora del período anterior
+    var flecha = '';
+    if(_hpComparando && _hpAnterior){
+      var ca = (_hpAnterior.celdas[d]||{})[h];
+      var ndA = _hpAnterior.diasTrab[d] ? Object.keys(_hpAnterior.diasTrab[d]).length : 0;
+      var antes = ca ? (esDinero ? _mediana(ca.importes) : ca.n/ndA) : 0;
+      if(antes || val){
+        var dif = val - antes;
+        var pct = antes ? Math.round(dif/antes*100) : null;
+        var signo = dif>0 ? '▲' : (dif<0 ? '▼' : '=');
+        var colF  = dif>0 ? '#085041' : (dif<0 ? '#A32D2D' : '#999');
+        titulo += ' · antes: ' + (esDinero ? '$'+Math.round(antes) : num(antes))
+                + (pct===null ? ' (no había)' : ' ('+(pct>0?'+':'')+pct+'%)');
+        flecha = '<span style="font-size:8px;color:'+(oscura?'#fff':colF)+';margin-left:2px;opacity:.9;">'+signo+'</span>';
+      }
+    }
+
+    var texto = val ? (esDinero ? '$'+Math.round(val) : num(val)) : '·';
     return '<td style="padding:1px;">'
       +'<div title="'+_escH(titulo)+'" style="height:30px;display:flex;align-items:center;justify-content:center;'
-      +'background:'+bg+';border-radius:4px;font-size:11px;font-weight:600;'
-      +'color:'+(oscura?'#fff':(x.p?'#085041':'#ccc'))+';">'
-      +(x.p ? num(x.p) : '·')+'</div></td>';
+      +'background:'+bg+';border-radius:4px;font-size:'+(esDinero?'10px':'11px')+';font-weight:600;'
+      +'color:'+(oscura?'#fff':(val?'#085041':'#ccc'))+';">'
+      + texto + flecha + '</div></td>';
   };
 
   var filas = '';
@@ -3692,10 +3948,48 @@ function renderHorasPico(ventasActivas){
   if(sinHora){
     nota += '<div style="font-size:11px;color:#888;margin-top:6px;">'+sinHora+(sinHora===1?' venta sin hora registrada quedó':' ventas sin hora registrada quedaron')+' fuera de este mapa.</div>';
   }
+  if(nCargas){
+    nota += '<div style="font-size:11px;color:#888;margin-top:6px;">'+nCargas+(nCargas===1?' carga histórica quedó':' cargas históricas quedaron')
+      +' fuera: no fueron visitas a esa hora, aunque su dinero sí cuenta en el total.</div>';
+  }
+
+  // Sobre cuántos días se apoya todo esto. Sin este renglón, un mes que lleva
+  // un solo lunes marca "15 clientes" y se lee igual que un promedio estable
+  // de tres meses. Es la confusión más fácil de tener con esta tabla.
+  var totalDiasReales = 0, minDias = null, maxDias = 0;
+  for(var dd=0; dd<7; dd++){
+    var nd = prom[dd].nDias;
+    if(!nd) continue;
+    totalDiasReales += nd;
+    minDias = (minDias===null) ? nd : Math.min(minDias, nd);
+    maxDias = Math.max(maxDias, nd);
+  }
+  var muestra = '<p style="font-size:11px;color:#666;margin-bottom:10px;">'
+    + (_hpCapa==='dinero'
+        ? 'Ticket <b>mediano</b> de cada hora: el de en medio, no el promedio. Así una venta enorme no secuestra la casilla.'
+        : 'Promedio de tickets por cada día trabajado.')
+    + ' Pasa el cursor por una celda para ver el detalle.<br>'
+    + '<b>Midiendo ' + totalDiasReales + ' día' + (totalDiasReales!==1?'s':'') + ' real' + (totalDiasReales!==1?'es':'') + '</b>'
+    + (maxDias ? ' — entre ' + minDias + ' y ' + maxDias + ' por cada día de la semana' : '')
+    + (maxDias && maxDias < 3
+        ? '<br><span style="color:#BA7517;">⚠ Cada renglón se apoya en '+maxDias+(maxDias===1?' día':' días')
+          +': estos números son lo que pasó, no un promedio. Para un promedio de verdad usa un período más largo.</span>'
+        : '')
+    + '</p>';
 
   cont.innerHTML = '<div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;">'
-    +'<p class="slabel" style="margin-bottom:2px;">Horas pico — clientes por hora en un día normal</p>'
-    +'<p style="font-size:11px;color:#666;margin-bottom:10px;">Promedio de tickets por cada día trabajado. Pasa el cursor por una celda para ver el detalle.</p>'
+    +'<p class="slabel" style="margin-bottom:2px;">Horas pico — '+(esDinero?'ticket mediano por hora':'clientes por hora en un día normal')+'</p>'
+    + muestra
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">'
+    +   '<button class="btn '+(esDinero?'bgray':'bgreen')+'" style="font-size:11px;padding:4px 10px;" onclick="hpSetCapa(\'clientes\')">Clientes</button>'
+    +   '<button class="btn '+(esDinero?'bgreen':'bgray')+'" style="font-size:11px;padding:4px 10px;" onclick="hpSetCapa(\'dinero\')">Ticket mediano</button>'
+    +   (_hpComparando
+          ? '<button class="btn bgreen" style="font-size:11px;padding:4px 10px;" onclick="hpQuitarComparacion()">✓ Comparando</button>'
+          : '<button id="hp-btn-comparar" class="btn bgray" style="font-size:11px;padding:4px 10px;" onclick="hpCompararAnterior()">Comparar</button>')
+    + '</div>'
+    + (_hpComparando && _hpAnterior
+        ? '<p style="font-size:10px;color:#666;margin-bottom:8px;">▲▼ contra '+_escH(_hpAnterior.rango.desde)+' a '+_escH(_hpAnterior.rango.hasta)+'</p>'
+        : '')
     +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
     +'<table style="border-collapse:collapse;font-size:11px;">'
     +'<thead><tr><th></th>'
@@ -3785,7 +4079,12 @@ function renderMarketing(ventasActivas){
   // 1) Ranking de productos (todos los orígenes juntos, por productoId)
   var prods={}, propPorProd={}, pago={}, dias={};
   var totalUnidades=0;
+  // En una carga histórica el dinero es real pero las unidades no: F-U-00517
+  // es UN ítem "6 Inf" de $41,280, que en realidad fueron ~516 fotos. Su
+  // importe suma al ranking; su cuenta de piezas, no.
+  var cargasUnid=0, cargasImporte=0;
   ventasActivas.forEach(function(v){
+    var _esCarga=_esCargaHistorica(v);
     // método de pago — el dato ya se guardaba y nunca se sumaba
     var mp=v.metodoPago||'efectivo';
     if(!pago[mp]) pago[mp]={total:0,n:0};
@@ -3799,8 +4098,9 @@ function renderMarketing(ventasActivas){
       var pd=productoDeItem(it);
       var _ct=_catProducto(it);
       if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,cat:_ct,sub:_ct==='urg'?_subcatUrg(pd.id,it):null};
-      prods[pd.id].total+=(it.precio||0); prods[pd.id].unid++;
-      totalUnidades++;
+      prods[pd.id].total+=(it.precio||0);
+      if(_esCarga){ cargasUnid++; cargasImporte+=(it.precio||0); }
+      else { prods[pd.id].unid++; totalUnidades++; }
       // propósito por producto
       var cd=it.clienteData||{};
       var prop=cd.proposito||'';
@@ -3870,6 +4170,11 @@ function renderMarketing(ventasActivas){
           + cuerpo
           +'</div>';
       }).join('');
+      if(cargasUnid){
+        elP.innerHTML += '<div style="font-size:10px;color:#BA7517;margin-top:4px;line-height:1.4;">'
+          +'⚠ Los importes incluyen $'+cargasImporte.toLocaleString()+' de carga'+(cargasUnid!==1?'s':'')
+          +' histórica'+(cargasUnid!==1?'s':'')+', pero sus piezas no se cuentan: ahí una sola línea vale muchas fotos.</div>';
+      }
     }
   }
 
@@ -3982,9 +4287,14 @@ function _avisoHistorico(){
 function renderReportes(){
   // Excluir ventas canceladas de todos los contadores
   const ventasActivas=ventasFB.filter(v=>!v.cancelado);
+  // El dinero de una carga histórica es real y suma; pero como VISITA miente,
+  // así que no cuenta ni en el número de ventas ni en el ticket promedio.
+  const ventasVisita=_sinCargas(ventasActivas);
+  const cargas=_soloCargas(ventasActivas);
   const total=ventasActivas.reduce((s,v)=>s+v.total,0);
-  const num=ventasActivas.length;
-  const prom=num?Math.round(total/num):0;
+  const totalCargas=cargas.reduce((s,v)=>s+(v.total||0),0);
+  const num=ventasVisita.length;
+  const prom=num?Math.round((total-totalCargas)/num):0;
   const labels={hoy:'Hoy',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año',dia:'Día específico',rango:'Rango de fechas',mes_cal:'Mes seleccionado'};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set('rep-total','$'+total.toLocaleString());
@@ -3993,6 +4303,16 @@ function renderReportes(){
   set('rep-periodo-txt', _periodoTexto());
   set('cprod-periodo', _periodoTexto());
   set('rep-ticketprom','Ticket prom: $'+prom.toLocaleString());
+  // Avisar cuánto del total viene de cargas, para que el ingreso no parezca
+  // un día espectacular cuando en realidad es una semana metida de golpe.
+  var elCg=document.getElementById('rep-cargas-nota');
+  if(elCg){
+    if(cargas.length){
+      elCg.style.display='';
+      elCg.textContent='Incluye $'+totalCargas.toLocaleString()+' de '+cargas.length
+        +' carga'+(cargas.length!==1?'s':'')+' histórica'+(cargas.length!==1?'s':'')+' (fuera del conteo de clientes)';
+    } else elCg.style.display='none';
+  }
   // Conteo por tipo
   var cntUrg=0, cntOrd=0, cntImp=0;
   ventasActivas.forEach(function(v){
@@ -8248,7 +8568,8 @@ const RESPALDO = (function(){
     <button class="btn bgray" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial de precios</button>
   </div>
   <button class="btn bgray" id="btn-preparar-historico" style="width:100%;margin-bottom:6px;" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico para reportes rápidos</button>
-  <button class="btn bgray" style="width:100%;margin-bottom:14px;" onclick="renumerarFoliosLocales()"><i class="ti ti-list-numbers"></i> Renumerar ventas con folio de emergencia</button>
+  <button class="btn bgray" style="width:100%;margin-bottom:6px;" onclick="renumerarFoliosLocales()"><i class="ti ti-list-numbers"></i> Renumerar ventas con folio de emergencia</button>
+  <button class="btn bgray" style="width:100%;margin-bottom:14px;" onclick="marcarCargasHistoricas()"><i class="ti ti-archive"></i> Marcar cargas históricas</button>
 
   <p class="slabel" style="margin-bottom:6px;color:#A32D2D;">Zona peligrosa</p>
   <button class="btn bgray" style="color:#A32D2D;border-color:#f5c0c0;width:100%;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Borrar TODAS las ventas</button>
