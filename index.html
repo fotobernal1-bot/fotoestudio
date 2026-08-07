@@ -51,6 +51,14 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
 .bgreen{background:#1D9E75;color:white;}.bgreen:hover{background:#085041;}
 .bgray{background:#f7f7f5;border:1px solid #e0e0e0;color:#333;}.bgray:hover{border-color:#999;}
+/* Color / B-N: el boton ensena de que se trata sin tener que leerlo */
+.cbn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid #e0e0e0;border-radius:7px;background:#fff;color:#333;cursor:pointer;font-weight:600;padding:4px 10px;font-size:11px;line-height:1.5;}
+.cbn:hover{border-color:#999;}
+.cbn .sw{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.18);flex:none;}
+.cbn .sw-c{background:conic-gradient(#e23b3b,#e8b23a,#3ba55d,#3bc9e2,#3b7de2,#9b3be2,#e23b3b);}
+.cbn .sw-b{background:linear-gradient(135deg,#1a1a1a 0%,#8f8f8f 52%,#f2f2f2 100%);}
+.cbn.on{border-color:#1D9E75;background:#eaf7f2;color:#0d5f45;box-shadow:inset 0 0 0 1px #1D9E75;}
+.cbn.on .sw{border-color:#1D9E75;}
 input[type=number],input[type=text],input[type=password],input[type=date],input[type=month],input[type=time],select,textarea{border:1px solid #d0d0d0;border-radius:7px;padding:7px 9px;font-size:13px;background:white;color:#111;width:100%;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 .frow{margin-bottom:10px;}
@@ -1111,7 +1119,11 @@ function rendCatProds(catId){
 function addCatProd(catId, i){
   const cat = categoriasDinamicas.find(c=>c.id===catId);
   if(!cat||!cat.productos[i])return;
-  add(cat.productos[i].nombre, cat.productos[i].precio, 'otro', cat.productos[i].pid);
+  // Antes entraban derecho al carrito, sin propósito, sin color y sin personas:
+  // eran ciegas para toda la estadística. Ahora pasan por el mismo modal que
+  // el resto de urgentes.
+  const p = cat.productos[i];
+  abrirClienteRapido(p.nombre, p.precio, 'otro', p.pid);
 }
 
 function eliminarCat(catId){
@@ -1299,6 +1311,10 @@ function nuevoClienteData(p){
     camisa_blanca: !!p.camisa_blanca, adherible: !!p.adherible,
     barba: p.barba||'', barba_edicion: p.barba_edicion||0,
     personas: p.personas||0,
+    // v22: una imagen digital no vale siempre lo mismo ni se entrega igual.
+    // cantidad y formato solo se llenan donde aplican; el resto queda vacío.
+    cantidad: p.cantidad||0, formato: p.formato||'', notas: p.notas||'',
+    precioAjustado: !!p.precioAjustado,
     fotografiados: {
       nino_h:f.nino_h||0, nino_m:f.nino_m||0,
       joven_h:f.joven_h||0, joven_m:f.joven_m||0,
@@ -1418,14 +1434,71 @@ function mostrarCabPersona(g){ return !!g.etiqueta && (g.items.length>1 || !!g.n
 // ── POPUP CLIENTE RÁPIDO ─────────────────────────────────────
 var _clienteRapido = {};
 
+// ── EL MODAL SE ADAPTA AL PRODUCTO ───────────────────────────
+// Todo urgente usaba el mismo formulario. Una imagen digital es un archivo:
+// no lleva adherible, ni camisa blanca, ni barba, ni ocho contadores de gente
+// posando. Y en cambio necesita cuántas imágenes, a qué precio (varía) y en
+// qué formato. Una visa siempre es un trámite, así que no hay que preguntarlo.
+var CR_PERFILES = {
+  fisica:  {personas:true,  extras:true,  digital:false, proposito:true},
+  digital: {personas:false, extras:false, digital:true,  proposito:true},
+  visa:    {personas:true,  extras:true,  digital:false, proposito:true, propositoFijo:'Trámite gobierno'}
+};
+function _crPerfil(tipo){
+  if(tipo==='digital') return CR_PERFILES.digital;
+  if(tipo==='visa' || tipo==='visaUSA') return CR_PERFILES.visa;
+  return CR_PERFILES.fisica;
+}
+function _crMostrar(id, ver){
+  var el=document.getElementById(id); if(el) el.style.display = ver ? '' : 'none';
+}
+function _crAplicarPerfil(tipo){
+  var p=_crPerfil(tipo);
+  _crMostrar('cr-sec-personas', p.personas);
+  _crMostrar('cr-sec-extras',   p.extras);
+  _crMostrar('cr-sec-digital',  p.digital);
+  // La visa siempre es trámite: se marca sola y se deja la caja de texto lista
+  // para escribir cuál, en vez de hacerte elegir lo obvio cada vez.
+  if(p.propositoFijo==='Trámite gobierno'){
+    crSelTramite();
+    var t=document.getElementById('cr-tramite-txt');
+    if(t && !t.value) t.placeholder='Visa, pasaporte, licencia...';
+  }
+}
+
+// Cantidad de imágenes digitales
+function crAjCant(delta){
+  var n = Math.max(1, (_clienteRapido.cantidad||1) + delta);
+  _clienteRapido.cantidad = n;
+  var el=document.getElementById('cr-cant'); if(el) el.value=n;
+  _crRecalcPrecio();
+}
+function crSyncCant(val){
+  _clienteRapido.cantidad = Math.max(1, parseInt(val)||1);
+  _crRecalcPrecio();
+}
+// Precio manual. Vacío = vuelve a mandar la fórmula.
+function crSetPrecioManual(val){
+  var t=String(val==null?'':val).trim();
+  _clienteRapido.precioManual = (t==='') ? null : Math.max(0, parseFloat(t)||0);
+  _crRecalcPrecio();
+}
+function crLimpiarPrecio(){
+  _clienteRapido.precioManual=null;
+  var el=document.getElementById('cr-precio-manual'); if(el) el.value='';
+  _crRecalcPrecio();
+}
+
 function abrirClienteRapido(nombre, precio, tipo, pid){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     productoId: pid||null, productoNombre: nombre, _editIdx: null,
     sexo:'', edad:'', proposito:'', colorBN:'color',
+    cantidad:1, formato:'', notas:'', precioManual:null, precioAjustado:false,
     foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0, foto_adulto_h:0, foto_adulto_m:0, foto_adulto_plus_h:0, foto_adulto_plus_m:0};
   document.getElementById('cr-titulo').textContent = nombre;
   document.getElementById('cr-precio').textContent = '$'+precio;
   _crResetCampos();
+  _crAplicarPerfil(tipo);
   openM('m-cliente-rapido');
 }
 
@@ -1434,8 +1507,8 @@ function _crResetCampos(){
   _clienteRapido.sexo=''; _clienteRapido.edad=''; _clienteRapido.proposito=''; _clienteRapido.colorBN='color';
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].forEach(function(k){ _clienteRapido['foto_'+k]=0; });
   // Reset Color/BN — default Color
-  var crColor=document.getElementById('cr-color'); if(crColor) crColor.className='btn bgreen';
-  var crBN=document.getElementById('cr-bn'); if(crBN) crBN.className='btn bgray';
+  var crColor=document.getElementById('cr-color'); if(crColor) crColor.className='cbn on';
+  var crBN=document.getElementById('cr-bn'); if(crBN) crBN.className='cbn';
   // Reset todos los botones
   ['cr-h1','cr-h2','cr-h3'].forEach(function(id){
     var b=document.getElementById(id);
@@ -1474,7 +1547,28 @@ function _crResetCampos(){
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'].forEach(function(k){
     var el=document.getElementById('cr-foto-'+k); if(el) el.textContent='0';
   });
+  // Campos de v22: cantidad, formato, notas y precio manual
+  _clienteRapido.cantidad=1; _clienteRapido.formato=''; _clienteRapido.notas='';
+  _clienteRapido.precioManual=null; _clienteRapido.precioAjustado=false;
+  var cCant=document.getElementById('cr-cant'); if(cCant) cCant.value=1;
+  var cFmt=document.getElementById('cr-formato-txt'); if(cFmt) cFmt.value='';
+  var cNot=document.getElementById('cr-notas'); if(cNot) cNot.value='';
+  var cPre=document.getElementById('cr-precio-manual'); if(cPre) cPre.value='';
+  ['cr-fmt-1','cr-fmt-2','cr-fmt-3','cr-fmt-4','cr-fmt-5'].forEach(function(id){
+    var b=document.getElementById(id); if(b) b.className='btn bgray';
+  });
   _crRecalcPrecio();
+}
+
+// Formato de la imagen digital: los botones son atajos, el texto siempre manda
+function crSetFormato(val){
+  var ids=['cr-fmt-1','cr-fmt-2','cr-fmt-3','cr-fmt-4','cr-fmt-5'];
+  var mapa={'Tamaño infantil':'cr-fmt-1','Tamaño credencial':'cr-fmt-2','Tamaño visa/pasaporte':'cr-fmt-3','Original completa':'cr-fmt-4','':'cr-fmt-5'};
+  ids.forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; });
+  var sel=document.getElementById(mapa[val]); if(sel) sel.className='btn bgreen';
+  _clienteRapido.formato = val;
+  var txt=document.getElementById('cr-formato-txt');
+  if(txt){ txt.value = val; if(val==='') txt.focus(); }
 }
 
 function crSetSexoEdad(sexo, edad, btnIds){
@@ -1565,12 +1659,33 @@ function _crTotalFotografiados(){
   return FOTO_KEYS.reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0);
 }
 function _crRecalcPrecio(){
-  var personas = _crTotalFotografiados() || 1;
-  var adhExtra = _clienteRapido.adherible ? ADHERIBLE_EXTRA : 0;
-  var barba = _clienteRapido.barba_edicion || 0;
-  _clienteRapido.precio = (_clienteRapido.precioBase + adhExtra) * personas + barba;
+  var p = _crPerfil(_clienteRapido.tipo);
+  var base;
+  if(p.digital){
+    // La digital se cobra por imagen, y el precio de la imagen puede cambiar
+    base = _clienteRapido.precioBase * Math.max(1, _clienteRapido.cantidad||1);
+  }else{
+    var personas = _crTotalFotografiados() || 1;
+    var adhExtra = _clienteRapido.adherible ? ADHERIBLE_EXTRA : 0;
+    var barba = _clienteRapido.barba_edicion || 0;
+    base = (_clienteRapido.precioBase + adhExtra) * personas + barba;
+  }
+  // Si escribiste un precio a mano, ese manda. Antes no había ninguna palanca
+  // de precio en urgentes y el campo de "editar barba" se acababa usando de
+  // precio libre, lo que ensuciaba la estadística de barba.
+  var manual = _clienteRapido.precioManual;
+  _clienteRapido.precio = (manual===null||manual===undefined) ? base : manual;
+  _clienteRapido.precioAjustado = !(manual===null||manual===undefined) && manual!==base;
+
   var el=document.getElementById('cr-precio');
   if(el) el.textContent = '$'+_clienteRapido.precio;
+  var nota=document.getElementById('cr-precio-nota');
+  if(nota){
+    if(_clienteRapido.precioAjustado){
+      nota.style.display='';
+      nota.textContent = 'Ajustado — de lista serían $'+base;
+    }else nota.style.display='none';
+  }
   return _clienteRapido.precio;
 }
 
@@ -1633,8 +1748,8 @@ function crSelEscuelaSug(nombre){
 
 function crSetColorBN(val){
   _clienteRapido.colorBN = val;
-  document.getElementById('cr-color').className = val==='color' ? 'btn bgreen' : 'btn bgray';
-  document.getElementById('cr-bn').className = val==='bn' ? 'btn bgreen' : 'btn bgray';
+  document.getElementById('cr-color').className = val==='color' ? 'cbn on' : 'cbn';
+  document.getElementById('cr-bn').className = val==='bn' ? 'cbn on' : 'cbn';
 }
 
 function crToggleAdherible(){
@@ -1691,6 +1806,11 @@ function confirmarClienteRapido(){
     adherible: c.adherible||false,
     barba: c.barba||'',
     barba_edicion: barbaPrecio,
+    // Solo la digital lleva cantidad y formato; notas y ajuste van en todos
+    cantidad: _crPerfil(c.tipo).digital ? (c.cantidad||1) : 0,
+    formato: _crPerfil(c.tipo).digital ? (c.formato||'') : '',
+    notas: c.notas||'',
+    precioAjustado: !!c.precioAjustado,
     fotografiados: {
       nino_h: c.foto_nino_h||0, nino_m: c.foto_nino_m||0,
       joven_h: c.foto_joven_h||0, joven_m: c.foto_joven_m||0,
@@ -1756,6 +1876,16 @@ function abrirModificarUrgente(i){
     if(btn) btn.className='btn bgreen';
     _clienteRapido.barba_edicion=cd.barba_edicion;
     _clienteRapido.barba=cd.barba||'Editar barba';
+  }
+  // Campos de v22
+  if(cd.cantidad>0){ _clienteRapido.cantidad=cd.cantidad; var ic=document.getElementById('cr-cant'); if(ic) ic.value=cd.cantidad; }
+  if(cd.formato){ crSetFormato(cd.formato); var ifm=document.getElementById('cr-formato-txt'); if(ifm) ifm.value=cd.formato; _clienteRapido.formato=cd.formato; }
+  if(cd.notas){ _clienteRapido.notas=cd.notas; var inn=document.getElementById('cr-notas'); if(inn) inn.value=cd.notas; }
+  // Si el precio se había ajustado a mano, se recupera tal cual: si no, al
+  // reabrir el producto volvería solo al de lista y perderías el descuento.
+  if(cd.precioAjustado){
+    _clienteRapido.precioManual = it.precio;
+    var ip=document.getElementById('cr-precio-manual'); if(ip) ip.value = it.precio;
   }
   _crRecalcPrecio();
   var t=document.getElementById('cr-titulo'); if(t) t.textContent='Modificar: '+it.nombre;
@@ -1825,9 +1955,12 @@ function _cartItemHtml(c,i){
     if(c.clienteData){
       var cd=c.clienteData;
       if(cd.colorBN) extras.push(cd.colorBN==='bn'?'B/N':'Color');
+      if(cd.cantidad>1) extras.push(cd.cantidad+' imágenes');
+      if(cd.formato) extras.push(cd.formato);
       if(cd.adherible) extras.push('Adherible');
       if(cd.camisa_blanca) extras.push('Camisa blanca');
       if(cd.barba_edicion>0) extras.push('Editar barba');
+      if(cd.notas) extras.push('✎ '+cd.notas);
       var f=cd.fotografiados;
       if(f){
         var totalH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
@@ -2559,9 +2692,12 @@ function mostrarTicket(tickets, pagoTotal, totalGeneral, anticipo){
       if(i.clienteData){
         var cd=i.clienteData;
         var extras=[];
+        if(cd.cantidad>1) extras.push(cd.cantidad+' imágenes');
+        if(cd.formato) extras.push(cd.formato);
         if(cd.adherible) extras.push('Adherible');
         if(cd.camisa_blanca) extras.push('Camisa blanca');
         if(cd.barba_edicion>0) extras.push('Editar barba (incluido)');
+        if(cd.notas) extras.push(cd.notas);
         if(extras.length) lineaHtml+='<div style="font-size:10px;color:#555;padding-left:8px;">'+extras.join(' · ')+'</div>';
       }
       return lineaHtml;
@@ -2822,7 +2958,7 @@ function exportarCSV(){
   if(!ventasFB || !ventasFB.length){ alert('No hay datos para exportar. Selecciona un período primero.'); return; }
   var periodo = document.getElementById('rep-periodo') ? document.getElementById('rep-periodo').textContent : 'periodo';
   var cols = ['fecha','hora','folio','origen','metodo_pago','producto_id','producto','variante',
-              'precio','proposito','detalle_proposito','escuela','color','adherible','camisa_blanca',
+              'precio','proposito','detalle_proposito','escuela','color','adherible','camisa_blanca','cantidad','formato','notas','precio_ajustado',
               'barba_edicion','sexo_paga','edad_paga','personas_fotografiadas','persona','cancelada'];
   var filas = [];
   (ventasFB||[]).forEach(function(v){
@@ -2841,6 +2977,7 @@ function exportarCSV(){
         precio: it.precio||0,
         proposito: cd.proposito||'', detalle_proposito: detProp, escuela: cd.escuela||'',
         color: cd.colorBN||'', adherible: cd.adherible?'si':'', camisa_blanca: cd.camisa_blanca?'si':'',
+        cantidad: cd.cantidad||'', formato: cd.formato||'', notas: cd.notas||'', precio_ajustado: cd.precioAjustado?'si':'',
         barba_edicion: cd.barba_edicion||0,
         sexo_paga: cd.sexo||'', edad_paga: cd.edad||'',
         personas_fotografiadas: nPersonas,
@@ -3494,6 +3631,42 @@ function _catProducto(it){
   return 'urg';   // infantil, credencial, cartilla, digital, visas y categorías nuevas
 }
 
+// Dentro de Urgentes, cada tipo cuenta como producto aparte: no es lo mismo
+// vender 40 infantiles que 40 credenciales. La categoría NO se guarda en la
+// venta: se deduce del pid, que ya la lleva dentro (pr_infantil_…, vi_… para
+// visas, cd_<categoría>_… para las que creaste tú). Así el histórico completo
+// queda clasificado sin tener que reescribir una sola venta.
+var SUBCATS_URG = {
+  infantil:   {nombre:'Infantiles',        orden:1},
+  credencial: {nombre:'Credenciales',      orden:2},
+  cartilla:   {nombre:'Cartilla militar',  orden:3},
+  digital:    {nombre:'Imagen digital',    orden:4},
+  visas:      {nombre:'Visas y pasaportes',orden:5}
+};
+function _subcatUrg(pid, it){
+  var p = String(pid||'');
+  if(p.indexOf('vi_')===0) return {id:'visas', nombre:'Visas y pasaportes', orden:5};
+  var m = /^pr_([a-z0-9]+)_/.exec(p);
+  if(m && SUBCATS_URG[m[1]]) return {id:m[1], nombre:SUBCATS_URG[m[1]].nombre, orden:SUBCATS_URG[m[1]].orden};
+  // Las categorías que creaste tú: cada una es su propio grupo
+  var d = /^cd_([a-z0-9-]+)_/.exec(p);
+  if(d){
+    var cat = (categoriasDinamicas||[]).filter(function(c){ return _slug(c.nombre)===d[1]; })[0];
+    return {id:'cd_'+d[1], nombre:cat?cat.nombre:d[1].replace(/-/g,' '), orden:6};
+  }
+  // Ventas viejas cuyo producto ya no existe en el catálogo: se salvan por el
+  // tipo guardado, y si no, por el nombre (así "Pasaporte México", que ya
+  // borraste del catálogo, sigue contando como visa y no cae en Otros).
+  if(it && it.tipo && SUBCATS_URG[it.tipo]) return {id:it.tipo, nombre:SUBCATS_URG[it.tipo].nombre, orden:SUBCATS_URG[it.tipo].orden};
+  var nom = _slug(it && it.nombre || '');
+  if(/visa|pasaporte/.test(nom))   return {id:'visas',      nombre:'Visas y pasaportes',orden:5};
+  if(/cartilla|militar/.test(nom)) return {id:'cartilla',   nombre:'Cartilla militar',  orden:3};
+  if(/credencial/.test(nom))       return {id:'credencial', nombre:'Credenciales',      orden:2};
+  if(/infantil/.test(nom))         return {id:'infantil',   nombre:'Infantiles',        orden:1};
+  if(/digital/.test(nom))          return {id:'digital',    nombre:'Imagen digital',    orden:4};
+  return {id:'otros', nombre:'Otros', orden:9};
+}
+
 // ── BARRA DE PROGRESO — implementación única ─────────────────
 // Antes había CINCO copias con alturas, radios y tamaños distintos, y tres de
 // ellas no escapaban el texto. Ahora todas pasan por aquí.
@@ -3534,7 +3707,8 @@ function renderMarketing(ventasActivas){
     (v.items||[]).forEach(function(it){
       if(it.tipo==='extra') return;
       var pd=productoDeItem(it);
-      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,cat:_catProducto(it)};
+      var _ct=_catProducto(it);
+      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,cat:_ct,sub:_ct==='urg'?_subcatUrg(pd.id,it):null};
       prods[pd.id].total+=(it.precio||0); prods[pd.id].unid++;
       totalUnidades++;
       // propósito por producto
@@ -3564,17 +3738,46 @@ function renderMarketing(ventasActivas){
         if(!delGrupo.length) return '';
         var unidGrupo = delGrupo.reduce(function(s,p){ return s+p.unid; },0);
         var totGrupo  = delGrupo.reduce(function(s,p){ return s+p.total; },0);
+        // Urgentes va partido por tipo, con su propio subtotal. Los demas van
+        // seguidos: escolares e impresiones ya son un solo tipo de cosa.
+        var cuerpo;
+        if(c.id==='urg'){
+          var subs={};
+          delGrupo.forEach(function(p){
+            var sc=p.sub||{id:'otros',nombre:'Otros',orden:9};
+            if(!subs[sc.id]) subs[sc.id]={nombre:sc.nombre, orden:sc.orden, unid:0, total:0, prods:[]};
+            subs[sc.id].unid+=p.unid; subs[sc.id].total+=p.total; subs[sc.id].prods.push(p);
+          });
+          cuerpo = Object.keys(subs).map(function(k){ return subs[k]; })
+            .sort(function(a,b){ return (a.orden-b.orden) || (b.unid-a.unid); })
+            .map(function(sc){
+              return '<div style="margin-bottom:9px;">'
+                +'<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;'
+                +'color:#666;margin-bottom:5px;padding-bottom:3px;border-bottom:1px dashed #e0e0e0;">'
+                +'<span>'+_escH(sc.nombre)+'</span>'
+                +'<span style="white-space:nowrap;color:'+c.color+';">'+sc.unid+' · $'+sc.total.toLocaleString()+'</span>'
+                +'</div>'
+                + sc.prods.map(function(p){
+                    var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
+                    return _barraMkt(p.nombre, p.unid, maxU,
+                      p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
+                  }).join('')
+                +'</div>';
+            }).join('');
+        } else {
+          cuerpo = delGrupo.map(function(p){
+            var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
+            return _barraMkt(p.nombre, p.unid, maxU,
+              p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
+          }).join('');
+        }
         return '<div style="margin-bottom:14px;">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;'
           +'border-left:4px solid '+c.color+';padding:3px 0 3px 8px;margin-bottom:8px;">'
           +'<span style="font-size:11px;font-weight:700;color:'+c.color+';text-transform:uppercase;letter-spacing:.5px;">'+c.icono+' '+c.nombre+'</span>'
           +'<span style="font-size:11px;font-weight:600;color:'+c.color+';white-space:nowrap;">'+unidGrupo+' · $'+totGrupo.toLocaleString()+'</span>'
           +'</div>'
-          + delGrupo.map(function(p){
-              var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
-              return _barraMkt(p.nombre, p.unid, maxU,
-                p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
-            }).join('')
+          + cuerpo
           +'</div>';
       }).join('');
     }
@@ -4550,6 +4753,15 @@ function renderUrgProd(ventas){
       }
       // Color/BN
       if(cd.colorBN) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
+      // Camisa blanca se capturaba y NUNCA llegaba aquí, que es justo donde el
+      // fotógrafo la necesita. Igual el adherible, la barba y las notas.
+      var extrasP=[];
+      if(cd.adherible) extrasP.push('Adherible');
+      if(cd.camisa_blanca) extrasP.push('👕 Camisa blanca');
+      if(cd.barba_edicion>0) extrasP.push('Editar barba');
+      if(cd.formato) extrasP.push(_escH(cd.formato));
+      if(extrasP.length) linea+='<div style="font-size:10px;color:#BA7517;padding-left:10px;font-weight:600;">+ '+extrasP.join(' · ')+'</div>';
+      if(cd.notas) linea+='<div style="font-size:10px;color:#555;padding-left:10px;font-style:italic;">✎ '+_escH(cd.notas)+'</div>';
       return linea;
       }).join('');
     }).join('');
@@ -5573,10 +5785,8 @@ function renderVariantes(k){
   if(!container) return;
   container.innerHTML = calcState[k].variantes.map(function(v, idx){
     var colorBtn = function(val){
-      return '<button onclick="setVariante(\''+k+'\','+idx+',\'color\',\''+val+'\')" '
-        +'style="font-size:11px;padding:4px 9px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;'
-        +(v.color===val?'background:#1D9E75;color:white;':'background:white;color:#333;')
-        +'">'+( val==='bn'?'B/N':'Color')+'</button>';
+      return '<button class="cbn'+(v.color===val?' on':'')+'" onclick="setVariante(\''+k+'\','+idx+',\'color\',\''+val+'\')">'
+        +'<span class="sw '+(val==='bn'?'sw-b':'sw-c')+'"></span>'+(val==='bn'?'B/N':'Color')+'</button>';
     };
     var formBtn = function(val,label){
       return '<button onclick="setVariante(\''+k+'\','+idx+',\'forma\',\''+val+'\')" '
@@ -5748,8 +5958,8 @@ function syncCant(grupo){
 
 function setColor(grupo, val){
   calcState[grupo].color=val;
-  document.getElementById('opt-'+grupo+'-color').className=val==='color'?'btn bgreen':'btn bgray';
-  document.getElementById('opt-'+grupo+'-bn').className=val==='bn'?'btn bgreen':'btn bgray';
+  document.getElementById('opt-'+grupo+'-color').className=val==='color'?'cbn on':'cbn';
+  document.getElementById('opt-'+grupo+'-bn').className=val==='bn'?'cbn on':'cbn';
   // No afecta precio — solo registro
 }
 
@@ -7683,8 +7893,8 @@ const RESPALDO = (function(){
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
-      <button id="opt-digital-color" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','color')">Color</button>
-      <button id="opt-digital-bn" class="btn bgreen" style="font-size:11px;padding:4px 9px;" onclick="setColor('digital','bn')">B/N</button>
+      <button id="opt-digital-color" class="cbn" onclick="setColor('digital','color')"><span class="sw sw-c"></span>Color</button>
+      <button id="opt-digital-bn" class="cbn on" onclick="setColor('digital','bn')"><span class="sw sw-b"></span>B/N</button>
     </div>
     <input type="text" id="calc-dig-espec" placeholder="Especificaciones: 6x9, 300kb..." style="font-size:11px;width:100%;margin-bottom:5px;">
     <div style="font-size:11px;color:#555;margin-top:4px;margin-bottom:3px;font-weight:500;">Vestimenta digital Hombre</div>
@@ -7934,8 +8144,11 @@ const RESPALDO = (function(){
 <div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
 
-  <!-- Quien paga: sexo + edad en cuadrícula 2x3 -->
-  <p class="slabel" style="margin-bottom:8px;">Quien paga</p>
+  <!-- Quien paga: sexo + edad en cuadrícula 2x3. Plegado: es solo demografía,
+       no sale en el ticket ni en producción, y robaba la mejor parte de la
+       pantalla al dato que sí urge capturar. -->
+  <details style="margin-bottom:10px;">
+  <summary class="slabel" style="cursor:pointer;margin-bottom:8px;">Quien paga <span style="font-weight:400;color:#aaa;">(opcional)</span></summary>
   <div class="frow">
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
       <button id="cr-h1" class="btn bgray" style="background:#EBF3FF;border-color:#90BEFF;color:#0C447C;font-size:18px;font-weight:700;padding:10px;" onclick="crSetSexoEdad('H','18-30',['cr-h1','cr-h2','cr-h3','cr-m1','cr-m2','cr-m3'])">1</button>
@@ -7956,13 +8169,14 @@ const RESPALDO = (function(){
       <span style="font-size:9px;color:#7C0C44;font-weight:600;">♀</span>
     </div>
   </div>
+  </details>
 
   <!-- Color / B&N -->
   <div class="frow">
     <label>Color / B&N</label>
     <div style="display:flex;gap:8px;">
-      <button id="cr-color" class="btn bgreen" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('color')">Color</button>
-      <button id="cr-bn" class="btn bgray" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('bn')">B/N</button>
+      <button id="cr-color" class="cbn on" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('color')"><span class="sw sw-c" style="width:17px;height:17px;"></span>Color</button>
+      <button id="cr-bn" class="cbn" style="flex:1;font-size:13px;padding:8px;" onclick="crSetColorBN('bn')"><span class="sw sw-b" style="width:17px;height:17px;"></span>B/N</button>
     </div>
   </div>
 
@@ -7996,7 +8210,7 @@ const RESPALDO = (function(){
   </div>
 
   <!-- Camisa blanca + Barba + Adherible -->
-  <div class="frow">
+  <div class="frow" id="cr-sec-extras">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button id="cr-adherible" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleAdherible()">Adherible +$20</button>
       <button id="cr-camisa" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleCamisa()"><i class="ti ti-shirt"></i> Camisa blanca</button>
@@ -8005,7 +8219,46 @@ const RESPALDO = (function(){
     </div>
   </div>
 
+  <!-- Solo Imagen digital: es un archivo, no una foto impresa -->
+  <div id="cr-sec-digital" style="display:none;border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:10px;background:#fafafa;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:12px;font-weight:600;">¿Cuántas imágenes?</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button type="button" onclick="crAjCant(-1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">−</button>
+        <input id="cr-cant" type="number" min="1" value="1" oninput="crSyncCant(this.value)" style="width:52px;font-size:15px;font-weight:700;text-align:center;border:1px solid #e0e0e0;border-radius:6px;padding:3px;">
+        <button type="button" onclick="crAjCant(1)" style="width:28px;height:28px;border:1px solid #e0e0e0;border-radius:6px;background:white;cursor:pointer;font-size:16px;">+</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#555;font-weight:500;margin-bottom:4px;">Formato y tamaño</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;" id="cr-formato-btns">
+      <button type="button" id="cr-fmt-1" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="crSetFormato('Tamaño infantil')">Infantil</button>
+      <button type="button" id="cr-fmt-2" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="crSetFormato('Tamaño credencial')">Credencial</button>
+      <button type="button" id="cr-fmt-3" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="crSetFormato('Tamaño visa/pasaporte')">Visa</button>
+      <button type="button" id="cr-fmt-4" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="crSetFormato('Original completa')">Original</button>
+      <button type="button" id="cr-fmt-5" class="btn bgray" style="font-size:11px;padding:4px 9px;" onclick="crSetFormato('')">Otro</button>
+    </div>
+    <input type="text" id="cr-formato-txt" placeholder="Ej: 6x9, 300 kb, JPG fondo blanco..." style="font-size:11px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="_clienteRapido.formato=this.value.trim()">
+  </div>
+
+  <!-- Ajustar precio: sirve para todos, plegado para no estorbar -->
+  <details style="margin-bottom:10px;">
+    <summary style="font-size:11px;font-weight:600;color:#666;cursor:pointer;padding:4px 0;">Ajustar precio</summary>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
+      <span style="font-size:12px;color:#888;">$</span>
+      <input type="number" id="cr-precio-manual" min="0" placeholder="Precio final" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="crSetPrecioManual(this.value)">
+      <button type="button" class="btn bgray" style="font-size:11px;padding:6px 10px;" onclick="crLimpiarPrecio()">Quitar</button>
+    </div>
+    <div style="font-size:10px;color:#aaa;margin-top:4px;">Déjalo vacío para usar el precio de lista.</div>
+  </details>
+
+  <!-- Notas para el fotógrafo -->
+  <div class="frow">
+    <label>Notas</label>
+    <input type="text" id="cr-notas" placeholder="Ej: sin lentes, fondo azul, urge para hoy..." oninput="_clienteRapido.notas=this.value.trim()">
+  </div>
+
   <!-- Quien se fotografía -->
+  <div id="cr-sec-personas">
   <p class="slabel" style="margin:10px 0 8px;">Quien se fotografía</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
 
@@ -8082,9 +8335,11 @@ const RESPALDO = (function(){
     </div>
 
   </div>
+  </div><!-- /cr-sec-personas -->
   <div style="background:#f7f7f5;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:4px;">
     <span style="font-size:11px;color:#888;">Total </span>
     <span id="cr-precio" style="font-size:18px;font-weight:700;color:#1D9E75;"></span>
+    <div id="cr-precio-nota" style="display:none;font-size:10px;color:#BA7517;margin-top:2px;"></div>
   </div>
   <p style="font-size:10px;color:#aaa;text-align:center;margin-bottom:10px;">Todos los campos son opcionales</p>
 
