@@ -363,6 +363,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#1D9E75;}
 /* Una sola clase de card para Reportes. Antes había 6 variantes escritas
    inline con radios de 8 y 10 y paddings de 10/12/14. */
 .rcard{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:10px;padding:12px;}
+.rsub{background:#fff;border-radius:8px;padding:10px;}
+.rvacio{font-size:12px;color:#666;font-style:italic;padding:10px 0;margin:0;}
 .rtitle{font-size:12px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
 #page-reportes .stat{padding:12px;}
 
@@ -926,7 +928,7 @@ body.en-reportes .cart-panel { display: none !important; }
           <button class="btn bgray" onclick="document.getElementById('rep-buscar-folio').value='';filtrarHistorial()"><i class="ti ti-x"></i></button>
         </div>
         <p style="font-size:12px;color:#666;margin-bottom:10px;">Busca dentro del período cargado arriba.</p>
-        <div id="rep-historial"><p style="font-size:12px;color:#666;text-align:center;padding:16px;">Selecciona un período arriba</p></div>
+        <div id="rep-historial"><p class="rvacio">Selecciona un período arriba</p></div>
       </div>
     </div>
 
@@ -2857,6 +2859,64 @@ function cancelarVenta(folio){
     .catch(e=>alert('Error al cancelar: '+e.message));
 }
 
+// ── PREPARAR HISTÓRICO PARA REPORTES RÁPIDOS ─────────────────
+// Las ventas anteriores a v04 no tienen el campo `fechaKey`. Las consultas
+// nuevas piden a Firebase un rango de fechas exacto en vez de años completos,
+// así que ese campo tiene que existir en todas. Esto lo rellena UNA vez.
+// Es manual, idempotente y solo escribe en los documentos a los que les falta.
+async function prepararHistorico(){
+  if(!db){ alert('Sin conexión a Firebase. Conéctate antes de preparar el histórico.'); return; }
+  if(!RESPALDO.hayArchivo || !RESPALDO.hayArchivo()){
+    if(!confirm('No detecto un archivo de respaldo activo.\n\nEsto va a modificar TODAS tus ventas viejas (solo para agregarles la fecha).\n\nMuy recomendable: cierra esto, toca "Activar / archivo" y luego "Exportar todo ahora".\n\n¿Continuar de todos modos?')) return;
+  }
+
+  var snap;
+  try{ snap = await db.collection('ventas').get(); }
+  catch(e){ alert('No se pudieron leer las ventas: '+e.message); return; }
+
+  var pendientes = [], sinFecha = 0;
+  snap.forEach(function(d){
+    var v = d.data();
+    if(v.fechaKey) return;                 // ya la tiene
+    var k = fechaKeyDeVenta(v);            // la deriva de `fecha` o del timestamp
+    if(!k){ sinFecha++; return; }
+    pendientes.push({id:d.id, fechaKey:k});
+  });
+
+  if(!pendientes.length){
+    _faltaFechaKey = false;
+    try{ localStorage.setItem('fs_historico_listo','1'); }catch(e){}
+    alert('Todo listo: las '+snap.size+' ventas ya tienen fecha.\n\nNo hubo nada que actualizar.');
+    return;
+  }
+
+  if(!confirm('Se van a actualizar '+pendientes.length+' venta(s) de '+snap.size+'.\n\nSolo se les agrega la fecha; no se modifica ningún importe ni producto.\n\n¿Continuar?')) return;
+
+  var hechas = 0;
+  try{
+    for(var i=0; i<pendientes.length; i+=400){
+      var lote = db.batch();
+      pendientes.slice(i, i+400).forEach(function(x){
+        lote.update(db.collection('ventas').doc(x.id), {fechaKey: x.fechaKey});
+      });
+      await lote.commit();
+      hechas += Math.min(400, pendientes.length - i);
+    }
+  }catch(e){
+    alert('Se actualizaron '+hechas+' y falló el resto:\n'+e.message+'\n\nPuedes volver a correrlo, no repite las ya hechas.');
+    return;
+  }
+
+  if(!sinFecha){
+    _faltaFechaKey = false;
+    try{ localStorage.setItem('fs_historico_listo','1'); }catch(e){}
+  }
+  alert('Listo: '+hechas+' venta(s) actualizada(s).'
+    + (sinFecha ? '\n\n⚠ '+sinFecha+' venta(s) no tenían ninguna fecha de la cual deducirla y se quedaron igual.' : '')
+    + '\n\nLos reportes ahora consultan solo el rango de fechas que pidas.');
+  cargarReportes();
+}
+
 function limpiarTodasVentas(){
   const clave=prompt('Clave para eliminar TODAS las ventas:');
   if(clave!==CLAVE){alert('Clave incorrecta');return;}
@@ -2958,71 +3018,107 @@ function _repCargando(on){
   if(c) c.style.display = on ? 'inline' : 'none';
   var p=document.getElementById('page-reportes');
   if(p) p.style.opacity = on ? '.65' : '1';
+  // Antes solo se atenuaba: se podia seguir tocando periodos y acababa ganando
+  // el que respondiera ultimo, no el que pediste ultimo.
+  var t=document.getElementById('rep-tabs');
+  if(t) t.style.pointerEvents = on ? 'none' : '';
 }
+
+// Rango de fechas del período seleccionado, en formato "YYYY-MM-DD".
+// Devuelve null si al período le falta un dato (y avisa).
+function _rangoDelPeriodo(){
+  var now = new Date();
+  var y = now.getFullYear(), m = now.getMonth();
+  var fin = function(a, mes){ return fechaKeyDe(new Date(a, mes+1, 0)); };  // último día del mes
+  var ini = function(a, mes){ return fechaKeyDe(new Date(a, mes, 1)); };
+
+  if(periodoActual==='hoy')    return {desde:fechaKeyDe(now), hasta:fechaKeyDe(now)};
+  if(periodoActual==='semana'){
+    var h7=new Date(now); h7.setDate(h7.getDate()-7);
+    return {desde:fechaKeyDe(h7), hasta:fechaKeyDe(now)};
+  }
+  if(periodoActual==='mes')  return {desde:ini(y,m), hasta:fin(y,m)};
+  if(periodoActual==='anio') return {desde:y+'-01-01', hasta:y+'-12-31'};
+
+  if(periodoActual==='dia'){
+    var v=(document.getElementById('cal-dia-val')||{}).value;
+    if(!v){ alert('Selecciona un día'); return null; }
+    return {desde:v, hasta:v};
+  }
+  if(periodoActual==='rango'){
+    var d=(document.getElementById('cal-desde')||{}).value;
+    var h=(document.getElementById('cal-hasta')||{}).value;
+    if(!d||!h){ alert('Selecciona fecha inicio y fin'); return null; }
+    if(d>h){ alert('La fecha de inicio debe ser anterior a la de fin'); return null; }
+    return {desde:d, hasta:h};
+  }
+  if(periodoActual==='mes_cal'){
+    var val=(document.getElementById('cal-mes-val')||{}).value;
+    if(!val){ alert('Selecciona un mes'); return null; }
+    var p=val.split('-');
+    var yy=parseInt(p[0]), mm=parseInt(p[1])-1;
+    return {desde:ini(yy,mm), hasta:fin(yy,mm)};
+  }
+  return {desde:y+'-01-01', hasta:y+'-12-31'};
+}
+
+// Cuántas ventas del período pedido siguen sin fechaKey (histórico anterior a
+// v04). Mientras haya, la consulta necesita la red de seguridad por año.
+var _faltaFechaKey = true;
+try{ if(localStorage.getItem('fs_historico_listo')==='1') _faltaFechaKey = false; }catch(e){}
+
+var _repPeticion = 0;   // descarta respuestas de peticiones ya superadas
 
 async function cargarReportes(){
   if(!db){mostrarReportesLocal();return;}
+  var rango = _rangoDelPeriodo();
+  if(!rango) return;
+
+  var miPeticion = ++_repPeticion;
   const el=document.getElementById('rep-historial');
   if(el)el.innerHTML='<p style="font-size:12px;color:#666;text-align:center;padding:16px;">Cargando...</p>';
   _repCargando(true);
   try{
-    const now=new Date();
-    let snap;
-    if(periodoActual==='hoy'){
-      snap=await db.collection('ventas').where('fecha','==',getFechaStr(now)).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else if(periodoActual==='semana'){
-      // Fetch current month + previous month to cover 7-day window, filter client-side
-      const h7=new Date(now);h7.setDate(h7.getDate()-7);
-      const snaps=await Promise.all([
-        db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get(),
-        now.getDate()<=7 ? db.collection('ventas').where('year','==',now.getMonth()===0?now.getFullYear()-1:now.getFullYear()).where('month','==',now.getMonth()===0?12:now.getMonth()).get() : Promise.resolve({forEach:()=>{}})
-      ]);
-      ventasFB=[];
-      var kDesde=fechaKeyDe(h7);
-      snaps.forEach(function(s){ s.forEach(function(d){ var v=d.data(); if(fechaKeyDeVenta(v)>=kDesde) ventasFB.push(v); }); });
-    } else if(periodoActual==='mes'){
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).where('month','==',now.getMonth()+1).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else if(periodoActual==='anio'){
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    // ── Modos calendario ──
-    } else if(periodoActual==='dia'){
-      const val=document.getElementById('cal-dia-val').value;
-      if(!val){alert('Selecciona un día');return;}
-      const fechaStr=fechaInputToStr(val);
-      snap=await db.collection('ventas').where('fecha','==',fechaStr).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else if(periodoActual==='rango'){
-      const desde=document.getElementById('cal-desde').value;
-      const hasta=document.getElementById('cal-hasta').value;
-      if(!desde||!hasta){alert('Selecciona fecha inicio y fin');return;}
-      // Se compara por fechaKey local: antes se comparaba el timestamp UTC y las
-      // ventas de la tarde del último día quedaban fuera del rango.
-      // Fetch by year range client-side to avoid compound index requirement
-      var desdeDate=new Date(desde+'T00:00:00');
-      var hastaDate=new Date(hasta+'T23:59:59');
-      var years=[];
-      for(var y=desdeDate.getFullYear();y<=hastaDate.getFullYear();y++) years.push(y);
-      var rangoSnaps=await Promise.all(years.map(function(y){ return db.collection('ventas').where('year','==',y).get(); }));
-      ventasFB=[];
-      rangoSnaps.forEach(function(s){ s.forEach(function(d){ var v=d.data(); var k=fechaKeyDeVenta(v); if(k>=desde&&k<=hasta) ventasFB.push(v); }); });
-    } else if(periodoActual==='mes_cal'){
-      const val=document.getElementById('cal-mes-val').value;
-      if(!val){alert('Selecciona un mes');return;}
-      const [y,m]=val.split('-');
-      snap=await db.collection('ventas')
-        .where('year','==',parseInt(y))
-        .where('month','==',parseInt(m)).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
-    } else {
-      snap=await db.collection('ventas').where('year','==',now.getFullYear()).get();
-      ventasFB=[];snap.forEach(d=>ventasFB.push(d.data()));
+    // UNA sola consulta, por rango de fecha real. Antes había siete caminos
+    // distintos y "Rango" descargaba AÑOS COMPLETOS para quedarse con unos días.
+    // fechaKey es un solo campo, así que Firestore lo resuelve con el índice
+    // automático: no hace falta crear ningún índice compuesto.
+    var snap = await db.collection('ventas')
+      .where('fechaKey','>=',rango.desde)
+      .where('fechaKey','<=',rango.hasta)
+      .get();
+
+    var lista = [], vistos = {};
+    snap.forEach(function(d){ var v=d.data(); lista.push(v); vistos[v.folio]=1; });
+
+    // Red de seguridad para el histórico que aún no tiene fechaKey: se consulta
+    // por año y se filtra en el navegador, sin duplicar folios. Se apaga sola
+    // en cuanto "Preparar histórico" deja el pendiente en cero.
+    if(_faltaFechaKey){
+      var yIni = parseInt(rango.desde.slice(0,4)), yFin = parseInt(rango.hasta.slice(0,4));
+      var anios = [];
+      for(var a=yIni; a<=yFin; a++) anios.push(a);
+      var extras = await Promise.all(anios.map(function(a){
+        return db.collection('ventas').where('year','==',a).get();
+      }));
+      extras.forEach(function(s){
+        s.forEach(function(d){
+          var v=d.data();
+          if(v.fechaKey || vistos[v.folio]) return;      // ya vino por la consulta buena
+          var k=fechaKeyDeVenta(v);
+          if(k>=rango.desde && k<=rango.hasta){ lista.push(v); vistos[v.folio]=1; }
+        });
+      });
     }
+
+    if(miPeticion !== _repPeticion) return;   // llegó tarde: manda una consulta más nueva
+    ventasFB = lista;
     renderReportes();
-  }catch(e){console.error(e);mostrarReportesLocal();}
-  finally{ _repCargando(false); }
+  }catch(e){
+    console.error(e);
+    if(miPeticion === _repPeticion) mostrarReportesLocal();
+  }
+  finally{ if(miPeticion === _repPeticion) _repCargando(false); }
 }
 
 function mostrarReportesLocal(){
@@ -3030,41 +3126,30 @@ function mostrarReportesLocal(){
   renderReportes();
 }
 
-function barraItem(n,total,count,max,personas){
-  const pct=Math.round(total/max*100);
-  const personasTag = personas>0 ? `<span style="color:#0C447C;font-size:10px;margin-left:6px;">👤${personas}</span>` : '';
-  return `<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:500;">${n}</span><span style="color:#1D9E75;font-weight:600;">$${total.toLocaleString()} <span style="color:#888;font-weight:400;">${count} paq.</span>${personasTag}</span></div><div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;"><div style="background:#1D9E75;height:100%;width:${pct}%;border-radius:10px;"></div></div></div>`;
-}
-
-function renderSeccion(id,mapa){
-  const el=document.getElementById(id);if(!el)return;
-  const items=Object.entries(mapa).sort((a,b)=>b[1].total-a[1].total);
-  if(!items.length){el.innerHTML='<p style="font-size:12px;color:#888;">Sin ventas</p>';return;}
-  const max=items[0][1].total||1;
-  const totalSec=items.reduce((s,[,d])=>s+d.total,0);
-  const countSec=items.reduce((s,[,d])=>s+d.count,0);
-  const personasSec=items.reduce((s,[,d])=>s+(d.personas||0),0);
-  el.innerHTML=items.map(([n,d])=>barraItem(d.nombre||n,d.total,d.count,max,d.personas||0)).join('')
-    +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:600;color:#555;border-top:1px dashed #e0e0e0;margin-top:6px;padding-top:6px;">'
-    +'<span>Total</span>'
-    +'<span style="display:flex;align-items:center;gap:10px;">'
-    +'<span style="color:#888;font-weight:400;">'+countSec+' paq.</span>'
-    +(personasSec>0?'<span style="color:#0C447C;">👤'+personasSec+' personas</span>':'')
-    +'</span>'
-    +'</div>';
-}
-
 // ── PANEL "QUÉ VENDO Y PARA QUÉ" ─────────────────────────────
-function _barraMkt(label, val, max, sufijo, color){
-  var pct = max ? Math.round(val/max*100) : 0;
+// ── BARRA DE PROGRESO — implementación única ─────────────────
+// Antes había CINCO copias con alturas, radios y tamaños distintos, y tres de
+// ellas no escapaban el texto. Ahora todas pasan por aquí.
+function _barra(label, val, max, color, opts){
+  opts = opts || {};
+  if(opts.ocultarCero && !val) return '';
+  var pct = max>0 ? Math.round(val/max*100) : 0;
+  var col = color || '#1D9E75';
+  var der = (opts.sufijo!==undefined && opts.sufijo!==null) ? opts.sufijo : val;
   return '<div style="margin-bottom:7px;">'
-    +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;gap:8px;">'
     +'<span style="font-weight:500;">'+_escH(label)+'</span>'
-    +'<span style="color:'+(color||'#1D9E75')+';font-weight:600;">'+sufijo+'</span></div>'
+    +'<span style="color:'+col+';font-weight:600;white-space:nowrap;">'+der+'</span></div>'
     +'<div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;">'
-    +'<div style="background:'+(color||'#1D9E75')+';height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
+    +'<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
 }
-function _vacio(msg){ return '<p style="font-size:12px;color:#888;">'+(msg||'Sin datos en este período')+'</p>'; }
+// Firmas que ya usaba el resto del código
+function _barraRep(label, val, max, color, ocultarCero){ return _barra(label, val, max, color, {ocultarCero:ocultarCero}); }
+function _barraMkt(label, val, max, sufijo, color){ return _barra(label, val, max, color, {sufijo:sufijo}); }
+// Un solo estado vacío. Antes había 7 redacciones con 4 estéticas distintas.
+function _vacio(msg){
+  return '<p class="rvacio">'+_escH(msg||'Sin datos en este período')+'</p>';
+}
 
 function renderMarketing(ventasActivas){
   // 1) Ranking de productos (todos los orígenes juntos, por productoId)
@@ -3250,33 +3335,6 @@ function renderReportes(){
       impEl.style.display='none';
     }
   }
-  const urg={},vis={},esc={},imp={};
-  ventasActivas.forEach(v=>{
-    (v.items||[]).forEach(item=>{
-      const tipo=item.tipo||'otro';
-      const precio=item.precio||0;
-      const n=item.nombre||tipo;
-      // Contar personas fotografiadas del item
-      var itemPersonas=0;
-      if(item.clienteData && item.clienteData.fotografiados){
-        var f=item.clienteData.fotografiados;
-        itemPersonas=(f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)
-          +(f.adulto_h||0)+(f.adulto_m||0)+(f.adulto_plus_h||0)+(f.adulto_plus_m||0);
-      }
-      // Agrupa por productoId (o por nombre limpio en ventas viejas), no por el
-      // nombre decorado: así "Infantil 6 fotos" y "Infantil 6 fotos (adh)" suman juntos
-      const pd=productoDeItem(item);
-      const addM=(m)=>{if(!m[pd.id])m[pd.id]={nombre:pd.nombre,total:0,count:0,personas:0};m[pd.id].total+=precio;m[pd.id].count++;m[pd.id].personas+=itemPersonas;};
-      if(tipo==='escuela') addM(esc);
-      else if(tipo==='impresion') addM(imp);
-      else if(tipo==='extra') {}
-      else if(tipo==='visaUSA'||tipo==='visa') addM(vis);
-      else addM(urg);
-    });
-  });
-  renderSeccion('rep-urgentes',urg);
-  renderSeccion('rep-visas',vis);
-  renderSeccion('rep-escuelas',esc);
 
   // Contador fotografiados urgentes
   var fUrgH=0, fUrgM=0;
@@ -3309,11 +3367,11 @@ function renderReportes(){
   var fOrdTotal = fOrdH+fOrdM;
   set('rep-fotos-ord', fOrdTotal>0 ? fOrdTotal+' personas' : '—');
   set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
-  renderSeccion('rep-impresiones',imp);
   renderMarketing(ventasActivas);
   renderTablaEscuelasMes(ventasActivas);
   renderDesgloseSpecs(ventasActivas);
   renderDesgloseOrdinarios(ventasActivas);
+  _limpiarConsultaProducto();
   poblarSelectProductos();
   const sorted=[...ventasFB].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
   const elH=document.getElementById('rep-historial');
@@ -3328,8 +3386,6 @@ function renderDesgloseSpecs(ventas){
   // Recopilar datos de cliente (venta rápida) y specs (mini calculadora)
   var itemsConSpecs = [];
   var clientesData = [];
-  // Análisis temporal escuelas ordinarias
-  var MESES_NOMBRE = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   ventas.forEach(function(v){
     if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
     (v.items||[]).forEach(function(it){
@@ -3342,11 +3398,8 @@ function renderDesgloseSpecs(ventas){
     });
   });
 
-  // La tabla de escuelas por mes vive dentro de esta seccion, asi que el corte
-  // no puede depender solo de los datos de urgentes: un periodo con ventas
-  // escolares pero sin specs de urgentes hacia DESAPARECER la tabla entera.
   var totalDatos = itemsConSpecs.length + clientesData.length;
-  if(!totalDatos){ sec.style.display='none'; return; }
+  if(!totalDatos){ sec.style.display='none'; grid.innerHTML=''; return; }
   sec.style.display='block';
 
   // --- Análisis de quien paga (clienteData) ---
@@ -3417,24 +3470,17 @@ function renderDesgloseSpecs(ventas){
   });
   var totalSpecs = itemsConSpecs.length || 1;
 
-  function barra(label, val, max, color){
-    var pct = max>0 ? Math.round(val/max*100) : 0;
-    return '<div style="margin-bottom:6px;">'
-      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
-      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'
-      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'
-      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
-  }
+  var barra = _barraRep;
 
   var html = '<div class="g2" style="gap:10px;">';
 
   // Sexo pagador
   if(clientesData.length){
     // Columna izquierda: Sexo + Edad (del pagador) + resumen total fotografiados
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +((fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Total fotografiados (real)</p>'          +barra('Hombre', (fotoNinoH+fotoJovenH+fotoAdultoH+fotoAdultoPlusH), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#0C447C')          +barra('Mujer', (fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM), (fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus), '#7C0C44')          +'<div style="font-size:10px;color:#888;margin-top:3px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong> personas fotografiadas</div>'          +'</div>'        : '')      +'</div>';
+    html += '<div class="rsub">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +'</div>';   // se quito "Total fotografiados (real)": era el MISMO numero que el KPI de arriba
 
     // Columna derecha: Personas fotografiadas + Color/B&N
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
+    html += '<div class="rsub">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
 
         // Propósito de visita con desglose de productos
     var propEntries = Object.entries(cProp).filter(function(e){
@@ -3446,24 +3492,20 @@ function renderDesgloseSpecs(ventas){
     });
     if(propEntries.length){
       var maxProp = propEntries.length ? (typeof propEntries[0][1]==='number' ? propEntries[0][1] : propEntries[0][1].count) : 1;
-      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+      html += '<div class="rsub" style="grid-column:1/-1;">'
         +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
         +'<div class="g2" style="gap:6px;">'
         +propEntries.map(function(e){
           var label = e[0];
           var val = typeof e[1]==='number' ? e[1] : e[1].count;
           var prods = (typeof e[1]==='object' && e[1].productos) ? e[1].productos : {};
-          var pct = maxProp>0 ? Math.round(val/maxProp*100) : 0;
           var prodStr = Object.entries(prods).sort(function(a,b){return b[1]-a[1];}).map(function(p){
-            return '<span style="background:#f0f0f0;border-radius:4px;padding:2px 7px;font-size:11px;color:#555;margin-right:3px;display:inline-block;margin-top:2px;">'+p[0]+(p[1]>1?' ×'+p[1]:'')+'</span>';
+            return '<span style="background:#f0f0f0;border-radius:4px;padding:2px 7px;font-size:11px;color:#555;margin-right:3px;display:inline-block;margin-top:2px;">'+_escH(p[0])+(p[1]>1?' ×'+p[1]:'')+'</span>';
           }).join('');
           return '<div style="margin-bottom:8px;">'
-            +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
-            +'<span style="font-weight:500;">'+label+'</span><span style="font-weight:600;color:#555;">'+val+'</span></div>'
-            +'<div style="background:#e0e0e0;border-radius:6px;height:6px;margin-bottom:'+(prodStr?'4px':'0')+';">'
-            +'<div style="background:#555;height:100%;width:'+pct+'%;border-radius:6px;"></div></div>'
-            +(prodStr ? '<div style="margin-top:3px;">'+prodStr+'</div>' : '')
-            +'</div>';
+            + _barra(label, val, maxProp, '#555')
+            + (prodStr ? '<div style="margin-top:3px;">'+prodStr+'</div>' : '')
+            + '</div>';
         }).join('')
         +'</div></div>';
     }
@@ -3471,7 +3513,7 @@ function renderDesgloseSpecs(ventas){
     // Escuelas
     var escEntries = Object.entries(cEscuelas).sort(function(a,b){return b[1]-a[1];});
     if(escEntries.length){
-      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+      html += '<div class="rsub" style="grid-column:1/-1;">'
         +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Escuelas</p>'
         +escEntries.map(function(e){ return barra(e[0], e[1], totalClientes, '#0C447C'); }).join('')
         +'</div>';
@@ -3479,7 +3521,7 @@ function renderDesgloseSpecs(ventas){
 
     // Adherible, camisa, barba desde clienteData
     if(cAdherible>0||cCamisa>0||cBarbaEdicion>0){
-      html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+      html += '<div class="rsub" style="grid-column:1/-1;">'
         +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Servicios adicionales</p>'
         +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
         +(cAdherible?'<div style="font-size:12px;">Adherible: <strong style="color:#BA7517;">'+cAdherible+'</strong></div>':'')
@@ -3495,25 +3537,21 @@ function renderDesgloseSpecs(ventas){
     // Se quitaron las cards "Sexo (con specs)" y su Color/B&N: repetían las de
     // arriba ("Sexo (quien paga)" y el Color/B&N de la columna derecha).
 
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Adherible</p>'
-      +barra('Con adherible', adh, totalSpecs, '#BA7517')
-      +barra('Sin adherible', sinAdh, totalSpecs, '#aaa')
-      +'</div>';
-
+    // Se quito la card "Adherible": ya se cuenta en "Servicios adicionales", y
+    // ahi va ponderada por personas. Tener las dos daba dos cifras distintas
+    // del mismo concepto, sin nada que explicara la diferencia.
     var vestEntries = Object.entries(vest).sort(function(a,b){return b[1]-a[1];});
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'
+    html += '<div class="rsub">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Vestimenta</p>'
       +vestEntries.map(function(e){ return barra(e[0], e[1], totalSpecs, '#0C7ED6'); }).join('')
       +'</div>';
 
-    html += '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;">'
+    html += '<div class="rsub" style="grid-column:1/-1;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Barba</p>'
       +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
       +'<div style="font-size:12px;">Barba permitida: <strong>'+barbaSi+'</strong></div>'
       +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
-      +(barbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+barbaTotal+'</div>':'')
-      +'</div></div>';
+      +'</div></div>';   // el importe de barba ya sale en "Servicios adicionales"
   }
 
 
@@ -3537,7 +3575,7 @@ function renderTablaEscuelasMes(ventas){
 
   var escTemp = Object.entries(agr.porEscuela).sort(function(a,b){return b[1].ventas-a[1].ventas;});
   if(escTemp.length){
-    html = '<div style="background:white;border-radius:8px;padding:10px;grid-column:1/-1;margin-top:4px;">'
+    html = '<div class="rcard" style="background:white;">'
       +'<p style="font-size:11px;font-weight:600;color:#666;margin-bottom:8px;text-transform:uppercase;">📅 Escuelas ordinarias — actividad por mes</p>'
       +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
       +'<table style="width:100%;min-width:460px;border-collapse:collapse;font-size:12px;">'
@@ -3567,7 +3605,12 @@ function renderTablaEscuelasMes(ventas){
           +'</tr>';      }).join('')
       +'</tbody></table></div></div>';
   }
-  cont.innerHTML = html ? ('<div class="rcard">'+html+'</div>') : '';
+  // Sin ventas escolares la pestaña entera quedaba en blanco, sin un solo texto.
+  // Se decide por los datos, no por el DOM: esta funcion corre antes que
+  // renderDesgloseOrdinarios y leeria un display desactualizado.
+  cont.innerHTML = html
+    ? html   // el html ya trae su propio card; envolverlo en .rcard daba doble borde
+    : '<div class="rcard" style="text-align:center;color:#666;font-size:12px;padding:24px 12px;">No hubo ventas de paquetes escolares en '+_escH(_periodoTexto())+'</div>';
 }
 
 // ── AGRUPAR VENTAS DE ESCUELA (una sola implementacion) ──────
@@ -3660,26 +3703,23 @@ function renderDesgloseOrdinarios(ventas){
 
   var escEntries = Object.entries(porEscuela).sort(function(a,b){ return b[1].ventas - a[1].ventas; });
 
-  if(!escEntries.length){ sec.style.display='none'; return; }
+  if(!escEntries.length){ sec.style.display='none'; grid.innerHTML=''; return; }
   sec.style.display='block';
 
   var totalFotos = totalH + totalM || 1;
 
-  function barra(label, val, max, color){
-    var pct = max>0 ? Math.round(val/max*100) : 0;
-    return '<div style="margin-bottom:6px;">'      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
-  }
+  var barra = _barraRep;
 
   var html = '<div class="g2" style="gap:10px;">';
 
   // Columna izquierda: Total H/M fotografiados
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Fotografiados (total período)</p>'    +barra('Hombre', totalH, totalFotos, '#0C447C')    +barra('Mujer', totalM, totalFotos, '#7C0C44')    +'<div style="font-size:10px;color:#888;margin-top:6px;">Total: <strong>'+(totalH+totalM)+'</strong> personas · <strong>'+totalVentas+'</strong> venta'+(totalVentas!==1?'s':'')+'</div>'+_coberturaHTML(_agr)    +'</div>';
+  html += '<div class="rsub">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Fotografiados (total período)</p>'    +barra('Hombre', totalH, totalFotos, '#0C447C')    +barra('Mujer', totalM, totalFotos, '#7C0C44')    +'<div style="font-size:10px;color:#888;margin-top:6px;">Total: <strong>'+(totalH+totalM)+'</strong> personas · <strong>'+totalVentas+'</strong> venta'+(totalVentas!==1?'s':'')+'</div>'+_coberturaHTML(_agr)    +'</div>';
 
   // Columna derecha: Desglose por escuela (barras H y M)
-  html += '<div style="background:white;border-radius:8px;padding:10px;">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Por escuela</p>'    +escEntries.map(function(e){
+  html += '<div class="rsub">'    +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Por escuela</p>'    +escEntries.map(function(e){
       var d = e[1]; var nombre = d.nombre || e[0];
       var totalEsc = d.H + d.M;
-      return '<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f0f0f0;">'        +'<div style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:4px;">'+nombre+'</div>'        +'<div style="display:flex;gap:12px;font-size:10px;color:#555;margin-bottom:4px;">'        +'<span>'+d.ventas+' venta'+(d.ventas!==1?'s':'')+' · $'+d.total+'</span>'        +(totalEsc>0?'<span style="color:#085041;font-weight:600;">'+totalEsc+' fotografiad'+(totalEsc!==1?'os':'o')+(d.H&&d.M?' (H:'+d.H+' M:'+d.M+')':d.H?' ('+d.H+'H)':' ('+d.M+'M)')+'</span>':'')        +'</div>'        +(totalEsc>0          ? barra('H', d.H, totalEsc, '#0C447C') + barra('M', d.M, totalEsc, '#7C0C44')          : '<div style="font-size:10px;color:#aaa;font-style:italic;">Sin datos de fotografiados</div>')        +'</div>';
+      return '<div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #f0f0f0;">'        +'<div style="font-size:11px;font-weight:600;color:#0C447C;margin-bottom:4px;">'+_escH(nombre)+'</div>'        +'<div style="display:flex;gap:12px;font-size:10px;color:#555;margin-bottom:4px;">'        +'<span>'+d.ventas+' venta'+(d.ventas!==1?'s':'')+' · $'+d.total+'</span>'        +(totalEsc>0?'<span style="color:#085041;font-weight:600;">'+totalEsc+' fotografiad'+(totalEsc!==1?'os':'o')+(d.H&&d.M?' (H:'+d.H+' M:'+d.M+')':d.H?' ('+d.H+'H)':' ('+d.M+'M)')+'</span>':'')        +'</div>'        +(totalEsc>0          ? barra('H', d.H, totalEsc, '#0C447C') + barra('M', d.M, totalEsc, '#7C0C44')          : _vacio('Sin datos de fotografiados'))        +'</div>';
     }).join('')    +'</div>';
 
   html += '</div>';
@@ -3710,8 +3750,17 @@ function poblarSelectProductos(){
   (impresiones||[]).forEach(function(im){ if(im.pid) mapa[im.pid]='Impresión '+im.sz; });
 
   var lista = Object.keys(mapa).sort(function(a,b){ return mapa[a].localeCompare(mapa[b],'es'); });
+  var elegido = sel.value;   // antes se perdia la seleccion en cada recarga
   sel.innerHTML = '<option value="">— Selecciona un producto —</option>'
     + lista.map(function(id){ return '<option value="'+_escH(id)+'">'+_escH(mapa[id])+'</option>'; }).join('');
+  if(elegido && mapa[elegido]) sel.value = elegido;
+}
+
+// 2.1: el recuadro de resultado no se limpiaba al cambiar de periodo, asi que
+// mostraba las cifras del periodo anterior bajo el encabezado del nuevo.
+function _limpiarConsultaProducto(){
+  var res = document.getElementById('cprod-resultado');
+  if(res){ res.innerHTML=''; res.style.display='none'; }
 }
 
 function consultarProducto(){
@@ -3788,11 +3837,8 @@ function consultarProducto(){
   fotoM += fotoNinoM+fotoJovenM+fotoAdultoM+fotoAdultoPlusM;
   var totalFotos = fotoH+fotoM || 1;
 
-  function barra(label, val, max, color){
-    if(!val) return '';
-    var pct = max>0 ? Math.round(val/max*100) : 0;
-    return '<div style="margin-bottom:6px;">'      +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'      +'<span>'+label+'</span><span style="font-weight:600;color:'+color+';">'+val+'</span></div>'      +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'      +'<div style="background:'+color+';height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
-  }
+  // aqui las filas en cero se ocultan
+  var barra = function(l,v,m,c){ return _barraRep(l,v,m,c,true); };
 
   var conDatos = totalPaq - sinDatos;
   var html = '<div style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:10px;padding:14px;">';
@@ -3806,17 +3852,17 @@ function consultarProducto(){
     html += '<div class="g2" style="gap:10px;">';
 
     // Col izq: Sexo pagador + Edad
-    html += '<div style="background:white;border-radius:8px;padding:10px;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexoPag.H, conDatos, '#0C447C')      +barra('Mujer', cSexoPag.M, conDatos, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdadPag['18-30'], conDatos, '#1D9E75')      +barra('30-50', cEdadPag['30-50'], conDatos, '#0C7ED6')      +barra('50+', cEdadPag['50+'], conDatos, '#BA7517')      +'</div>'      +(cColor+cBN>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor, cColor+cBN, '#1D9E75')          +barra('B/N', cBN, cColor+cBN, '#555')          +'</div>'        : '')      +(cAdh>0?'<div style="margin-top:6px;font-size:11px;color:#BA7517;">⊕ '+cAdh+' con adherible</div>':'')      +'</div>';
+    html += '<div class="rsub">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Sexo (quien paga)</p>'      +barra('Hombre', cSexoPag.H, conDatos, '#0C447C')      +barra('Mujer', cSexoPag.M, conDatos, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdadPag['18-30'], conDatos, '#1D9E75')      +barra('30-50', cEdadPag['30-50'], conDatos, '#0C7ED6')      +barra('50+', cEdadPag['50+'], conDatos, '#BA7517')      +'</div>'      +(cColor+cBN>0        ? '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor, cColor+cBN, '#1D9E75')          +barra('B/N', cBN, cColor+cBN, '#555')          +'</div>'        : '')      +(cAdh>0?'<div style="margin-top:6px;font-size:11px;color:#BA7517;">⊕ '+cAdh+' con adherible</div>':'')      +'</div>';
 
     // Col der: Personas por rango de edad
     var hayFotoDetalle = fotoNinoH+fotoNinoM+fotoJovenH+fotoJovenM+fotoAdultoH+fotoAdultoM+fotoAdultoPlusH+fotoAdultoPlusM;
-    html += '<div style="background:white;border-radius:8px;padding:10px;">';
+    html += '<div class="rsub">';
     if(hayFotoDetalle > 0){
       html += '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'        +(fotoNinoH||fotoNinoM ? barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44') : '')        +(fotoJovenH||fotoJovenM ? barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44') : '')        +(fotoAdultoH||fotoAdultoM ? barra('Adulto H', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M', fotoAdultoM, totalFotos, '#7C0C44') : '')        +(fotoAdultoPlusH||fotoAdultoPlusM ? barra('Mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44') : '')        +'<div style="font-size:10px;color:#888;margin-top:4px;">Total: <strong>'+(fotoH+fotoM)+'</strong></div>';
     } else if(fotoH+fotoM > 0){
       html += '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'        +barra('Hombre', fotoH, fotoH+fotoM, '#0C447C')        +barra('Mujer', fotoM, fotoH+fotoM, '#7C0C44')        +'<div style="font-size:10px;color:#888;margin-top:4px;">Total: <strong>'+(fotoH+fotoM)+'</strong></div>';
     } else {
-      html += '<p style="font-size:11px;color:#aaa;font-style:italic;">Sin desglose de fotografiados</p>';
+      html += _vacio('Sin desglose de fotografiados');
     }
     html += '</div>';
     html += '</div>'; // g2
@@ -3826,15 +3872,10 @@ function consultarProducto(){
   var propProdEntries = Object.entries(cProposito).sort(function(a,b){return b[1]-a[1];});
   if(propProdEntries.length){
     var maxPP = propProdEntries[0][1] || 1;
-    html += '<div style="background:white;border-radius:8px;padding:10px;margin-top:10px;">'
+    html += '<div class="rsub" style="margin-top:10px;">'
       +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
       +propProdEntries.map(function(e){
-        var pct = Math.round(e[1]/maxPP*100);
-        return '<div style="margin-bottom:6px;">'
-          +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;">'
-          +'<span>'+e[0]+'</span><span style="font-weight:600;color:#555;">'+e[1]+'</span></div>'
-          +'<div style="background:#e0e0e0;border-radius:6px;height:6px;">'
-          +'<div style="background:#555;height:100%;width:'+pct+'%;border-radius:6px;"></div></div></div>';
+        return _barra(e[0], e[1], maxPP, '#555');
       }).join('')
       +'</div>';
   }
@@ -4137,7 +4178,7 @@ function _pintarHistorial(){
   var elH = document.getElementById('rep-historial');
   if(!elH) return;
   var total = _histLista.length;
-  if(!total){ elH.innerHTML='<p style="font-size:12px;color:#666;text-align:center;padding:16px;">Sin ventas en este período</p>'; return; }
+  if(!total){ elH.innerHTML=_vacio('Sin ventas en este período'); return; }
   var n = Math.min(_histMostrados, total);
   elH.innerHTML = _histFilasHTML(_histLista.slice(0, n))
     + (n < total
@@ -6947,7 +6988,8 @@ const RESPALDO = (function(){
     }catch(e){ setEstado('Respaldo desactivado', false); }
   }
 
-  return { init, elegirArchivo, _reactivar, reconciliarCompleto, restaurar, merge, mergeMuchos };
+  function hayArchivo(){ return !!fileHandle; }
+  return { init, elegirArchivo, _reactivar, reconciliarCompleto, restaurar, merge, mergeMuchos, hayArchivo };
 })();
 
 </script>
@@ -7331,10 +7373,11 @@ const RESPALDO = (function(){
   </div>
 
   <p class="slabel" style="margin-bottom:6px;">Datos</p>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
     <button class="btn bgray" onclick="exportarCSV()"><i class="ti ti-file-spreadsheet"></i> Exportar CSV</button>
     <button class="btn bgray" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial de precios</button>
   </div>
+  <button class="btn bgray" id="btn-preparar-historico" style="width:100%;margin-bottom:14px;" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico para reportes rápidos</button>
 
   <p class="slabel" style="margin-bottom:6px;color:#A32D2D;">Zona peligrosa</p>
   <button class="btn bgray" style="color:#A32D2D;border-color:#f5c0c0;width:100%;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Borrar TODAS las ventas</button>
