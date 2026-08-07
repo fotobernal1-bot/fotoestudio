@@ -3127,6 +3127,21 @@ function mostrarReportesLocal(){
 }
 
 // ── PANEL "QUÉ VENDO Y PARA QUÉ" ─────────────────────────────
+// ── CATEGORÍAS DE PRODUCTO PARA EL RANKING ───────────────────
+// Mismos colores que los contadores de arriba: urgentes azul claro,
+// escolares azul oscuro, impresiones verde.
+var CATS_PROD = [
+  {id:'urg', nombre:'Urgentes',   color:'#0C7ED6', icono:'⚡'},
+  {id:'esc', nombre:'Escolares',  color:'#0C447C', icono:'📅'},
+  {id:'imp', nombre:'Impresiones',color:'#1D9E75', icono:'🖨'}
+];
+function _catProducto(it){
+  var t = it && it.tipo;
+  if(t==='escuela')   return 'esc';
+  if(t==='impresion') return 'imp';
+  return 'urg';   // infantil, credencial, cartilla, digital, visas y categorías nuevas
+}
+
 // ── BARRA DE PROGRESO — implementación única ─────────────────
 // Antes había CINCO copias con alturas, radios y tamaños distintos, y tres de
 // ellas no escapaban el texto. Ahora todas pasan por aquí.
@@ -3167,7 +3182,7 @@ function renderMarketing(ventasActivas){
     (v.items||[]).forEach(function(it){
       if(it.tipo==='extra') return;
       var pd=productoDeItem(it);
-      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0};
+      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,cat:_catProducto(it)};
       prods[pd.id].total+=(it.precio||0); prods[pd.id].unid++;
       totalUnidades++;
       // propósito por producto
@@ -3183,18 +3198,32 @@ function renderMarketing(ventasActivas){
     });
   });
 
-  // Ranking de productos
+  // Ranking de productos, separado por tipo y con el MISMO color que los KPIs
+  // de arriba, para ubicar de un vistazo sin tener que leer.
   var elP=document.getElementById('rep-mkt-productos');
   if(elP){
     var lista=Object.keys(prods).map(function(k){ return prods[k]; })
       .sort(function(a,b){ return b.unid-a.unid; });
     if(!lista.length) elP.innerHTML=_vacio();
     else{
-      var maxU=lista[0].unid||1;
-      elP.innerHTML=lista.map(function(p){
-        var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
-        return _barraMkt(p.nombre, p.unid, maxU,
-          p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString());
+      var maxU=lista[0].unid||1;   // escala comun: las barras se comparan entre grupos
+      elP.innerHTML = CATS_PROD.map(function(c){
+        var delGrupo = lista.filter(function(p){ return p.cat===c.id; });
+        if(!delGrupo.length) return '';
+        var unidGrupo = delGrupo.reduce(function(s,p){ return s+p.unid; },0);
+        var totGrupo  = delGrupo.reduce(function(s,p){ return s+p.total; },0);
+        return '<div style="margin-bottom:14px;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;'
+          +'border-left:4px solid '+c.color+';padding:3px 0 3px 8px;margin-bottom:8px;">'
+          +'<span style="font-size:11px;font-weight:700;color:'+c.color+';text-transform:uppercase;letter-spacing:.5px;">'+c.icono+' '+c.nombre+'</span>'
+          +'<span style="font-size:11px;font-weight:600;color:'+c.color+';white-space:nowrap;">'+unidGrupo+' · $'+totGrupo.toLocaleString()+'</span>'
+          +'</div>'
+          + delGrupo.map(function(p){
+              var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
+              return _barraMkt(p.nombre, p.unid, maxU,
+                p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
+            }).join('')
+          +'</div>';
       }).join('');
     }
   }
