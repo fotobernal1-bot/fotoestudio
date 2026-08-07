@@ -1296,6 +1296,34 @@ function productoDeItem(it){
   return {id:'txt_'+slug, nombre:limpio};
 }
 
+// ── QUIÉN SE FOTOGRAFIÓ, EN CASTELLANO ───────────────────────
+// Producción mostraba "H×1 M×2" y "Niño H:1 M:0": el fotógrafo tenía que
+// traducir mentalmente en cada ticket. Ahora dice "Niña · Joven hombre ×2".
+// El orden es el mismo de los contadores del modal, de menor a mayor edad.
+var ETIQUETAS_FOTO = [
+  ['nino_h',        'Niño'],
+  ['nino_m',        'Niña'],
+  ['joven_h',       'Joven hombre'],
+  ['joven_m',       'Joven mujer'],
+  ['adulto_h',      'Hombre adulto'],
+  ['adulto_m',      'Mujer adulta'],
+  ['adulto_plus_h', 'Adulto mayor'],
+  ['adulto_plus_m', 'Adulta mayor']
+];
+// Devuelve un arreglo de textos: ['Niña', 'Joven hombre ×2']
+function _fotografiadosTextos(f){
+  if(!f) return [];
+  var out=[];
+  ETIQUETAS_FOTO.forEach(function(e){
+    var n=f[e[0]]||0;
+    if(n>0) out.push(e[1] + (n>1 ? ' ×'+n : ''));
+  });
+  return out;
+}
+function _fotografiadosTexto(f, sep){
+  return _fotografiadosTextos(f).join(sep||' · ');
+}
+
 // ── QUIÉN PAGA: se pregunta la excepción, no lo obvio ────────
 // Antes se pedían sexo y edad del pagador en cada venta con seis botones.
 // Medido sobre 1,331 ventas, la EDAD salió inservible: se registró "30-50" en
@@ -4848,10 +4876,8 @@ function renderUrgProd(ventas){
       }
       // Fotografiados
       if(cd.fotografiados){
-        var f=cd.fotografiados;
-        var fH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-        var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
-        if(fH||fM) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
+        var fTxt=_fotografiadosTexto(cd.fotografiados);
+        if(fTxt) linea+='<div style="font-size:10px;color:#085041;padding-left:10px;font-weight:600;">👤 '+_escH(fTxt)+'</div>';
       }
       // Color/BN
       if(cd.colorBN) linea+='<div style="font-size:10px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
@@ -4938,10 +4964,8 @@ function _histFilasHTML(sorted){
           linea+='<div style="font-size:12px;color:#0C7ED6;padding-left:10px;">📋 '+propLabel+'</div>';
         }
         if(cd.fotografiados){
-          var f=cd.fotografiados;
-          var fH=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-          var fM=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
-          if(fH||fM) linea+='<div style="font-size:12px;color:#085041;padding-left:10px;">👤'+(fH?' H×'+fH:'')+(fM?' M×'+fM:'')+'</div>';
+          var fTxtH=_fotografiadosTexto(cd.fotografiados);
+          if(fTxtH) linea+='<div style="font-size:12px;color:#085041;padding-left:10px;">👤 '+_escH(fTxtH)+'</div>';
         }
         if(cd.colorBN) linea+='<div style="font-size:12px;color:#555;padding-left:10px;">'+(cd.colorBN==='bn'?'⬛ B/N':'🎨 Color')+'</div>';
         var extras=[];
@@ -6905,11 +6929,7 @@ function crearOrdenProduccion(folio, origen, items, fechaEntrega){
           if(!it.clienteData) return '';
           var cd=it.clienteData; var partes=[];
           if(cd.personas&&cd.personas>1) partes.push(cd.personas+' personas');
-          if(cd.fotografiados){var f=cd.fotografiados;
-            if(f.nino_h||f.nino_m) partes.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-            if(f.joven_h||f.joven_m) partes.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-            if(f.adulto_h||f.adulto_m) partes.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-          }
+          _fotografiadosTextos(cd.fotografiados).forEach(function(t){ partes.push(t); });
           return partes.join(' · ');
         }).filter(Boolean).join(' | ')
       };
@@ -7251,12 +7271,8 @@ function _cdResumenHTML(cd){
   if(cd.personas && cd.personas>1) partes.push(cd.personas+' personas');
   var f=cd.fotografiados;
   if(f){
-    var fStr=[];
-    if(f.nino_h||f.nino_m) fStr.push('Niño H:'+(f.nino_h||0)+' M:'+(f.nino_m||0));
-    if(f.joven_h||f.joven_m) fStr.push('Joven H:'+(f.joven_h||0)+' M:'+(f.joven_m||0));
-    if(f.adulto_h||f.adulto_m) fStr.push('Adulto H:'+(f.adulto_h||0)+' M:'+(f.adulto_m||0));
-    if(f.adulto_plus_h||f.adulto_plus_m) fStr.push('Ad. mayor H:'+(f.adulto_plus_h||0)+' M:'+(f.adulto_plus_m||0));
-    if(fStr.length) partes.push(fStr.join(', '));
+    var fStr=_fotografiadosTextos(f);
+    if(fStr.length) partes.push(fStr.join(' · '));
   }
   return partes.length ? '<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>' : '';
 }
@@ -7310,13 +7326,18 @@ function _specsOrdenHTML(o){
 
   // Un solo paquete (o histórico sin specs por ítem): como siempre
   var html = '';
-  if(sp.fotografiadosResumen){
-    html += '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+sp.fotografiadosResumen+'</div>';
-  }
-  html += _lineasHTML(sp.lineas);
+  // El resumen se recalcula de clienteData, que es la fuente real.
+  // `fotografiadosResumen` es texto CONGELADO en el documento: las órdenes
+  // guardadas antes traen el formato viejo ("Adulto H:1 M:0") y salía repetido
+  // junto al nuevo. Ahora solo se usa cuando no hay de dónde recalcular, así
+  // las órdenes viejas también se leen en castellano sin reescribir la base.
   var cdHtml = '';
   items.forEach(function(it){ cdHtml += _cdResumenHTML(it.clienteData); });
   if(!cdHtml && o.items) o.items.forEach(function(it){ cdHtml += _cdResumenHTML(it.clienteData); });
+  if(!cdHtml && sp.fotografiadosResumen){
+    html += '<div style="color:#0C447C;font-weight:600;font-size:10px;margin-bottom:3px;">👤 '+_escH(sp.fotografiadosResumen)+'</div>';
+  }
+  html += _lineasHTML(sp.lineas);
   html += cdHtml;
   html += _specLinesHTML(sp);
   return html;
