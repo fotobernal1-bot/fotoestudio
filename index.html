@@ -794,7 +794,7 @@ body.en-reportes .cart-panel { display: none !important; }
     <div id="page-reportes" class="page">
       <div class="hrow">
         <div><p class="ptitle">Reportes</p><p class="psub" style="margin:0;">Historial permanente de ventas</p></div>
-        <button class="btn bgray" onclick="openM('m-rep-herramientas')"><i class="ti ti-settings"></i> Herramientas</button>
+        <button class="btn bgray" onclick="abrirHerramientas()"><i class="ti ti-settings"></i> Herramientas</button>
       </div>
 
       <!-- PERÍODO — un solo control. Antes había dos widgets apilados (tabs y
@@ -833,6 +833,7 @@ body.en-reportes .cart-panel { display: none !important; }
         <div style="margin-top:8px;font-size:12px;color:#666;">
           Mostrando: <strong id="rep-periodo-txt" style="color:#111;">—</strong>
           <span id="rep-cargando" style="display:none;color:#BA7517;font-weight:600;margin-left:8px;">· cargando…</span>
+          <button class="btn bgray" style="font-size:11px;padding:3px 10px;margin-left:8px;" onclick="cargarReportes(true)" title="Volver a pedir los datos a la nube"><i class="ti ti-refresh"></i> Actualizar</button>
         </div>
       </div>
 
@@ -852,6 +853,8 @@ body.en-reportes .cart-panel { display: none !important; }
           </div>
         </div>
       </div>
+
+      <div id="rep-aviso-historico" style="display:none;"></div>
 
       <!-- PESTAÑAS: cada dato vive en un solo lugar -->
       <div class="tabs" style="margin-bottom:12px;flex-wrap:wrap;" id="rep-subtabs">
@@ -1924,71 +1927,105 @@ function _folioLocal(prefijo, mes, year){
   return prefijo+'-L'+Date.now().toString(36).toUpperCase()+_folioLocalSeq+'-'+mes+'-'+year;
 }
 
-async function generarFolioU(now){
-  const mes=MESES_FOLIO[now.getMonth()];
-  const year=now.getFullYear();
-  if(!db) return _folioLocal('F-U',mes,year);
-  const contRef=db.collection('contadores').doc('urgentes_'+year);
-  try{
-    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),15000));
-    const txPromise = db.runTransaction(async t=>{
-      const doc=await t.get(contRef);
-      const actual=doc.exists?(doc.data().contador||0):0;
-      const siguiente=actual+1;
-      t.set(contRef,{contador:siguiente,year});
-      return siguiente;
-    });
-    const nuevo = await Promise.race([txPromise, timeoutPromise]);
-    return 'F-U-'+String(nuevo).padStart(5,'0')+'-'+mes+'-'+year;
+// ── FOLIOS CON RESERVA POR LOTES ─────────────────────────────
+// Antes cada venta abría su propia transacción de Firestore con timeout de 15 s.
+// Cuando esa transacción se degrada (cuota, contención, red), el cobro se queda
+// esperando y acaba cayendo al folio de emergencia: eso rompió la numeración.
+// Ahora se reservan LOTE_FOLIOS números de golpe y se reparten desde memoria,
+// así el 96 % de las ventas no toca la red para el folio.
+var LOTE_FOLIOS = 25;
+var FOLIO_TIMEOUT_MS = 2000;   // antes 15000: el ticket ya no espera por esto
+var RESERVA_KEY = 'fs_reserva_folios';
+// Si la transacción falla, no vale la pena reintentarla en cada reserva: se
+// recuerda por 10 minutos y se va directo al incremento atómico.
+var TX_VETO_KEY = 'fs_folios_tx_veto';
+var TX_VETO_MS = 10*60*1000;
+function _txVetada(){
+  try{ return (Date.now() - (parseInt(localStorage.getItem(TX_VETO_KEY))||0)) < TX_VETO_MS; }catch(e){ return false; }
+}
+function _vetarTx(){ try{ localStorage.setItem(TX_VETO_KEY, String(Date.now())); }catch(e){} }
+
+function _leerReservas(){
+  try{ return JSON.parse(localStorage.getItem(RESERVA_KEY)||'{}'); }catch(e){ return {}; }
+}
+function _guardarReservas(r){
+  try{ localStorage.setItem(RESERVA_KEY, JSON.stringify(r)); }catch(e){}
+}
+
+// Pide un bloque nuevo al contador. Una sola vez por cada LOTE_FOLIOS ventas.
+// Dos caminos: primero la transacción (lo más seguro) y, si no responde, un
+// incremento atómico + lectura. Medido en esta base: la transacción tarda 2 s y
+// falla, mientras que el incremento responde en ~270 ms. El día que Firestore
+// se recupere, la transacción vuelve a ganar sola.
+async function _reservarBloque(docId){
+  if(!db) return null;
+  var contRef = db.collection('contadores').doc(docId);
+  var year = parseInt(String(docId).split('_')[1]) || new Date().getFullYear();
+  var conTimeout = function(promesa){
+    var timeout = new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('timeout')); }, FOLIO_TIMEOUT_MS); });
+    return Promise.race([promesa, timeout]);
+  };
+
+  // 1) Transacción (salvo que haya fallado hace poco)
+  if(!_txVetada()) try{
+    var base = await conTimeout(db.runTransaction(async function(t){
+      var doc = await t.get(contRef);
+      var actual = doc.exists ? (doc.data().contador||0) : 0;
+      t.set(contRef, {contador: actual + LOTE_FOLIOS, year: year});
+      return actual;
+    }));
+    return {siguiente: base + 1, hasta: base + LOTE_FOLIOS};
   }catch(e){
-    console.error('Error contador urgentes:',e);
-    return _folioLocal('F-U',mes,year);
+    _vetarTx();
+    console.warn('Transacción de folios no disponible ('+(e.message||e)+'), uso incremento atómico');
+  }
+
+  // 2) Incremento atómico + lectura
+  try{
+    await conTimeout(contRef.set({
+      contador: firebase.firestore.FieldValue.increment(LOTE_FOLIOS),
+      year: year
+    }, {merge:true}));
+    var doc2 = await conTimeout(contRef.get({source:'server'}));
+    var tope = (doc2.exists ? (doc2.data().contador||0) : 0);
+    if(!tope) return null;
+    return {siguiente: tope - LOTE_FOLIOS + 1, hasta: tope};
+  }catch(e2){
+    console.warn('No se pudo reservar folios para '+docId+':', e2.message||e2);
+    return null;
   }
 }
 
-async function generarFolioEsc(now){
-  const year=now.getFullYear();
-  const mes=MESES_FOLIO[now.getMonth()];
-  if(!db) return _folioLocal('ESC',mes,year);
-  const contRef=db.collection('contadores').doc('escuelas_'+year);
-  try{
-    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),15000));
-    const txPromise = db.runTransaction(async t=>{
-      const doc=await t.get(contRef);
-      const actual=doc.exists?(doc.data().contador||0):0;
-      const siguiente=actual+1;
-      t.set(contRef,{contador:siguiente,year});
-      return siguiente;
-    });
-    const nuevo = await Promise.race([txPromise, timeoutPromise]);
-    return 'ESC-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
-  }catch(e){
-    console.error('Error contador escuelas:',e);
-    return _folioLocal('ESC',mes,year);
+// Devuelve el siguiente número consecutivo, o null si no hay forma de obtenerlo.
+async function _siguienteFolio(docId){
+  var reservas = _leerReservas();
+  var r = reservas[docId];
+  if(r && r.siguiente <= r.hasta){
+    var n = r.siguiente;
+    r.siguiente = n + 1;
+    _guardarReservas(reservas);
+    return n;
   }
+  var nuevo = await _reservarBloque(docId);
+  if(!nuevo) return null;
+  reservas[docId] = {siguiente: nuevo.siguiente + 1, hasta: nuevo.hasta};
+  _guardarReservas(reservas);
+  return nuevo.siguiente;
 }
 
-async function generarFolioImp(now){
-  const year=now.getFullYear();
-  const mes=MESES_FOLIO[now.getMonth()];
-  if(!db) return _folioLocal('IMP',mes,year);
-  const contRef=db.collection('contadores').doc('impresiones_'+year);
-  try{
-    const timeoutPromise = new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),15000));
-    const txPromise = db.runTransaction(async t=>{
-      const doc=await t.get(contRef);
-      const actual=doc.exists?(doc.data().contador||0):0;
-      const siguiente=actual+1;
-      t.set(contRef,{contador:siguiente,year});
-      return siguiente;
-    });
-    const nuevo = await Promise.race([txPromise, timeoutPromise]);
-    return 'IMP-'+String(nuevo).padStart(4,'0')+'-'+mes+'-'+year;
-  }catch(e){
-    console.error('Error contador impresiones:',e);
-    return _folioLocal('IMP',mes,year);
-  }
+// Un solo generador para los tres orígenes
+async function _generarFolio(prefijo, contadorBase, padding, now){
+  var mes = MESES_FOLIO[now.getMonth()];
+  var year = now.getFullYear();
+  if(!db) return _folioLocal(prefijo, mes, year);
+  var n = await _siguienteFolio(contadorBase + '_' + year);
+  if(n === null) return _folioLocal(prefijo, mes, year);
+  return prefijo + '-' + String(n).padStart(padding,'0') + '-' + mes + '-' + year;
 }
+
+async function generarFolioU(now){   return _generarFolio('F-U', 'urgentes',    5, now); }
+async function generarFolioEsc(now){ return _generarFolio('ESC', 'escuelas',     4, now); }
+async function generarFolioImp(now){ return _generarFolio('IMP', 'impresiones',  4, now); }
 
 
 // Variable global para fecha de entrega
@@ -2191,7 +2228,13 @@ function _encolarVenta(doc){
   renderPendientesBadge();
 }
 async function _guardarVenta(venta){
-  var doc={...venta, tickets:[venta]};
+  // Antes se guardaba {...venta, tickets:[venta]}: la venta ENTERA duplicada
+  // dentro de si misma. Era redundante (el documento raiz ya trae folio, items,
+  // total, fecha, hora, metodo de pago y personas) y duplicaba el peso de la
+  // base: 2.3 KB por venta en vez de 1.2 KB.
+  // Ademas cancelarVenta marcaba cancelado:true solo en la raiz, asi que un
+  // ticket cancelado se reimprimia SIN la marca. Sin copia, no hay divergencia.
+  var doc={...venta};
   RESPALDO.merge('ventas', venta.folio, doc);
   if(!db){ _encolarVenta(doc); return false; }
   try{
@@ -2756,7 +2799,9 @@ function reimprimirTicket(folio){
   db.collection('ventas').doc(folio).get().then(function(doc){
     if(!doc.exists){ alert('No se encontró la venta '+folio); return; }
     var v = doc.data();
-    mostrarTicket(v.tickets||[{items:v.items,total:v.total,origen:v.origen}], v.pago||v.total, v.total);
+    // v.tickets solo existe en ventas anteriores a v19. El respaldo ahora es la
+    // venta completa: el anterior recortaba folio, fecha y metodo de pago.
+    mostrarTicket(v.tickets||[v], v.pago||v.total, v.total);
   }).catch(function(e){ alert('Error: '+e.message); });
 }
 
@@ -2870,7 +2915,7 @@ function cancelarVenta(folio){
       // También archivar la orden de producción — usar set+merge por si no existe
       db.collection('produccion').doc(folio).set({archivada:true},{merge:true}).catch(()=>{});
       alert('Venta '+folio+' cancelada correctamente.');
-      cargarReportes();
+      cargarReportes(true);
     })
     .catch(e=>alert('Error al cancelar: '+e.message));
 }
@@ -2930,7 +2975,119 @@ async function prepararHistorico(){
   alert('Listo: '+hechas+' venta(s) actualizada(s).'
     + (sinFecha ? '\n\n⚠ '+sinFecha+' venta(s) no tenían ninguna fecha de la cual deducirla y se quedaron igual.' : '')
     + '\n\nLos reportes ahora consultan solo el rango de fechas que pidas.');
-  cargarReportes();
+  cargarReportes(true);
+}
+
+// ── RENUMERAR VENTAS CON FOLIO DE EMERGENCIA ─────────────────
+// Cuando la transacción del contador no responde, la venta se guarda con un
+// folio local único (F-U-LMSJ7634Y4-AGO-2026) para no perderla. Queda completa,
+// pero fuera de la numeración consecutiva. Esto les asigna su número.
+// El folio es el NOMBRE del documento, así que renumerar = crear con el folio
+// nuevo y borrar el viejo. Lo mismo en la orden de producción, si la tiene.
+// Es manual, exige respaldo y confirmación, y es idempotente.
+var PREFIJOS_FOLIO = {
+  'F-U': {contador:'urgentes',    padding:5},
+  'ESC': {contador:'escuelas',    padding:4},
+  'IMP': {contador:'impresiones', padding:4}
+};
+
+function _esFolioLocal(f){ return /^(F-U|ESC|IMP)-L[A-Z0-9]{4,}-/.test(String(f||'')); }
+
+async function renumerarFoliosLocales(){
+  if(!db){ alert('Sin conexión a Firebase.'); return; }
+  if(!RESPALDO.hayArchivo || !RESPALDO.hayArchivo()){
+    alert('Primero activa el respaldo en disco y toca "Exportar todo ahora".\n\nEsta operación borra y vuelve a crear documentos: no la hagas sin respaldo.');
+    return;
+  }
+
+  var año = new Date().getFullYear();
+  var snap;
+  try{
+    snap = await db.collection('ventas').where('fechaKey','>=',año+'-01-01').where('fechaKey','<=',año+'-12-31').get();
+  }catch(e){ alert('No se pudieron leer las ventas: '+e.message); return; }
+
+  var pendientes = [];
+  snap.forEach(function(d){
+    var v = d.data();
+    if(_esFolioLocal(v.folio)) pendientes.push({id:d.id, venta:v});
+  });
+  if(!pendientes.length){ alert('No hay ventas con folio de emergencia. Todo en orden.'); return; }
+
+  // En orden cronológico, para que el número siga el orden real de las ventas
+  pendientes.sort(function(a,b){ return (a.venta.timestamp||'').localeCompare(b.venta.timestamp||''); });
+
+  // Se numera SIEMPRE hacia adelante desde el contador. No se rellenan huecos:
+  // las ventas anteriores a v04 no traen fechaKey y no salen en esta consulta,
+  // así que un hueco aparente podría estar ocupado y se crearía un duplicado.
+  var contadores = {}, totalAntes = 0;
+  for(var pref in PREFIJOS_FOLIO){
+    var docId = PREFIJOS_FOLIO[pref].contador + '_' + año;
+    try{
+      var c = await db.collection('contadores').doc(docId).get();
+      contadores[pref] = c.exists ? (c.data().contador||0) : 0;
+    }catch(e){ alert('No se pudo leer el contador '+docId); return; }
+  }
+
+  var plan = [];
+  var siguiente = {};
+  for(var p in contadores) siguiente[p] = contadores[p];
+  pendientes.forEach(function(x){
+    var pref = String(x.venta.folio).split('-L')[0];
+    var cfg = PREFIJOS_FOLIO[pref];
+    if(!cfg) return;
+    siguiente[pref]++;
+    var mes = String(x.venta.folio).split('-').slice(-2)[0];
+    var nuevo = pref + '-' + String(siguiente[pref]).padStart(cfg.padding,'0') + '-' + mes + '-' + año;
+    totalAntes += (x.venta.total||0);
+    plan.push({viejo:x.id, nuevo:nuevo, venta:x.venta});
+  });
+  if(!plan.length){ alert('No hay folios reconocibles para renumerar.'); return; }
+
+  var muestra = plan.slice(0,6).map(function(x){ return '  '+x.viejo+'\n      → '+x.nuevo; }).join('\n');
+  if(!confirm('Se van a renumerar '+plan.length+' venta(s) por $'+totalAntes.toLocaleString()+':\n\n'
+      + muestra + (plan.length>6 ? '\n  … y '+(plan.length-6)+' más' : '')
+      + '\n\nSe crea el documento con el folio nuevo y se borra el viejo.\nLos importes y productos NO se tocan.\n\n¿Continuar?')) return;
+
+  var hechas = 0, fallos = [];
+  for(var i=0; i<plan.length; i++){
+    var x = plan[i];
+    try{
+      // 1) crear la venta con el folio nuevo
+      var nueva = Object.assign({}, x.venta, {folio: x.nuevo, folioAnterior: x.viejo});
+      await db.collection('ventas').doc(x.nuevo).set(nueva);
+      // 2) mover la orden de producción, si la tiene (el folio también es su id)
+      try{
+        var ordDoc = await db.collection('produccion').doc(x.viejo).get();
+        if(ordDoc.exists){
+          await db.collection('produccion').doc(x.nuevo).set(Object.assign({}, ordDoc.data(), {folio:x.nuevo}));
+          await db.collection('produccion').doc(x.viejo).delete();
+        }
+      }catch(eo){ console.warn('Orden de producción de '+x.viejo+':', eo.message); }
+      // 3) borrar la venta vieja, solo después de que la nueva existe
+      await db.collection('ventas').doc(x.viejo).delete();
+      RESPALDO.merge('ventas', x.nuevo, nueva);
+      hechas++;
+    }catch(e){
+      fallos.push(x.viejo+': '+(e.message||e));
+    }
+  }
+
+  // Dejar los contadores por encima de lo asignado
+  for(var pr in siguiente){
+    if(siguiente[pr] > contadores[pr]){
+      try{
+        await db.collection('contadores').doc(PREFIJOS_FOLIO[pr].contador+'_'+año)
+          .set({contador: siguiente[pr], year: año}, {merge:true});
+      }catch(e){ console.warn('No se pudo actualizar el contador '+pr, e); }
+    }
+  }
+  // La reserva en memoria ya no sirve: los números cambiaron
+  try{ localStorage.removeItem('fs_reserva_folios'); }catch(e){}
+
+  alert('Listo: '+hechas+' de '+plan.length+' renumeradas.'
+    + (fallos.length ? '\n\nFallaron:\n'+fallos.slice(0,5).join('\n') : '')
+    + '\n\nRevisa que el total del mes siga igual.');
+  cargarReportes(true);
 }
 
 function limpiarTodasVentas(){
@@ -2948,7 +3105,7 @@ function limpiarTodasVentas(){
       return batch.commit();
     }).then(()=>{
       alert('Ventas eliminadas correctamente. Los folios continúan desde el último número generado.');
-      cargarReportes();
+      cargarReportes(true);
     }).catch(e=>alert('Error al eliminar: '+e.message));
   } else {
     alert('Sin conexión a Firebase. Solo se limpió localStorage.');
@@ -3085,10 +3242,22 @@ try{ if(localStorage.getItem('fs_historico_listo')==='1') _faltaFechaKey = false
 
 var _repPeticion = 0;   // descarta respuestas de peticiones ya superadas
 
-async function cargarReportes(){
+var _cacheReportes = null;
+
+async function cargarReportes(forzar){
   if(!db){mostrarReportesLocal();return;}
   var rango = _rangoDelPeriodo();
   if(!rango) return;
+
+  // No volver a pedir el MISMO periodo si se consulto hace menos de 2 minutos.
+  // Cada consulta cuesta tantas lecturas como ventas devuelva.
+  var claveCache = periodoActual+'|'+rango.desde+'|'+rango.hasta;
+  if(_cacheReportes && _cacheReportes.clave===claveCache &&
+     (Date.now()-_cacheReportes.ts) < 120000 && !forzar){
+    ventasFB = _cacheReportes.ventas;
+    renderReportes();
+    return;
+  }
 
   var miPeticion = ++_repPeticion;
   const el=document.getElementById('rep-historial');
@@ -3129,6 +3298,7 @@ async function cargarReportes(){
 
     if(miPeticion !== _repPeticion) return;   // llegó tarde: manda una consulta más nueva
     ventasFB = lista;
+    _cacheReportes = {clave:claveCache, ts:Date.now(), ventas:lista};
     renderReportes();
   }catch(e){
     console.error(e);
@@ -3500,6 +3670,22 @@ function _periodoTexto(){
   return '—';
 }
 
+// Mientras el historico no tenga fecha, cada apertura de Reportes cuesta ~5
+// veces mas lecturas por la red de seguridad. Se avisa una vez.
+function _avisoHistorico(){
+  var el = document.getElementById('rep-aviso-historico');
+  if(!el) return;
+  if(!_faltaFechaKey){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.innerHTML = '<div class="rcard" style="background:#FAEEDA;border-color:#e8d0a0;margin-bottom:12px;">'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+    +'<span style="font-size:12px;color:#633806;flex:1;min-width:200px;">'
+    +'Tus ventas anteriores a junio no tienen fecha guardada, así que cada consulta '
+    +'lee la base completa. Prepararlas hace los reportes unas 5 veces más baratos.</span>'
+    +'<button class="btn bgray" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico</button>'
+    +'</div></div>';
+}
+
 function renderReportes(){
   // Excluir ventas canceladas de todos los contadores
   const ventasActivas=ventasFB.filter(v=>!v.cancelado);
@@ -3578,6 +3764,7 @@ function renderReportes(){
   var fOrdTotal = fOrdH+fOrdM;
   set('rep-fotos-ord', fOrdTotal>0 ? fOrdTotal+' personas' : '—');
   set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
+  _avisoHistorico();
   renderMarketing(ventasActivas);
   renderTablaEscuelasMes(ventasActivas);
   renderHorasPico(ventasActivas);
@@ -5018,8 +5205,127 @@ function setDriveStatus(ok, txt){
 }
 
 
+// ── MEDIDOR DE CONSUMO DE FIREBASE ───────────────────────────
+// Firestore cobra POR DOCUMENTO LEÍDO, no por consulta: una consulta que
+// devuelve 1,300 ventas cuesta 1,300 lecturas. El plan gratuito da 50,000
+// lecturas y 20,000 escrituras al día. Esto lleva la cuenta en el navegador
+// para poder ver qué pantalla sale cara.
+// OJO: es una estimación de ESTE dispositivo. No cuenta lo que hagan otros
+// equipos ni lo que se haga desde la consola de Firebase.
+var MEDIDOR_KEY = 'fs_consumo';
+var LIMITE_LECTURAS = 50000;
+var LIMITE_ESCRITURAS = 20000;
+
+function _medidorDatos(){
+  try{ return JSON.parse(localStorage.getItem(MEDIDOR_KEY)||'{}'); }catch(e){ return {}; }
+}
+function _medidorSuma(tipo, n){
+  if(!n) return;
+  try{
+    var d = _medidorDatos();
+    var hoy = fechaKeyDe(new Date());
+    if(!d[hoy]) d[hoy] = {r:0, w:0};
+    d[hoy][tipo] += n;
+    // conservar solo los últimos 7 días
+    var dias = Object.keys(d).sort().slice(-7);
+    var limpio = {};
+    dias.forEach(function(k){ limpio[k] = d[k]; });
+    localStorage.setItem(MEDIDOR_KEY, JSON.stringify(limpio));
+  }catch(e){}
+}
+
+// Se engancha a los prototipos del SDK para no tener que envolver a mano los
+// ~20 puntos donde la app consulta, y para que cuente también el código nuevo.
+function instalarMedidor(){
+  if(typeof firebase==='undefined' || !firebase.firestore) return;
+  var fs = firebase.firestore;
+  if(fs.__medidorPuesto) return;
+  fs.__medidorPuesto = true;
+
+  if(fs.Query && fs.Query.prototype && fs.Query.prototype.get){
+    var qGet = fs.Query.prototype.get;
+    fs.Query.prototype.get = function(){
+      return qGet.apply(this, arguments).then(function(snap){
+        _medidorSuma('r', snap && snap.size ? snap.size : 0);
+        return snap;
+      });
+    };
+  }
+  if(fs.DocumentReference && fs.DocumentReference.prototype){
+    var dp = fs.DocumentReference.prototype;
+    var dGet = dp.get;
+    dp.get = function(){
+      return dGet.apply(this, arguments).then(function(doc){
+        _medidorSuma('r', 1);
+        return doc;
+      });
+    };
+    ['set','update','delete'].forEach(function(m){
+      var orig = dp[m];
+      if(!orig) return;
+      dp[m] = function(){
+        _medidorSuma('w', 1);
+        return orig.apply(this, arguments);
+      };
+    });
+  }
+  // Los lotes: se cuenta cada operación al agregarla
+  if(fs.WriteBatch && fs.WriteBatch.prototype){
+    ['set','update','delete'].forEach(function(m){
+      var orig = fs.WriteBatch.prototype[m];
+      if(!orig) return;
+      fs.WriteBatch.prototype[m] = function(){
+        _medidorSuma('w', 1);
+        return orig.apply(this, arguments);
+      };
+    });
+  }
+}
+
+function abrirHerramientas(){
+  renderMedidor();
+  openM('m-rep-herramientas');
+}
+
+function renderMedidor(){
+  var el = document.getElementById('medidor-consumo');
+  if(!el) return;
+  var d = _medidorDatos();
+  var hoy = fechaKeyDe(new Date());
+  var h = d[hoy] || {r:0, w:0};
+  var pctR = Math.min(100, Math.round(h.r / LIMITE_LECTURAS * 100));
+  var pctW = Math.min(100, Math.round(h.w / LIMITE_ESCRITURAS * 100));
+  var color = function(p){ return p >= 70 ? '#A32D2D' : (p >= 40 ? '#BA7517' : '#085041'); };
+
+  var barra = function(etiqueta, usado, limite, pct){
+    return '<div style="margin-bottom:8px;">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">'
+      +'<span>'+etiqueta+'</span>'
+      +'<span style="color:'+color(pct)+';font-weight:600;">'+usado.toLocaleString()+' de '+limite.toLocaleString()+' · '+pct+'%</span></div>'
+      +'<div style="background:#e0e0e0;border-radius:10px;height:7px;overflow:hidden;">'
+      +'<div style="background:'+color(pct)+';height:100%;width:'+pct+'%;border-radius:10px;"></div></div></div>';
+  };
+
+  var dias = Object.keys(d).sort().reverse().slice(1, 7);
+  var historial = dias.length
+    ? '<div style="margin-top:8px;font-size:11px;color:#666;">'
+      + dias.map(function(k){
+          var p = k.split('-');
+          return p[2]+'/'+p[1]+': '+(d[k].r||0).toLocaleString()+' lecturas';
+        }).join(' · ')
+      + '</div>'
+    : '';
+
+  el.innerHTML = barra('Lecturas de hoy', h.r, LIMITE_LECTURAS, pctR)
+    + barra('Escrituras de hoy', h.w, LIMITE_ESCRITURAS, pctW)
+    + historial
+    + '<div style="margin-top:8px;font-size:11px;color:#888;">Cuenta estimada de este equipo. No incluye otros dispositivos ni la consola de Firebase.</div>'
+    + (pctR >= 70 ? '<div style="margin-top:8px;font-size:12px;color:#A32D2D;font-weight:600;">⚠ Vas alto en lecturas. Corre "Preparar histórico" si no lo has hecho.</div>' : '');
+}
+
 function iniciarFirebase(){
   if(!db){ setDriveStatus(false,'Firebase no disponible'); return; }
+  instalarMedidor();
   setDriveStatus(true,'Conectando...');
   
   // Cargar datos UNA SOLA VEZ al inicio (get, no onSnapshot)
@@ -5063,13 +5369,8 @@ function iniciarFirebase(){
     // Corría en CADA carga de página: con el histórico creciendo era lo primero
     // que iba a hacer lenta la app. Ahora se hace a mano (botón en Reportes)
     // y una vez al día como máximo.
-    var _ultRec = localStorage.getItem('fs_ultimo_respaldo_full')||'';
-    if(_ultRec !== fechaKeyDe(new Date())){
-      setTimeout(function(){
-        RESPALDO.reconciliarCompleto();
-        try{ localStorage.setItem('fs_ultimo_respaldo_full', fechaKeyDe(new Date())); }catch(e){}
-      }, 8000);
-    }
+    // El respaldo completo lee ventas + produccion + escuelas ENTERAS (~1,548
+    // lecturas). Ya no corre solo: se hace desde el boton de Herramientas.
     setDriveStatus(true,'Datos cargados ✓');
     if(!precDoc.exists) guardarFirebase();
     // Si el usuario recargó estando en reportes, recargar automáticamente
@@ -7576,6 +7877,9 @@ const RESPALDO = (function(){
 <div class="modal-ov" id="m-rep-herramientas"><div class="modal-box" style="width:360px;">
   <p class="modal-t"><i class="ti ti-settings"></i> Herramientas</p>
 
+  <p class="slabel" style="margin-bottom:6px;">Consumo de Firebase hoy</p>
+  <div id="medidor-consumo" style="margin-bottom:14px;"></div>
+
   <p class="slabel" style="margin-bottom:6px;">Respaldo en disco</p>
   <p id="respaldo-estado" style="font-size:12px;color:#A32D2D;margin-bottom:8px;">Respaldo desactivado</p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
@@ -7589,7 +7893,8 @@ const RESPALDO = (function(){
     <button class="btn bgray" onclick="exportarCSV()"><i class="ti ti-file-spreadsheet"></i> Exportar CSV</button>
     <button class="btn bgray" onclick="abrirHistorialPrecios()"><i class="ti ti-history"></i> Historial de precios</button>
   </div>
-  <button class="btn bgray" id="btn-preparar-historico" style="width:100%;margin-bottom:14px;" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico para reportes rápidos</button>
+  <button class="btn bgray" id="btn-preparar-historico" style="width:100%;margin-bottom:6px;" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico para reportes rápidos</button>
+  <button class="btn bgray" style="width:100%;margin-bottom:14px;" onclick="renumerarFoliosLocales()"><i class="ti ti-list-numbers"></i> Renumerar ventas con folio de emergencia</button>
 
   <p class="slabel" style="margin-bottom:6px;color:#A32D2D;">Zona peligrosa</p>
   <button class="btn bgray" style="color:#A32D2D;border-color:#f5c0c0;width:100%;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Borrar TODAS las ventas</button>
