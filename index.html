@@ -881,6 +881,7 @@ body.en-reportes .cart-panel { display: none !important; }
           <p class="slabel" style="margin-bottom:6px;">Ventas por día</p>
           <div id="rep-mkt-dias"></div>
         </div>
+        <div id="rep-horas-pico" style="margin-bottom:12px;"></div>
         <div id="rep-urgentes-specs" style="display:none;">
           <div class="rcard" style="background:#FAEEDA;border-color:#e8d0a0;">
             <p class="rtitle" style="color:#633806;"><i class="ti ti-chart-bar"></i> Quién compra y cómo</p>
@@ -2103,13 +2104,28 @@ function selHoraEntrega(val, btnId){
 }
 
 // '1:00 pm' -> '13:00'
+// Acepta "1:00 pm", "1:00 p.m.", "13:00". El formato con PUNTOS es el que usa
+// venta.hora ('11:30 a.m.'): la regex anterior no lo reconocia y devolvia
+// 01:00 para una venta de la 1 de la tarde.
 function _hora24(txt){
-  var m = String(txt||'').match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  var m = String(txt||'').match(/(\d{1,2}):(\d{2})\s*([ap])\.?\s*m?\.?/i);
+  if(!m) m = String(txt||'').match(/(\d{1,2}):(\d{2})/);
   if(!m) return '';
   var h = parseInt(m[1]), min = m[2], ap = m[3] ? m[3].toLowerCase() : '';
-  if(ap==='pm' && h<12) h+=12;
-  if(ap==='am' && h===12) h=0;
+  if(ap==='p' && h<12) h+=12;
+  if(ap==='a' && h===12) h=0;
   return String(h).padStart(2,'0')+':'+min;
+}
+
+// Hora 0-23 en que se hizo una venta. Se prefiere el TEXTO porque es la hora
+// local del mostrador; el timestamp es UTC y correria las horas si el reporte
+// se abre desde otra zona horaria. Comprobado sobre 1,311 ventas: coinciden.
+function _horaDeVenta(v){
+  if(!v) return null;
+  var t = _hora24(v.hora);
+  if(t){ var h = parseInt(t.slice(0,2)); if(!isNaN(h)) return h; }
+  if(v.timestamp){ var d = new Date(v.timestamp); if(!isNaN(d)) return d.getHours(); }
+  return null;
 }
 
 function syncHoraLibre(){
@@ -3127,6 +3143,172 @@ function mostrarReportesLocal(){
 }
 
 // ── PANEL "QUÉ VENDO Y PARA QUÉ" ─────────────────────────────
+// ── HORAS PICO ───────────────────────────────────────────────
+// Mapa de calor día de la semana × hora, para saber cuándo hay más gente y
+// cuándo se puede uno desocupar. Solo lee lo que ya está en ventasFB.
+var DIAS_SEM = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+function _idxDiaSemana(fecha){           // getDay(): 0=Dom … 6=Sáb  →  0=Lun … 6=Dom
+  var d = fecha.getDay();
+  return (d===0) ? 6 : d-1;
+}
+
+function renderHorasPico(ventasActivas){
+  var cont = document.getElementById('rep-horas-pico');
+  if(!cont) return;
+
+  // celdas[dia][hora] = {n, $}  ·  diasConVenta[dia] = Set de fechas trabajadas
+  var celdas = {}, diasTrabajados = {}, horasVistas = {}, sinHora = 0, totalVentas = 0;
+  (ventasActivas||[]).forEach(function(v){
+    var k = fechaKeyDeVenta(v);
+    var h = _horaDeVenta(v);
+    if(!k){ return; }
+    if(h===null){ sinHora++; return; }
+    var d = _idxDiaSemana(new Date(k+'T12:00:00'));
+    if(!celdas[d]) celdas[d] = {};
+    if(!celdas[d][h]) celdas[d][h] = {n:0, monto:0};
+    celdas[d][h].n++;
+    celdas[d][h].monto += (v.total||0);
+    if(!diasTrabajados[d]) diasTrabajados[d] = {};
+    diasTrabajados[d][k] = 1;
+    horasVistas[h] = 1;
+    totalVentas++;
+  });
+
+  if(!totalVentas){
+    var msg = sinHora
+      ? (sinHora===1 ? 'La única venta de este período no tiene hora registrada'
+                     : 'Las '+sinHora+' ventas de este período no tienen hora registrada')
+      : 'Sin ventas en este período para calcular horas pico';
+    cont.innerHTML = '<div class="rcard">'+_vacio(msg)+'</div>';
+    return;
+  }
+
+  // Qué días de la semana caen dentro del período consultado. Con un período de
+  // un solo día no tiene sentido marcar los otros seis como "cerrado".
+  var diasEnPeriodo = {};
+  var rg = null;
+  try{ rg = _rangoDelPeriodo(); }catch(e){}
+  if(rg && rg.desde && rg.hasta){
+    var ini = new Date(rg.desde+'T12:00:00'), fin = new Date(rg.hasta+'T12:00:00');
+    var pasos = 0;
+    for(var t=new Date(ini); t<=fin && pasos<400; t.setDate(t.getDate()+1), pasos++){
+      diasEnPeriodo[_idxDiaSemana(t)] = 1;
+    }
+  } else {
+    for(var q=0; q<7; q++) diasEnPeriodo[q] = 1;
+  }
+  for(var w=0; w<7; w++){ if(celdas[w]) diasEnPeriodo[w] = 1; }
+
+  var horas = Object.keys(horasVistas).map(Number).sort(function(a,b){ return a-b; });
+  var etiqueta = function(h){
+    var ampm = h<12 ? 'am' : 'pm';
+    var h12 = h%12 || 12;
+    return h12+'<span style="font-size:9px;opacity:.7;">'+ampm+'</span>';
+  };
+
+  // Promedio por día TRABAJADO (no por día de calendario): un festivo cerrado
+  // no debe bajar el promedio del resto.
+  var prom = {}, maxProm = 0, mejor = null;
+  for(var d=0; d<7; d++){
+    var nDias = diasTrabajados[d] ? Object.keys(diasTrabajados[d]).length : 0;
+    prom[d] = {nDias:nDias, h:{}};
+    if(!nDias) continue;
+    horas.forEach(function(h){
+      var c = (celdas[d] && celdas[d][h]) ? celdas[d][h] : null;
+      var p = c ? c.n/nDias : 0;
+      prom[d].h[h] = {p:p, n:c?c.n:0, monto:c?c.monto:0};
+      if(p > maxProm){ maxProm = p; mejor = {d:d, h:h, p:p}; }
+    });
+  }
+
+  // Mejor rato para salir: 2 horas seguidas con el promedio más bajo,
+  // mirando solo el horario en que de verdad hay actividad.
+  var promHora = horas.map(function(h){
+    var suma = 0, n = 0;
+    for(var d=0; d<7; d++){ if(prom[d].nDias){ suma += prom[d].h[h].p; n++; } }
+    return {h:h, p:n?suma/n:0};
+  });
+  var topHora = promHora.reduce(function(m,x){ return Math.max(m,x.p); }, 0);
+  var nucleo = promHora.filter(function(x){ return x.p >= topHora*0.2; });   // horario en que de verdad estas abierto
+  var hueco = null;
+  for(var i=0; i<nucleo.length-1; i++){
+    if(nucleo[i+1].h !== nucleo[i].h+1) continue;   // solo horas consecutivas
+    var media = (nucleo[i].p + nucleo[i+1].p)/2;
+    if(hueco===null || media < hueco.media) hueco = {desde:nucleo[i].h, hasta:nucleo[i+1].h+1, media:media};
+  }
+
+  var num = function(p){ return p>=10 ? Math.round(p) : (Math.round(p*10)/10); };
+  var celdaHTML = function(d,h){
+    var x = prom[d].h[h];
+    if(!prom[d].nDias) return '<td style="padding:0;"><div style="height:30px;background:#fafafa;"></div></td>';
+    var inten = maxProm ? x.p/maxProm : 0;
+    var oscura = inten > 0.55;
+    var bg = x.p ? 'rgba(29,158,117,'+(0.10+inten*0.90).toFixed(2)+')' : '#fafafa';
+    var titulo = DIAS_SEM[d]+' '+h+':00 — '+x.n+' venta'+(x.n!==1?'s':'')+' en total · $'+x.monto.toLocaleString()
+      +' · promedio sobre '+prom[d].nDias+' día'+(prom[d].nDias!==1?'s':'');
+    return '<td style="padding:1px;">'
+      +'<div title="'+_escH(titulo)+'" style="height:30px;display:flex;align-items:center;justify-content:center;'
+      +'background:'+bg+';border-radius:4px;font-size:11px;font-weight:600;'
+      +'color:'+(oscura?'#fff':(x.p?'#085041':'#ccc'))+';">'
+      +(x.p ? num(x.p) : '·')+'</div></td>';
+  };
+
+  var filas = '';
+  for(var d=0; d<7; d++){
+    if(!diasEnPeriodo[d]) continue;
+    var nDias = prom[d].nDias;
+    var aviso = (nDias>0 && nDias<3)
+      ? '<span title="Poca muestra: el promedio de este día puede engañar" style="color:#BA7517;">⚠</span> ' : '';
+    filas += '<tr>'
+      +'<td style="padding:1px 8px 1px 0;font-size:11px;font-weight:600;color:'+(nDias?'#111':'#bbb')+';white-space:nowrap;">'
+      + aviso + DIAS_SEM[d] + '</td>'
+      + horas.map(function(h){ return celdaHTML(d,h); }).join('')
+      +'<td style="padding:1px 0 1px 8px;font-size:10px;color:#888;white-space:nowrap;">'
+      +(nDias ? nDias+(nDias===1?' día':' días') : 'cerrado')+'</td>'
+      +'</tr>';
+  }
+
+  var cerrados = [];
+  for(var d=0; d<7; d++){ if(diasEnPeriodo[d] && !prom[d].nDias) cerrados.push(DIAS_SEM[d]); }
+
+  var resumen = '';
+  if(mejor){
+    resumen += '<div style="font-size:12px;color:#111;margin-bottom:3px;">'
+      +'🔥 <b>Más movimiento:</b> '+DIAS_SEM[mejor.d]+' a la'+((mejor.h%12)===1?'':'s')+' '+(mejor.h%12||12)+(mejor.h<12?' am':' pm')
+      +' — '+num(mejor.p)+' cliente'+(num(mejor.p)!==1?'s':'')+' en promedio</div>';
+  }
+  if(hueco){
+    resumen += '<div style="font-size:12px;color:#111;margin-bottom:3px;">'
+      +'☕ <b>Tu mejor rato para salir:</b> de '+(hueco.desde%12||12)+(hueco.desde<12?' am':' pm')
+      +' a '+(hueco.hasta%12||12)+(hueco.hasta<12?' am':' pm')
+      +' — '+num(hueco.media)+' cliente'+(num(hueco.media)!==1?'s':'')+' por hora en promedio</div>';
+  }
+  if(cerrados.length){
+    resumen += '<div style="font-size:12px;color:#666;">🚪 Sin ventas registradas en: '+cerrados.join(', ')+'</div>';
+  }
+
+  var nota = '';
+  if(totalVentas < 20){
+    nota = '<div style="font-size:11px;color:#BA7517;margin-top:8px;">⚠ Solo '+totalVentas+' venta'+(totalVentas!==1?'s':'')
+      +' en este período: con tan poca muestra los promedios todavía no significan mucho. Prueba con un período más largo.</div>';
+  }
+  if(sinHora){
+    nota += '<div style="font-size:11px;color:#888;margin-top:6px;">'+sinHora+(sinHora===1?' venta sin hora registrada quedó':' ventas sin hora registrada quedaron')+' fuera de este mapa.</div>';
+  }
+
+  cont.innerHTML = '<div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;">'
+    +'<p class="slabel" style="margin-bottom:2px;">Horas pico — clientes por hora en un día normal</p>'
+    +'<p style="font-size:11px;color:#666;margin-bottom:10px;">Promedio de tickets por cada día trabajado. Pasa el cursor por una celda para ver el detalle.</p>'
+    +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+    +'<table style="border-collapse:collapse;font-size:11px;">'
+    +'<thead><tr><th></th>'
+    + horas.map(function(h){ return '<th style="padding:0 1px 4px;font-size:11px;color:#666;font-weight:600;min-width:34px;">'+etiqueta(h)+'</th>'; }).join('')
+    +'<th></th></tr></thead>'
+    +'<tbody>'+filas+'</tbody></table></div>'
+    +'<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #bfe3d2;">'+resumen+nota+'</div>'
+    +'</div>';
+}
+
 // ── CATEGORÍAS DE PRODUCTO PARA EL RANKING ───────────────────
 // Mismos colores que los contadores de arriba: urgentes azul claro,
 // escolares azul oscuro, impresiones verde.
@@ -3398,6 +3580,7 @@ function renderReportes(){
   set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
   renderMarketing(ventasActivas);
   renderTablaEscuelasMes(ventasActivas);
+  renderHorasPico(ventasActivas);
   renderDesgloseSpecs(ventasActivas);
   renderDesgloseOrdinarios(ventasActivas);
   _limpiarConsultaProducto();
