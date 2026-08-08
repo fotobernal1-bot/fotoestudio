@@ -3801,12 +3801,14 @@ function hpQuitarComparacion(){
   try{ renderHorasPico((ventasFB||[]).filter(function(v){ return !v.cancelado; })); }catch(e){}
 }
 
-// ── CALENDARIO DE TEMPORADAS ─────────────────────────────────
-// Para qué sirve: en unos años poder decir "la segunda semana de agosto entra
-// la avalancha de inscripciones" y prepararse en publicidad y en personal.
-// Cruza LOS DOS lados del negocio, porque la temporada vive en ambos: urgentes
-// aporta su propósito (inscripción, IMSS, INAPAM…) y ordinarios su motivo
-// (titulación, servicio social…). Ver MOTIVO_DE_PROPOSITO.
+// ── TEMPORADAS DE ORDINARIOS ─────────────────────────────────
+// Para qué sirve: en unos años poder decir "en agosto entra Contabilidad y en
+// junio Medicina" y prepararse en publicidad y en personal.
+// SOLO ORDINARIOS. La primera versión mezclaba urgentes aquí y estaba mal:
+// son dos negocios distintos y sumarlos no responde ninguna pregunta. Urgentes
+// tiene su propia estacionalidad en el propósito, y ese es otro reporte.
+// Los renglones son los paquetes CON EL NOMBRE QUE TÚ LES PUSISTE: no se
+// agrupan las carreras de una universidad ni se reinterpreta nada.
 // Ojo: esta tarjeta ignora el período seleccionado a propósito. Una temporada
 // no se ve en un mes; se ve comparando el mismo mes de varios años. Por eso
 // siempre pinta TODO el histórico cargado.
@@ -3830,6 +3832,11 @@ function tempSetGrano(g){
   try{ renderTemporadas(_tempVentas || []); }catch(e){}
 }
 var _tempVentas = null;
+var _tempTodos = false;   // false = solo paquetes con 2+ ventas
+function tempVerTodos(v){
+  _tempTodos = !!v;
+  try{ renderTemporadas(_tempVentas); }catch(e){}
+}
 
 // Se carga a mano y una sola vez por sesión. Necesita TODO el histórico —una
 // temporada no se ve en un mes— y eso cuesta una lectura por venta, así que no
@@ -3857,89 +3864,92 @@ function renderTemporadas(ventas){
   // Estado inicial: no se ha pedido todavía
   if(ventas===null || ventas===undefined){
     cont.innerHTML = '<div class="rcard" style="background:#F5F8FC;border-color:#c5d9ef;">'
-      +'<p class="slabel" style="margin-bottom:2px;">Calendario de temporadas</p>'
-      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">En qué mes entra cada tipo de trabajo, urgentes y ordinarios juntos. '
+      +'<p class="slabel" style="margin-bottom:2px;">Temporadas de ordinarios</p>'
+      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">Qué paquetes vendes en qué meses. '
       +'Lee todo el histórico, no el período de arriba, así que se carga cuando tú lo pidas.</p>'
       +'<button class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="cargarTemporadas()">'
-      +'<i class="ti ti-calendar-stats"></i> Ver calendario de temporadas</button></div>';
+      +'<i class="ti ti-calendar-stats"></i> Ver temporadas de ordinarios</button></div>';
     return;
   }
   _tempVentas = ventas;
 
-  // motivo -> periodo -> {n, $}  ·  y las escuelas de cada motivo
-  var datos = {}, periodos = {}, anios = {}, escuelasPorMotivo = {}, sinMotivo = 0, total = 0;
+  // SOLO ordinarios. Urgentes es otro negocio y mezclarlos no dice nada.
+  // Los renglones son los paquetes CON EL NOMBRE QUE TÚ LES PUSISTE: no se
+  // agrupan las carreras de una misma universidad ni se reinterpreta nada.
+  // La llave viene de _claveEscuela, que resuelve el escuelaId al nombre actual
+  // del catálogo para que el histórico y lo nuevo caigan en el mismo renglón.
+  var IMPRESIONES = '__imp__';
+  var datos = {}, nombres = {}, periodos = {}, anios = {}, aniosDe = {};
+  var nEsc = 0, nImp = 0;
   _sinCargas(ventas || []).forEach(function(v){
     var fk = fechaKeyDeVenta(v); if(!fk) return;
     var anio = fk.slice(0,4);
     var per  = (_tempGrano==='mes') ? parseInt(fk.slice(5,7),10) : _semanaDelAnio(fk);
     (v.items||[]).forEach(function(it){
-      if(it.tipo==='extra' || it.tipo==='impresion') return;
-      total++;
-      var m = _motivoDeItem(it);
-      if(!m){ sinMotivo++; return; }
-      datos[m] = datos[m] || {};
-      datos[m][per] = datos[m][per] || {n:0, monto:0};
-      datos[m][per].n++;
-      datos[m][per].monto += (it.precio||0);
+      var k;
+      if(it.tipo === 'escuela'){ k = _claveEscuela(it); nombres[k] = nombres[k] || _nombreEscuela(it); nEsc++; }
+      else if(it.tipo === 'impresion'){ k = IMPRESIONES; nombres[k] = 'Impresiones'; nImp++; }
+      else return;                       // urgentes y extras, fuera
+      datos[k] = datos[k] || {};
+      datos[k][per] = datos[k][per] || {n:0, monto:0, anios:{}};
+      datos[k][per].n++;
+      datos[k][per].monto += (it.precio||0);
+      datos[k][per].anios[anio] = (datos[k][per].anios[anio]||0)+1;
       periodos[per] = 1; anios[anio] = 1;
-      // Qué escuelas mueven cada temporada
-      var cd = it.clienteData || {};
-      var esc = (it.escuelaId && _nombreEscuelaPorId(it.escuelaId))
-             || cd.inscripcionEscuela || cd.escuela
-             || (it.tipo==='escuela' ? _nombreLimpio(it.productoNombre||it.nombre) : '');
-      if(esc){
-        escuelasPorMotivo[m] = escuelasPorMotivo[m] || {};
-        var ek = String(esc).trim();
-        escuelasPorMotivo[m][ek] = (escuelasPorMotivo[m][ek]||0) + 1;
-      }
+      aniosDe[k] = aniosDe[k] || {}; aniosDe[k][anio] = 1;
     });
   });
 
   var claves = Object.keys(datos);
   if(!claves.length){
-    cont.innerHTML = '<div class="rcard">'+_vacio('Todavía no hay motivos capturados para dibujar temporadas')+'</div>';
+    cont.innerHTML = '<div class="rcard">'+_vacio('Todavía no hay ventas de ordinarios para dibujar temporadas')+'</div>';
     return;
   }
 
-  // Columnas: los 12 meses siempre (una temporada se entiende viendo el año
-  // completo, no solo los meses que ya tienes), o las semanas con datos.
   var cols;
   if(_tempGrano==='mes'){ cols = []; for(var i=1;i<=12;i++) cols.push(i); }
   else cols = Object.keys(periodos).map(Number).sort(function(a,b){ return a-b; });
 
-  // Cada motivo se compara CONSIGO MISMO: lo que importa es en qué mes se
-  // dispara cada temporada, no que IMSS tenga más volumen que titulación.
-  var filas = claves.map(function(m){
-    var tot = 0, max = 0;
-    cols.forEach(function(c){ var x=datos[m][c]; if(x){ tot+=x.n; max=Math.max(max,x.n); } });
-    return {m:m, tot:tot, max:max};
-  }).sort(function(a,b){ return b.tot-a.tot; });
+  // Impresiones siempre al final, aunque tenga más volumen: no es un paquete.
+  var filas = claves.map(function(k){
+    var tot = 0, max = 0, monto = 0;
+    cols.forEach(function(c){ var x=datos[k][c]; if(x){ tot+=x.n; monto+=x.monto; max=Math.max(max,x.n); } });
+    return {k:k, nombre:nombres[k]||k, tot:tot, max:max, monto:monto, esImp:(k===IMPRESIONES)};
+  }).sort(function(a,b){
+    if(a.esImp !== b.esImp) return a.esImp ? 1 : -1;
+    return b.tot - a.tot;
+  });
 
-  var celdas = filas.map(function(f){
+  // Un paquete de una sola venta no dice nada de temporada. El umbral se vuelve
+  // irrelevante solo conforme pasen los años.
+  var visibles = _tempTodos ? filas : filas.filter(function(f){ return f.tot >= 2 || f.esImp; });
+  var ocultos  = filas.length - visibles.length;
+
+  var celdas = visibles.map(function(f){
     var tds = cols.map(function(c){
-      var x = datos[f.m][c];
+      var x = datos[f.k][c];
       var n = x ? x.n : 0;
       var inten = f.max ? n/f.max : 0;
       var oscura = inten > 0.55;
-      var bg = n ? 'rgba(12,126,214,'+(0.10+inten*0.90).toFixed(2)+')' : '#fafafa';
-      var etq = (_tempGrano==='mes') ? MESES_CORTO[c-1] : ('sem '+c);
-      var titulo = NOMBRE_MOTIVO[f.m] + ' · ' + etq + ' — ' + n + ' venta'+(n!==1?'s':'')
-                 + (x ? ' · $'+x.monto.toLocaleString() : '');
+      var col = f.esImp ? '29,158,117' : '12,126,214';
+      var bg = n ? 'rgba('+col+','+(0.10+inten*0.90).toFixed(2)+')' : '#fafafa';
+      var etq = (_tempGrano==='mes') ? MESES_CORTO[c-1] : ('semana '+c);
+      // En qué AÑOS cayó: a cinco años vista es lo que separa una temporada
+      // real de una casualidad de un solo año.
+      var aniosTxt = x ? Object.keys(x.anios).sort().map(function(a){ return a+' ('+x.anios[a]+')'; }).join(', ') : '';
+      var titulo = f.nombre+' · '+etq+' — '+n+' venta'+(n!==1?'s':'')
+        + (x ? ' · $'+x.monto.toLocaleString()+' · años: '+aniosTxt : '');
       return '<td style="padding:1px;">'
-        +'<div title="'+_escH(titulo)+'" style="height:26px;display:flex;align-items:center;justify-content:center;'
+        +'<div title="'+_escH(titulo)+'" style="height:24px;display:flex;align-items:center;justify-content:center;'
         +'background:'+bg+';border-radius:4px;font-size:10px;font-weight:600;'
         +'color:'+(oscura?'#fff':(n?'#0C447C':'#ddd'))+';">'+(n||'·')+'</div></td>';
     }).join('');
-    // Las escuelas que mueven esta temporada
-    var esc = escuelasPorMotivo[f.m] || {};
-    var topEsc = Object.keys(esc).sort(function(a,b){ return esc[b]-esc[a]; }).slice(0,4)
-      .map(function(k){ return _escH(k)+' ('+esc[k]+')'; }).join(' · ');
-    return '<tr>'
-      +'<td style="padding:1px 8px 1px 0;font-size:11px;font-weight:600;color:#111;white-space:nowrap;">'+_escH(NOMBRE_MOTIVO[f.m]||f.m)+'</td>'
+    var nA = Object.keys(aniosDe[f.k]||{}).length;
+    return '<tr'+(f.esImp?' style="border-top:1px dashed #c5d9ef;"':'')+'>'
+      +'<td style="padding:1px 8px 1px 0;font-size:11px;font-weight:600;color:'+(f.esImp?'#085041':'#111')+';white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;" title="'+_escH(f.nombre)+'">'+_escH(f.nombre)+'</td>'
       + tds
-      +'<td style="padding:1px 0 1px 8px;font-size:10px;color:#888;white-space:nowrap;">'+f.tot+'</td>'
-      +'</tr>'
-      + (topEsc ? '<tr><td></td><td colspan="'+(cols.length+1)+'" style="padding:0 0 5px 2px;font-size:9px;color:#888;">'+topEsc+'</td></tr>' : '');
+      +'<td style="padding:1px 0 1px 8px;font-size:10px;color:#888;white-space:nowrap;">'+f.tot+' · $'+f.monto.toLocaleString()+(nA>1?' · '+nA+' años':'')+'</td>'
+      +'</tr>';
   }).join('');
 
   var nAnios = Object.keys(anios).length;
@@ -3947,18 +3957,24 @@ function renderTemporadas(ventas){
     ? '<div style="font-size:11px;color:#BA7517;margin-top:8px;line-height:1.4;">⚠ Solo hay '+nAnios+' año de datos. '
       +'Una temporada se confirma cuando el mismo mes se repite alto varios años seguidos: esta tabla empieza a servir de verdad a partir del segundo año.</div>'
     : '';
-  var notaSin = sinMotivo
-    ? '<div style="font-size:11px;color:#888;margin-top:6px;">'+sinMotivo+' de '+total+' ventas no tienen motivo capturado y no aparecen aquí.</div>'
+  var notaOcultos = ocultos
+    ? '<div style="font-size:11px;color:#888;margin-top:6px;">'+ocultos+' paquete'+(ocultos!==1?'s':'')
+      +' con una sola venta no aparece'+(ocultos!==1?'n':'')+': con un solo dato no hay temporada que ver. '
+      +'Usa «Ver todos» para incluirlos.</div>'
     : '';
 
   cont.innerHTML = '<div class="rcard" style="background:#F5F8FC;border-color:#c5d9ef;">'
-    +'<p class="slabel" style="margin-bottom:2px;">Calendario de temporadas — ¿cuándo entra cada tipo de trabajo?</p>'
-    +'<p style="font-size:11px;color:#666;margin-bottom:8px;">Urgentes y ordinarios juntos, por el motivo de la visita. '
-      +'Cada renglón se colorea contra sí mismo: busca en qué mes se prende, no cuál renglón es más oscuro.<br>'
-      +'<b>Siempre muestra todo el histórico</b>, sin importar el período de arriba.</p>'
-    +'<div style="display:flex;gap:6px;margin-bottom:8px;">'
+    +'<p class="slabel" style="margin-bottom:2px;">Temporadas de ordinarios — ¿qué paquetes vendes en qué meses?</p>'
+    +'<p style="font-size:11px;color:#666;margin-bottom:8px;">'
+      +'Solo ordinarios: paquetes escolares e impresiones. Cada renglón se colorea contra sí mismo, '
+      +'así que busca en qué mes se prende cada paquete, no cuál renglón es más oscuro.<br>'
+      +'<b>Siempre muestra todo el histórico</b>, sin importar el período de arriba. '
+      +'<b>'+nEsc+'</b> paquete'+(nEsc!==1?'s':'')+' escolar'+(nEsc!==1?'es':'')+' y <b>'+nImp+'</b> impresion'+(nImp!==1?'es':'')+'.</p>'
+    +'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">'
     +  '<button class="btn '+(_tempGrano==='mes'?'bgreen':'bgray')+'" style="font-size:11px;padding:4px 10px;" onclick="tempSetGrano(\'mes\')">Por mes</button>'
     +  '<button class="btn '+(_tempGrano==='semana'?'bgreen':'bgray')+'" style="font-size:11px;padding:4px 10px;" onclick="tempSetGrano(\'semana\')">Por semana</button>'
+    +  '<button class="btn '+(_tempTodos?'bgreen':'bgray')+'" style="font-size:11px;padding:4px 10px;" onclick="tempVerTodos('+(!_tempTodos)+')">'
+    +    (_tempTodos?'Viendo todos':'Ver todos ('+filas.length+')')+'</button>'
     +'</div>'
     +'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
     +'<table style="border-collapse:collapse;font-size:11px;">'
@@ -3967,7 +3983,7 @@ function renderTemporadas(ventas){
         +(_tempGrano==='mes' ? MESES_CORTO[c-1] : c)+'</th>'; }).join('')
     +'<th style="padding:0 0 4px 8px;font-size:9px;color:#888;">total</th></tr></thead>'
     +'<tbody>'+celdas+'</tbody></table></div>'
-    + aviso + notaSin
+    + aviso + notaOcultos
     +'</div>';
 }
 
