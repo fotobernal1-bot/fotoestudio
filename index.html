@@ -586,42 +586,47 @@ body.en-reportes .cart-panel { display: none !important; }
 
     <!-- URGENTES -->
     <div id="page-urgentes" class="page active">
-      <p class="ptitle">Urgentes</p><p class="psub">Toca un producto para agregar al carrito</p>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;overflow-x:auto;">
-        <div class="tabs" style="margin-bottom:0;flex-wrap:nowrap;" id="urgentes-tabs">
-          <div class="tab active" onclick="showT('inf',this)">Infantil</div>
-          <div class="tab" onclick="showT('cred',this)">Credencial</div>
-          <div class="tab" onclick="showT('dig',this)">Imagen digital</div>
-          <div class="tab" onclick="showT('visa',this)">Visas y Pasaportes</div>
+      <div class="hrow">
+        <div>
+          <p class="ptitle" style="margin-bottom:2px;">Urgentes</p>
+          <p class="psub" style="margin:0;">Toca un producto</p>
         </div>
-        <button class="btn bgreen" style="font-size:10px;padding:5px 10px;white-space:nowrap;flex-shrink:0;" onclick="openM('m-nueva-cat')" title="Agregar nueva categoría"><i class="ti ti-plus"></i> Nueva</button>
+        <button class="btn bgray" id="urg-btn-editar" style="font-size:11px;padding:5px 10px;" onclick="urgToggleEditar()"><i class="ti ti-pencil"></i> Editar productos</button>
       </div>
-      <div id="t-inf" class="tsec active">
-        <div class="hrow"><p class="slabel" style="margin:0;">Infantil — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar producto infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="inf-grid" class="g2" style="margin-bottom:12px;"></div>
-      </div>
-      <div id="t-cred" class="tsec">
-        <div class="hrow"><p class="slabel" style="margin:0;">Credencial — color o B&N mismo precio</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar producto credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="cred-grid" class="g2" style="margin-bottom:12px;"></div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-          <div class="sub-div" style="border:none;padding:0;"><i class="ti ti-shield"></i> Cartilla militar</div>
-          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar producto cartilla';"><i class="ti ti-plus"></i> Agregar</button>
+      <!-- Un boton por producto. Antes eran cuatro pestanias con rejillas de
+           tarjetas casi identicas dentro, y la Cartilla militar vivia escondida
+           adentro de la pestania Credencial. La variante (6 o 9, 4 o 6) ahora se
+           elige como primer paso DENTRO de la calculadora. -->
+      <div id="urg-botones" style="margin-top:12px;"></div>
+
+      <!-- Se conservan por compatibilidad con rendProds/rendVisas, que siguen
+           pintando aqui cuando el modo edicion esta encendido. -->
+      <div id="urg-edicion" style="display:none;margin-top:16px;">
+        <div class="hrow" style="margin-bottom:8px;">
+          <p class="slabel" style="margin:0;">Catálogo</p>
+          <button class="btn bgreen" style="font-size:10px;padding:5px 10px;" onclick="openM('m-nueva-cat')"><i class="ti ti-plus"></i> Nueva categoría</button>
         </div>
-        <div id="cart-grid" class="g2" style="margin:10px 0 12px;"></div>
+
+        <div class="hrow"><p class="slabel" style="margin:0;">Infantil</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='infantil6';document.getElementById('ap-titulo').textContent='Agregar producto infantil';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="inf-grid" class="g2" style="margin-bottom:14px;"></div>
+
+        <div class="hrow"><p class="slabel" style="margin:0;">Credencial</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cred4';document.getElementById('ap-titulo').textContent='Agregar producto credencial';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="cred-grid" class="g2" style="margin-bottom:14px;"></div>
+
+        <div class="hrow"><p class="slabel" style="margin:0;">Cartilla militar</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='cartilla';document.getElementById('ap-titulo').textContent='Agregar producto cartilla';"><i class="ti ti-plus"></i> Agregar</button></div>
+        <div id="cart-grid" class="g2" style="margin-bottom:8px;"></div>
         <div class="specs-up" onclick="document.getElementById('fca').click()"><i class="ti ti-photo"></i><div><div class="su-p">Especificaciones cartilla militar</div><div class="su-s">Toca para subir imagen con requisitos</div></div><input type="file" id="fca" accept="image/*" style="display:none;" onchange="subirCartillaSpec(this)"></div>
-        <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;" onclick="abrirSpecFullscreen(this,'Especificaciones cartilla militar')" title="Toca para ver en grande">
-      </div>
-      <div id="t-dig" class="tsec">
+        <img id="pca" class="simg" alt="specs cartilla" style="cursor:zoom-in;margin-bottom:14px;" onclick="abrirSpecFullscreen(this,'Especificaciones cartilla militar')" title="Toca para ver en grande">
+
         <div class="hrow"><p class="slabel" style="margin:0;">Imagen digital</p><button class="btn bgreen" onclick="openM('m-add-prod');document.getElementById('ap-tipo').value='digital';document.getElementById('ap-titulo').textContent='Agregar producto digital';"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="dig-grid"></div>
-      </div>
-      <div id="t-visa" class="tsec">
+        <div id="dig-grid" style="margin-bottom:14px;"></div>
+
         <div class="hrow"><p class="slabel" style="margin:0;">Visas / Pasaportes</p><button class="btn bgreen" onclick="openM('m-visa')"><i class="ti ti-plus"></i> Agregar</button></div>
-        <div id="visas-list"></div>
+        <div id="visas-list" style="margin-bottom:14px;"></div>
+
+        <div id="cats-dinamicas"></div>
       </div>
-      <!-- CATEGORÍAS DINÁMICAS -->
-      <div id="cats-dinamicas"></div>
     </div>
 
     <!-- ORDINARIOS -->
@@ -865,11 +870,11 @@ body.en-reportes .cart-panel { display: none !important; }
 
       <div id="rep-aviso-historico" style="display:none;"></div>
 
-      <!-- PESTAÑAS: cada dato vive en un solo lugar -->
+      <!-- PESTAÑAS: cada dato vive en un solo lugar.
+           Productos se fusionó con Resumen y Escuelas se llama Ordinarios. -->
       <div class="tabs" style="margin-bottom:12px;flex-wrap:wrap;" id="rep-subtabs">
         <div class="tab active" onclick="showRepTab('resumen',this)">Resumen</div>
-        <div class="tab" onclick="showRepTab('productos',this)">Productos</div>
-        <div class="tab" onclick="showRepTab('escuelas',this)">Escuelas</div>
+        <div class="tab" onclick="showRepTab('ordinarios',this)">Ordinarios</div>
         <div class="tab" onclick="showRepTab('historial',this)">Historial</div>
       </div>
 
@@ -887,24 +892,15 @@ body.en-reportes .cart-panel { display: none !important; }
             <div class="ss" id="rep-fotos-ord-hm" style="color:#555;">—</div>
           </div>
         </div>
+
         <div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;margin-bottom:12px;">
           <p class="slabel" style="margin-bottom:6px;">Cómo pagan</p>
           <div id="rep-mkt-pago" style="margin-bottom:12px;"></div>
           <p class="slabel" style="margin-bottom:6px;">Ventas por día</p>
           <div id="rep-mkt-dias"></div>
         </div>
-        <div id="rep-horas-pico" style="margin-bottom:12px;"></div>
-        <div id="rep-temporadas" style="margin-bottom:12px;"></div>
-        <div id="rep-urgentes-specs" style="display:none;">
-          <div class="rcard" style="background:#FAEEDA;border-color:#e8d0a0;">
-            <p class="rtitle" style="color:#633806;"><i class="ti ti-chart-bar"></i> Quién compra y cómo</p>
-            <div id="rep-specs-grid"></div>
-          </div>
-        </div>
-      </div>
 
-      <!-- ── PRODUCTOS ── -->
-      <div id="rt-productos" class="rep-tab-panel" style="display:none;">
+        <!-- Lo que era la pestaña Productos -->
         <div class="rcard" style="background:#F2F8F5;border-color:#bfe3d2;margin-bottom:12px;">
           <p class="slabel" style="margin-bottom:6px;">Ranking de productos</p>
           <div id="rep-mkt-productos" style="margin-bottom:12px;"></div>
@@ -921,18 +917,31 @@ body.en-reportes .cart-panel { display: none !important; }
           </div>
           <p style="font-size:12px;color:#666;margin-top:8px;margin-bottom:0;">Dentro del período seleccionado arriba: <strong id="cprod-periodo">—</strong></p>
         </div>
-        <div id="cprod-resultado" style="display:none;"></div>
+        <div id="cprod-resultado" style="display:none;margin-bottom:12px;"></div>
+
+        <div id="rep-urgentes-specs" style="display:none;">
+          <div class="rcard" style="background:#FAEEDA;border-color:#e8d0a0;">
+            <p class="rtitle" style="color:#633806;"><i class="ti ti-users"></i> Personas fotografiadas</p>
+            <div id="rep-specs-grid"></div>
+          </div>
+        </div>
+
+        <div id="rep-extras-card" style="display:none;margin-bottom:12px;"></div>
+
+        <!-- Horas pico hasta abajo -->
+        <div id="rep-horas-pico" style="margin-bottom:12px;"></div>
       </div>
 
-      <!-- ── ESCUELAS ── -->
-      <div id="rt-escuelas" class="rep-tab-panel" style="display:none;">
+      <!-- ── ORDINARIOS (antes "Escuelas") ── -->
+      <div id="rt-ordinarios" class="rep-tab-panel" style="display:none;">
         <div id="rep-ordinarios-desglose" style="margin-bottom:12px;display:none;">
           <div class="rcard" style="background:#EEF4FA;border-color:#a0c4e8;">
             <p class="rtitle" style="color:#0C447C;"><i class="ti ti-school"></i> Por escuela</p>
             <div id="rep-ord-grid"></div>
           </div>
         </div>
-        <div id="rep-esc-meses"></div>
+        <div id="rep-esc-meses" style="margin-bottom:12px;"></div>
+        <div id="rep-temporadas" style="margin-bottom:12px;"></div>
       </div>
 
       <!-- ── HISTORIAL ── -->
@@ -1057,24 +1066,18 @@ function guardarNuevaCat(){
   autoGuardar();
 }
 
+// Urgentes ya no tiene pestanias: cada categoria es un boton, y los botones se
+// repintan desde el catalogo. Se conserva el nombre porque hay varios puntos
+// que la llaman al cargar datos.
 function agregarTabDinamica(id, nombre){
-  const tabs = document.getElementById('urgentes-tabs');
-  if(!tabs) return;
-  // Check if tab already exists
-  if(document.getElementById('tab-'+id)) return;
-  const tab = document.createElement('div');
-  tab.className = 'tab';
-  tab.id = 'tab-'+id;
-  tab.textContent = nombre;
-  tab.onclick = function(){ showT(id, this); };
-  tabs.appendChild(tab);
+  renderBotonesUrgentes();
 }
 
 function rendCatsDinamicas(){
   const cont = document.getElementById('cats-dinamicas');
   if(!cont) return;
   cont.innerHTML = categoriasDinamicas.map(cat=>`
-    <div id="t-${cat.id}" class="tsec">
+    <div id="t-${cat.id}">
       <div class="hrow">
         <p class="slabel" style="margin:0;">${cat.nombre}</p>
         <div style="display:flex;gap:6px;">
@@ -3199,8 +3202,7 @@ async function prepararHistorico(){
   });
 
   if(!pendientes.length){
-    _faltaFechaKey = false;
-    try{ localStorage.setItem('fs_historico_listo','1'); }catch(e){}
+    await _marcarHistoricoListo();
     alert('Todo listo: las '+snap.size+' ventas ya tienen fecha.\n\nNo hubo nada que actualizar.');
     return;
   }
@@ -3222,10 +3224,7 @@ async function prepararHistorico(){
     return;
   }
 
-  if(!sinFecha){
-    _faltaFechaKey = false;
-    try{ localStorage.setItem('fs_historico_listo','1'); }catch(e){}
-  }
+  if(!sinFecha) await _marcarHistoricoListo();
   alert('Listo: '+hechas+' venta(s) actualizada(s).'
     + (sinFecha ? '\n\n⚠ '+sinFecha+' venta(s) no tenían ninguna fecha de la cual deducirla y se quedaron igual.' : '')
     + '\n\nLos reportes ahora consultan solo el rango de fechas que pidas.');
@@ -3519,7 +3518,7 @@ function toggleCalAvanzado(el){
 
 // Pestañas internas de Reportes
 function showRepTab(id, el){
-  ['resumen','productos','escuelas','historial'].forEach(function(k){
+  ['resumen','ordinarios','historial'].forEach(function(k){
     var p=document.getElementById('rt-'+k);
     if(p) p.style.display = (k===id) ? 'block' : 'none';
   });
@@ -3589,9 +3588,73 @@ function _rangoDelPeriodo(){
 var _faltaFechaKey = true;
 try{ if(localStorage.getItem('fs_historico_listo')==='1') _faltaFechaKey = false; }catch(e){}
 
+// La marca vivia SOLO en el localStorage de cada aparato: correr "Preparar
+// historico" en la compu no apagaba la red de seguridad en el iPad, que seguia
+// pidiendo el ano completo (~1,400 lecturas) en cada Reportes, para siempre.
+// Ahora la verdad esta en Firestore y el localStorage es solo un atajo para
+// no esperar a que cargue.
+async function _marcarHistoricoListo(){
+  _faltaFechaKey = false;
+  try{ localStorage.setItem('fs_historico_listo','1'); }catch(e){}
+  if(!db) return;
+  try{
+    await db.collection('datos').doc('config').set(
+      {historicoListo:true, historicoFecha:new Date().toISOString()}, {merge:true});
+  }catch(e){ console.warn('No se pudo guardar la marca de historico:', e.message); }
+}
+// Se llama desde el arranque, con el doc que ya se leyo ahi (sin lecturas extra).
+// LA NUBE MANDA, SIEMPRE. Si no hay marca en Firestore se asume que el historico
+// NO esta preparado, aunque el localStorage de este aparato diga que si. Confiar
+// en la marca local seria peor que gastar de mas: apagaria la red de seguridad y
+// los reportes se comerian en silencio las ventas viejas sin fechaKey.
+function _aplicarConfig(cfg){
+  var listo = !!(cfg && cfg.historicoListo);
+  _faltaFechaKey = !listo;
+  try{
+    if(listo) localStorage.setItem('fs_historico_listo','1');
+    else localStorage.removeItem('fs_historico_listo');
+  }catch(e){}
+  try{ _avisoHistorico(); }catch(e){}
+}
+
 var _repPeticion = 0;   // descarta respuestas de peticiones ya superadas
 
 var _cacheReportes = null;
+
+// El cache vivia SOLO en memoria: recargar la pestana lo perdia y la siguiente
+// apertura de Reportes volvia a costar la consulta completa. Ahora se guarda en
+// IndexedDB (localStorage se queda corto con ~1,400 ventas) y sobrevive al F5.
+// La ventana de 2 minutos NO cambia: pasada, se vuelve a consultar igual.
+var CACHE_REP_MS = 120000;
+function _cacheIdb(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open('fb_cache_reportes',1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore('kv'); };
+    r.onsuccess=function(){ res(r.result); };
+    r.onerror=function(){ rej(r.error); };
+  });
+}
+async function _cacheGuardar(obj){
+  try{
+    var d=await _cacheIdb();
+    await new Promise(function(res,rej){
+      var tx=d.transaction('kv','readwrite');
+      tx.objectStore('kv').put(obj,'reportes');
+      tx.oncomplete=res; tx.onerror=function(){ rej(tx.error); };
+    });
+  }catch(e){}
+}
+async function _cacheLeer(){
+  try{
+    var d=await _cacheIdb();
+    return await new Promise(function(res,rej){
+      var tx=d.transaction('kv','readonly');
+      var rq=tx.objectStore('kv').get('reportes');
+      rq.onsuccess=function(){ res(rq.result||null); };
+      rq.onerror=function(){ rej(rq.error); };
+    });
+  }catch(e){ return null; }
+}
 
 async function cargarReportes(forzar){
   if(!db){mostrarReportesLocal();return;}
@@ -3601,11 +3664,21 @@ async function cargarReportes(forzar){
   // No volver a pedir el MISMO periodo si se consulto hace menos de 2 minutos.
   // Cada consulta cuesta tantas lecturas como ventas devuelva.
   var claveCache = periodoActual+'|'+rango.desde+'|'+rango.hasta;
-  if(_cacheReportes && _cacheReportes.clave===claveCache &&
-     (Date.now()-_cacheReportes.ts) < 120000 && !forzar){
+  var vigente = function(c){ return c && c.clave===claveCache && (Date.now()-c.ts) < CACHE_REP_MS; };
+  if(vigente(_cacheReportes) && !forzar){
     ventasFB = _cacheReportes.ventas;
     renderReportes();
     return;
+  }
+  // Recien recargada la pagina no hay nada en memoria, pero puede haber en disco
+  if(!_cacheReportes && !forzar){
+    var guardado = await _cacheLeer();
+    if(vigente(guardado)){
+      _cacheReportes = guardado;
+      ventasFB = guardado.ventas;
+      renderReportes();
+      return;
+    }
   }
 
   var miPeticion = ++_repPeticion;
@@ -3648,6 +3721,7 @@ async function cargarReportes(forzar){
     if(miPeticion !== _repPeticion) return;   // llegó tarde: manda una consulta más nueva
     ventasFB = lista;
     _cacheReportes = {clave:claveCache, ts:Date.now(), ventas:lista};
+    _cacheGuardar(_cacheReportes);
     renderReportes();
   }catch(e){
     console.error(e);
@@ -3842,15 +3916,37 @@ function tempVerTodos(v){
 // temporada no se ve en un mes— y eso cuesta una lectura por venta, así que no
 // se dispara sola cada vez que abres Reportes.
 var _tempCargando = false;
+// De donde salieron los datos, para decirlo en la tarjeta: nadie deberia leer
+// numeros de un respaldo viejo creyendolos frescos.
+var _tempFuente = null;   // {tipo:'archivo'|'nube', fecha:'...'}
+
 async function cargarTemporadas(){
-  if(!db || _tempCargando) return;
+  if(_tempCargando) return;
   _tempCargando = true;
   var cont = document.getElementById('rep-temporadas');
-  if(cont) cont.innerHTML = '<div class="rcard"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando el histórico completo…</p></div>';
+  if(cont) cont.innerHTML = '<div class="rcard"><p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando el histórico…</p></div>';
   try{
-    var snap = await db.collection('ventas').get();
-    var lista = [];
-    snap.forEach(function(d){ var v=d.data(); if(!v.cancelado) lista.push(v); });
+    // 1) El respaldo del disco primero: cuesta CERO lecturas de Firebase.
+    //    Leer la coleccion entera son ~1,400 lecturas cada vez, y esta tabla
+    //    mira todo el historico por definicion.
+    var lista = null;
+    if(RESPALDO.hayArchivo && RESPALDO.hayArchivo()){
+      var arch = await RESPALDO.leerArchivo();
+      var mapa = arch && arch.ventas;
+      if(mapa && Object.keys(mapa).length){
+        lista = Object.keys(mapa).map(function(k){ return mapa[k]; })
+                      .filter(function(v){ return v && !v.cancelado; });
+        _tempFuente = {tipo:'archivo', fecha:(arch.meta && arch.meta.exportado) || ''};
+      }
+    }
+    // 2) Sin respaldo utilizable, se le pide a Firebase como antes
+    if(!lista){
+      if(!db){ if(cont) cont.innerHTML='<div class="rcard">'+_vacio('Sin respaldo en disco y sin conexión: no hay de dónde leer el histórico')+'</div>'; _tempCargando=false; return; }
+      var snap = await db.collection('ventas').get();
+      lista = [];
+      snap.forEach(function(d){ var v=d.data(); if(!v.cancelado) lista.push(v); });
+      _tempFuente = {tipo:'nube', fecha:new Date().toISOString()};
+    }
     renderTemporadas(lista);
   }catch(e){
     if(cont) cont.innerHTML = '<div class="rcard">'+_vacio('No se pudo cargar el histórico: '+e.message)+'</div>';
@@ -3868,7 +3964,12 @@ function renderTemporadas(ventas){
       +'<p style="font-size:11px;color:#666;margin-bottom:8px;">Qué paquetes vendes en qué meses. '
       +'Lee todo el histórico, no el período de arriba, así que se carga cuando tú lo pidas.</p>'
       +'<button class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="cargarTemporadas()">'
-      +'<i class="ti ti-calendar-stats"></i> Ver temporadas de ordinarios</button></div>';
+      +'<i class="ti ti-calendar-stats"></i> Ver temporadas de ordinarios</button>'
+      +'<div style="font-size:10px;color:#888;margin-top:6px;">'
+      + ((RESPALDO.hayArchivo && RESPALDO.hayArchivo())
+          ? 'Sale de tu respaldo en disco: no gasta lecturas de Firebase.'
+          : '⚠ Sin respaldo en disco activo: tendría que pedírselo a Firebase (~una lectura por venta). Actívalo arriba y saldrá gratis.')
+      +'</div></div>';
     return;
   }
   _tempVentas = ventas;
@@ -3968,7 +4069,11 @@ function renderTemporadas(ventas){
     +'<p style="font-size:11px;color:#666;margin-bottom:8px;">'
       +'Solo ordinarios: paquetes escolares e impresiones. Cada renglón se colorea contra sí mismo, '
       +'así que busca en qué mes se prende cada paquete, no cuál renglón es más oscuro.<br>'
-      +'<b>Siempre muestra todo el histórico</b>, sin importar el período de arriba. '
+      + (_tempFuente && _tempFuente.tipo==='archivo'
+          ? '<span style="color:#085041;">Leído de tu respaldo en disco (0 lecturas), respaldado el '
+            + _escH(new Date(_tempFuente.fecha||Date.now()).toLocaleString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}))
+            + '. Si acabas de vender, toca «Exportar todo ahora» para refrescarlo.</span><br>'
+          : '<b>Siempre muestra todo el histórico</b>, sin importar el período de arriba. ')
       +'<b>'+nEsc+'</b> paquete'+(nEsc!==1?'s':'')+' escolar'+(nEsc!==1?'es':'')+' y <b>'+nImp+'</b> impresion'+(nImp!==1?'es':'')+'.</p>'
     +'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">'
     +  '<button class="btn '+(_tempGrano==='mes'?'bgreen':'bgray')+'" style="font-size:11px;padding:4px 10px;" onclick="tempSetGrano(\'mes\')">Por mes</button>'
@@ -4610,189 +4715,104 @@ function renderReportes(){
   if(elH) renderHistorialRows(sorted, elH);
 }
 
+// Personas fotografiadas: urgentes a la izquierda, ordinarios a la derecha, con
+// el mismo desglose por edad y sexo en los dos lados.
+// Antes esto era "Quién compra y cómo" y mezclaba cosas sin relación: quién
+// paga, propósito, escuelas, vestimenta. Lo de quién paga además llevaba roto
+// desde v23 —ese campo queda vacío cuando paga el mismo que se retrata— y el
+// propósito lo cuenta mejor "Para qué vienen (por producto)".
 function renderDesgloseSpecs(ventas){
-  var sec = document.getElementById('rep-urgentes-specs');
+  var sec  = document.getElementById('rep-urgentes-specs');
   var grid = document.getElementById('rep-specs-grid');
+  var extra= document.getElementById('rep-extras-card');
   if(!sec || !grid) return;
 
-  // Recopilar datos de cliente (venta rápida) y specs (mini calculadora)
-  var itemsConSpecs = [];
-  var clientesData = [];
+  // ── URGENTES ──
+  var urg = {nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0,adulto_plus_h:0,adulto_plus_m:0};
+  var cColor=0, cBN=0, cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
+  var nVentasUrg = 0;
   ventas.forEach(function(v){
     if(v.origen !== 'urgentes' && v.origen !== 'visas') return;
     (v.items||[]).forEach(function(it){
-      if(it.specs) itemsConSpecs.push(it.specs);
-      if(it.clienteData){
-        // Guardar el nombre del producto junto con clienteData para cruzar propósito+producto
-        var cd = Object.assign({}, it.clienteData, {_nombreProducto: it.nombre||''});
-        clientesData.push(cd);
-      }
+      var c = it.clienteData;
+      if(!c) return;
+      nVentasUrg++;
+      var f = c.fotografiados || {};
+      var enItem = 0;
+      Object.keys(urg).forEach(function(k){ var n=f[k]||0; urg[k]+=n; enItem+=n; });
+      var peso = enItem > 0 ? enItem : 1;   // sin contadores, la venta cuenta como una persona
+      if(c.colorBN==='bn') cBN+=peso; else cColor+=peso;
+      if(c.adherible) cAdherible+=peso;
+      if(c.camisa_blanca) cCamisa+=peso;
+      if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
     });
   });
 
-  var totalDatos = itemsConSpecs.length + clientesData.length;
-  if(!totalDatos){ sec.style.display='none'; grid.innerHTML=''; return; }
+  // ── ORDINARIOS ── (agruparEscuelas ya resuelve la identidad de cada escuela)
+  var agr = agruparEscuelas(ventas);
+  var ord = agr.cubos || {};
+
+  var totUrg = Object.keys(urg).reduce(function(s,k){ return s+urg[k]; }, 0);
+  var totOrd = Object.keys(ord).reduce(function(s,k){ return s+(ord[k]||0); }, 0);
+
+  if(!totUrg && !totOrd && !nVentasUrg){
+    sec.style.display='none'; grid.innerHTML='';
+    if(extra){ extra.style.display='none'; extra.innerHTML=''; }
+    return;
+  }
   sec.style.display='block';
 
-  // --- Análisis de quien paga (clienteData) ---
-  var cSexo={H:0,M:0};
-  var cEdad={'18-30':0,'30-50':0,'50+':0};
-  var cProp={'IMSS/ISSSTE':0,'Escolar':0,'Trámite gobierno':0,'INAPAM':0,'Trabajo':0,'Otro':0};
-  var fotoNino=0, fotoJoven=0, fotoAdulto=0, fotoAdultoPlus=0;
-  var fotoNinoH=0, fotoNinoM=0, fotoJovenH=0, fotoJovenM=0, fotoAdultoH=0, fotoAdultoM=0, fotoAdultoPlusH=0, fotoAdultoPlusM=0;
-  var cAdherible=0, cCamisa=0, cBarbaEdicion=0, cBarbaTotal=0;
-  var cColor=0, cBN=0;
-  var cEscuelas={};
-  clientesData.forEach(function(c){
-    // Total de fotografiados en este item (para ponderar color, propósito, etc.)
-    var f = c.fotografiados || {};
-    var totalFotografiadosItem = (f.nino_h||0)+(f.nino_m||0)+(f.joven_h||0)+(f.joven_m||0)
-      +(f.adulto_h||0)+(f.adulto_m||0)+(f.adulto_plus_h||0)+(f.adulto_plus_m||0);
-    var peso = totalFotografiadosItem > 0 ? totalFotografiadosItem : 1;
-
-    if(c.sexo) cSexo[c.sexo]=(cSexo[c.sexo]||0)+1;
-    if(c.edad) cEdad[c.edad]=(cEdad[c.edad]||0)+1;
-    if(c.proposito){
-      var propKey = c.proposito;
-      if(c.proposito==='Otro' && c.otroDesc) propKey = 'Otro: '+c.otroDesc;
-      else if(c.proposito==='Trámite gobierno' && c.tramiteDesc) propKey = 'Trámite: '+c.tramiteDesc;
-      else if(c.proposito==='Trabajo' && c.trabajoDesc) propKey = 'Trabajo: '+c.trabajoDesc;
-      else if(c.proposito==='Inscripción' && c.inscripcionEscuela) propKey = 'Inscripción: '+c.inscripcionEscuela;
-      if(!cProp[propKey]) cProp[propKey] = {count:0, productos:{}};
-      else if(typeof cProp[propKey] === 'number') cProp[propKey] = {count:cProp[propKey], productos:{}};
-      cProp[propKey].count += peso;
-      // Registrar el producto asociado
-      if(c._nombreProducto){
-        var prod = c._nombreProducto.trim();
-        cProp[propKey].productos[prod] = (cProp[propKey].productos[prod]||0) + peso;
-      }
-    }
-    if(c.proposito==='Escolar' && c.escuela) cEscuelas[c.escuela]=(cEscuelas[c.escuela]||0)+1;
-    if(c.colorBN==='bn') cBN+=peso; else cColor+=peso;
-    if(c.adherible) cAdherible+=peso;
-    if(c.camisa_blanca) cCamisa+=peso;
-    if(c.barba_edicion>0){ cBarbaEdicion++; cBarbaTotal+=c.barba_edicion; }
-    if(c.fotografiados){
-      fotoNino+=(c.fotografiados.nino_h||0)+(c.fotografiados.nino_m||0);
-      fotoJoven+=(c.fotografiados.joven_h||0)+(c.fotografiados.joven_m||0);
-      fotoAdulto+=(c.fotografiados.adulto_h||0)+(c.fotografiados.adulto_m||0);
-      fotoAdultoPlus+=(c.fotografiados.adulto_plus_h||0)+(c.fotografiados.adulto_plus_m||0);
-      fotoNinoH+=(c.fotografiados.nino_h||0); fotoNinoM+=(c.fotografiados.nino_m||0);
-      fotoJovenH+=(c.fotografiados.joven_h||0); fotoJovenM+=(c.fotografiados.joven_m||0);
-      fotoAdultoH+=(c.fotografiados.adulto_h||0); fotoAdultoM+=(c.fotografiados.adulto_m||0);
-      fotoAdultoPlusH+=(c.fotografiados.adulto_plus_h||0); fotoAdultoPlusM+=(c.fotografiados.adulto_plus_m||0);
-    }
-  });
-  var totalClientes = clientesData.length || 1;
-  // Para color y propósito el denominador correcto es el total de fotografiados
-  var totalFotosParaBarra = fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus || totalClientes;
-  var totalFotos = fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus || 1;
-
-  // --- Análisis specs (mini calculadora) ---
-  var color=0, bn=0, adh=0, sinAdh=0;
-  var vest={}, sSexo={H:0,M:0};
-  var barbaSi=0, barbaNota=0, barbaTotal=0;
-  itemsConSpecs.forEach(function(s){
-    if(s.color==='bn') bn++; else color++;
-    if(s.adherible) adh++; else sinAdh++;
-    if(s.sexo==='H') sSexo.H++; else if(s.sexo==='M') sSexo.M++;
-    var v=s.vestimenta||'Sin especificar'; vest[v]=(vest[v]||0)+1;
-    if(s.barba==='Sí') barbaSi++;
-    if(s.barba_edicion>0){barbaNota++;barbaTotal+=s.barba_edicion;}
-  });
-  var totalSpecs = itemsConSpecs.length || 1;
-
-  var barra = _barraRep;
-
-  var html = '<div class="g2" style="gap:10px;">';
-
-  // Sexo pagador
-  if(clientesData.length){
-    // Columna izquierda: Sexo + Edad (del pagador) + resumen total fotografiados
-    html += '<div class="rsub">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:2px;text-transform:uppercase;">Sexo (quien paga)</p>'      +'<p style="font-size:11px;color:#666;margin-bottom:8px;">1 registro por venta, no por persona fotografiada</p>'      +barra('Hombre', cSexo.H||0, totalClientes, '#0C447C')      +barra('Mujer', cSexo.M||0, totalClientes, '#7C0C44')      +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #e0e0e0;">'      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Edad (quien paga)</p>'      +barra('18-30', cEdad['18-30']||0, totalClientes, '#1D9E75')      +barra('30-50', cEdad['30-50']||0, totalClientes, '#0C7ED6')      +barra('50+',   cEdad['50+']||0,   totalClientes, '#BA7517')      +'</div>'      +'</div>';   // se quito "Total fotografiados (real)": era el MISMO numero que el KPI de arriba
-
-    // Columna derecha: Personas fotografiadas + Color/B&N
-    html += '<div class="rsub">'      +(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus > 0        ? '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;">Personas fotografiadas</p>'          +(fotoNino>0?barra('Niño H', fotoNinoH, totalFotos, '#0C447C')+barra('Niño M', fotoNinoM, totalFotos, '#7C0C44'):'')          +(fotoJoven>0?barra('Joven H', fotoJovenH, totalFotos, '#0C447C')+barra('Joven M', fotoJovenM, totalFotos, '#7C0C44'):'')          +(fotoAdulto>0?barra('Adulto H (30-50)', fotoAdultoH, totalFotos, '#0C447C')+barra('Adulto M (30-50)', fotoAdultoM, totalFotos, '#7C0C44'):'')          +(fotoAdultoPlus>0?barra('Adulto mayor H (60+)', fotoAdultoPlusH, totalFotos, '#085041')+barra('Adulto mayor M (60+)', fotoAdultoPlusM, totalFotos, '#7C0C44'):'')          +'<div style="font-size:10px;color:#888;margin-top:3px;margin-bottom:10px;">Total: <strong>'+(fotoNino+fotoJoven+fotoAdulto+fotoAdultoPlus)+'</strong></div>'          +'<div style="padding-top:8px;border-top:1px dashed #e0e0e0;">'          +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')          +'</div>'        : '<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'          +barra('Color', cColor||0, totalFotosParaBarra, '#1D9E75')          +barra('B/N', cBN||0, totalFotosParaBarra, '#555')      )      +'</div>';
-
-        // Propósito de visita con desglose de productos
-    var propEntries = Object.entries(cProp).filter(function(e){
-      var v = e[1]; return (typeof v === 'number' ? v : v.count) > 0;
-    }).sort(function(a,b){
-      var va = typeof a[1]==='number'?a[1]:a[1].count;
-      var vb = typeof b[1]==='number'?b[1]:b[1].count;
-      return vb - va;
-    });
-    if(propEntries.length){
-      var maxProp = propEntries.length ? (typeof propEntries[0][1]==='number' ? propEntries[0][1] : propEntries[0][1].count) : 1;
-      html += '<div class="rsub" style="grid-column:1/-1;">'
-        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Propósito de visita</p>'
-        +'<div class="g2" style="gap:6px;">'
-        +propEntries.map(function(e){
-          var label = e[0];
-          var val = typeof e[1]==='number' ? e[1] : e[1].count;
-          var prods = (typeof e[1]==='object' && e[1].productos) ? e[1].productos : {};
-          var prodStr = Object.entries(prods).sort(function(a,b){return b[1]-a[1];}).map(function(p){
-            return '<span style="background:#f0f0f0;border-radius:4px;padding:2px 7px;font-size:11px;color:#555;margin-right:3px;display:inline-block;margin-top:2px;">'+_escH(p[0])+(p[1]>1?' ×'+p[1]:'')+'</span>';
-          }).join('');
-          return '<div style="margin-bottom:8px;">'
-            + _barra(label, val, maxProp, '#555')
-            + (prodStr ? '<div style="margin-top:3px;">'+prodStr+'</div>' : '')
-            + '</div>';
+  // Los nombres son los mismos que ya se ven en Producción (v24)
+  var columna = function(titulo, cubos, total, color){
+    if(!total) return '<div class="rsub">'
+      +'<p style="font-size:10px;font-weight:600;color:'+color+';margin-bottom:6px;text-transform:uppercase;">'+titulo+'</p>'
+      + _vacio('Sin personas capturadas en este período') +'</div>';
+    return '<div class="rsub">'
+      +'<p style="font-size:10px;font-weight:600;color:'+color+';margin-bottom:6px;text-transform:uppercase;">'+titulo+'</p>'
+      + ETIQUETAS_FOTO.map(function(e){
+          var n = cubos[e[0]]||0;
+          if(!n) return '';
+          var esM = e[0].slice(-2)==='_m';
+          return _barraRep(e[1], n, total, esM ? '#7C0C44' : '#0C447C');
         }).join('')
-        +'</div></div>';
-    }
-
-    // Escuelas
-    var escEntries = Object.entries(cEscuelas).sort(function(a,b){return b[1]-a[1];});
-    if(escEntries.length){
-      html += '<div class="rsub" style="grid-column:1/-1;">'
-        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Escuelas</p>'
-        +escEntries.map(function(e){ return barra(e[0], e[1], totalClientes, '#0C447C'); }).join('')
-        +'</div>';
-    }
-
-    // Adherible, camisa, barba desde clienteData
-    if(cAdherible>0||cCamisa>0||cBarbaEdicion>0){
-      html += '<div class="rsub" style="grid-column:1/-1;">'
-        +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Servicios adicionales</p>'
-        +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-        +(cAdherible?'<div style="font-size:12px;">Adherible: <strong style="color:#BA7517;">'+cAdherible+'</strong></div>':'')
-        +(cCamisa?'<div style="font-size:12px;">Camisa blanca: <strong style="color:#0C7ED6;">'+cCamisa+'</strong></div>':'')
-        +(cBarbaEdicion?'<div style="font-size:12px;">Edición barba: <strong style="color:#555;">'+cBarbaEdicion+'</strong></div>':'')
-        +(cBarbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+cBarbaTotal+'</div>':'')
-        +'</div></div>';
-    }
-  }
-
-  // Specs (mini calculadora)
-  if(itemsConSpecs.length){
-    // Se quitaron las cards "Sexo (con specs)" y su Color/B&N: repetían las de
-    // arriba ("Sexo (quien paga)" y el Color/B&N de la columna derecha).
-
-    // Se quito la card "Adherible": ya se cuenta en "Servicios adicionales", y
-    // ahi va ponderada por personas. Tener las dos daba dos cifras distintas
-    // del mismo concepto, sin nada que explicara la diferencia.
-    var vestEntries = Object.entries(vest).sort(function(a,b){return b[1]-a[1];});
-    html += '<div class="rsub">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Vestimenta</p>'
-      +vestEntries.map(function(e){ return barra(e[0], e[1], totalSpecs, '#0C7ED6'); }).join('')
+      +'<div style="font-size:10px;color:#888;margin-top:4px;">Total: <strong>'+total+'</strong> persona'+(total!==1?'s':'')+'</div>'
       +'</div>';
+  };
 
-    html += '<div class="rsub" style="grid-column:1/-1;">'
-      +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Barba</p>'
-      +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-      +'<div style="font-size:12px;">Barba permitida: <strong>'+barbaSi+'</strong></div>'
-      +'<div style="font-size:12px;">Ediciones cobradas: <strong>'+barbaNota+'</strong></div>'
-      +'</div></div>';   // el importe de barba ya sale en "Servicios adicionales"
+  grid.innerHTML = '<div class="g2" style="gap:10px;">'
+    + columna('Urgentes',   urg, totUrg, '#0C7ED6')
+    + columna('Ordinarios', ord, totOrd, '#0C447C')
+    + '</div>';
+
+  // Color/B&N y servicios adicionales: su propia tarjeta, debajo
+  if(extra){
+    var hayServicios = (cAdherible>0 || cCamisa>0 || cBarbaEdicion>0);
+    var totalColor = cColor + cBN;
+    if(!totalColor && !hayServicios){ extra.style.display='none'; extra.innerHTML=''; }
+    else{
+      extra.style.display='block';
+      extra.innerHTML = '<div class="rcard">'
+        +'<div class="g2" style="gap:10px;">'
+        + (totalColor
+            ? '<div class="rsub">'
+              +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Color / B&N</p>'
+              + _barraRep('Color', cColor, totalColor, '#1D9E75')
+              + _barraRep('B/N',   cBN,    totalColor, '#555')
+              +'</div>'
+            : '')
+        + (hayServicios
+            ? '<div class="rsub">'
+              +'<p style="font-size:10px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;">Servicios adicionales</p>'
+              +'<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+              +(cAdherible?'<div style="font-size:12px;">Adherible: <strong style="color:#BA7517;">'+cAdherible+'</strong></div>':'')
+              +(cCamisa?'<div style="font-size:12px;">Camisa blanca: <strong style="color:#0C7ED6;">'+cCamisa+'</strong></div>':'')
+              +(cBarbaEdicion?'<div style="font-size:12px;">Edición barba: <strong style="color:#555;">'+cBarbaEdicion+'</strong></div>':'')
+              +(cBarbaTotal>0?'<div style="font-size:12px;color:#1D9E75;font-weight:600;">Total barba: $'+cBarbaTotal+'</div>':'')
+              +'</div></div>'
+            : '')
+        +'</div></div>';
+    }
   }
-
-
-  html += '</div>';
-  html += '<div style="margin-top:8px;font-size:11px;color:#888;text-align:right;">'
-    +(clientesData.length?clientesData.length+' venta'+(clientesData.length!==1?'s':'')+' rápida'+(clientesData.length!==1?'s':'')+' con datos':'')
-    +(itemsConSpecs.length?' · '+itemsConSpecs.length+' con especificaciones':'')
-    +'</div>';
-  grid.innerHTML = html;
 }
 
 // Tabla de actividad por mes. Antes vivía DENTRO del bloque naranja que
@@ -4884,6 +4904,10 @@ function _nombreEscuela(it){
 function agruparEscuelas(ventas){
   var MESES_N = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var out = {}, totalH = 0, totalM = 0, totalVentas = 0, itemsTotal = 0, itemsConPersonas = 0;
+  // Desglose por grupo de edad, ademas del H/M que ya se sumaba. Sirve para que
+  // el panel "Personas fotografiadas" pueda poner ordinarios junto a urgentes
+  // con el mismo detalle. Es aditivo: quien solo usaba totalH/totalM sigue igual.
+  var cubos = {nino_h:0,nino_m:0,joven_h:0,joven_m:0,adulto_h:0,adulto_m:0,adulto_plus_h:0,adulto_plus_m:0};
   (ventas||[]).forEach(function(v){
     if(v.origen !== 'escuelas') return;
     totalVentas++;
@@ -4907,12 +4931,19 @@ function agruparEscuelas(ventas){
         var iM = (f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
         d.H += iH; d.M += iM; d.personas += iH+iM;
         totalH += iH; totalM += iM;
+        Object.keys(cubos).forEach(function(k){
+          var n = f[k]||0;
+          if(!n) return;
+          cubos[k] += n;
+          if(!d.cubos) d.cubos = {};
+          d.cubos[k] = (d.cubos[k]||0) + n;
+        });
         if(iH+iM > 0){ d.conDatos++; itemsConPersonas++; }
       }
     });
   });
   return {porEscuela:out, totalH:totalH, totalM:totalM, totalVentas:totalVentas,
-          itemsTotal:itemsTotal, itemsConPersonas:itemsConPersonas};
+          itemsTotal:itemsTotal, itemsConPersonas:itemsConPersonas, cubos:cubos};
 }
 // "18 de 20 paquetes con personas capturadas (90%)" — antes no se distinguia
 // "0 personas" de "no capturado"
@@ -5921,6 +5952,88 @@ function eliminarProd(cat,i){
   autoGuardar();
 }
 
+// ── URGENTES: UN BOTON POR PRODUCTO ──────────────────────────
+// Antes eran cuatro pestanias con rejillas de tarjetas casi identicas dentro, y
+// la Cartilla militar vivia escondida adentro de la pestania Credencial, donde
+// nadie la buscaba. Ahora cada producto es un boton y la variante (6 o 9, 4 o 6)
+// se elige como primer paso DENTRO de la calculadora.
+var CATS_URG = [
+  {id:'infantil',   nombre:'Infantil',           icono:'ti-user-square'},
+  {id:'credencial', nombre:'Credencial',         icono:'ti-id'},
+  {id:'cartilla',   nombre:'Cartilla militar',   icono:'ti-shield'},
+  {id:'digital',    nombre:'Imagen digital',     icono:'ti-device-floppy'},
+  {id:'visas',      nombre:'Visas y pasaportes', icono:'ti-plane'}
+];
+
+// Las variantes de una categoria, con la misma forma vengan de donde vengan
+function _variantesDeCategoria(catId){
+  if(catId==='visas'){
+    return (visas||[]).map(function(v){
+      return {nombre:v.n, precio:v.p, tipo:(v.usa?'visaUSA':'visa'), pid:v.pid||null, img:v.img||''};
+    });
+  }
+  if(productos && productos[catId]){
+    return (productos[catId]||[]).map(function(p){
+      return {nombre:p.nombre, precio:p.precio, tipo:p.tipo, pid:p.pid||null, img:''};
+    });
+  }
+  var din = (categoriasDinamicas||[]).filter(function(c){ return c.id===catId; })[0];
+  if(din) return (din.productos||[]).map(function(p){
+    return {nombre:p.nombre, precio:p.precio, tipo:'otro', pid:p.pid||null, img:''};
+  });
+  return [];
+}
+function _nombreCategoria(catId){
+  var f = CATS_URG.filter(function(c){ return c.id===catId; })[0];
+  if(f) return f.nombre;
+  var d = (categoriasDinamicas||[]).filter(function(c){ return c.id===catId; })[0];
+  return d ? d.nombre : catId;
+}
+
+function renderBotonesUrgentes(){
+  var cont = document.getElementById('urg-botones');
+  if(!cont) return;
+  var lista = CATS_URG.concat((categoriasDinamicas||[]).map(function(c){
+    return {id:c.id, nombre:c.nombre, icono:'ti-tag'};
+  }));
+  cont.innerHTML = lista.map(function(c){
+    var vars = _variantesDeCategoria(c.id);
+    if(!vars.length) return '';
+    var precios = vars.map(function(v){ return v.precio||0; });
+    var min = Math.min.apply(null, precios), max = Math.max.apply(null, precios);
+    var etiquetaPrecio = (min===max) ? ('$'+min) : ('desde $'+min);
+    var detalle = vars.length>1 ? vars.length+' opciones' : '';
+    return '<button class="urg-boton" onclick="abrirCategoriaUrgente(\'' + c.id + '\')">'
+      +'<i class="ti '+c.icono+'"></i>'
+      +'<span class="ub-n">'+_escH(c.nombre)+'</span>'
+      +'<span class="ub-p">'+etiquetaPrecio+(detalle?' · '+detalle:'')+'</span>'
+      +'</button>';
+  }).join('');
+}
+
+// Modo edicion: la pantalla de venta queda limpia y el catalogo se maneja aparte,
+// para que en el mostrador nadie mueva un precio sin querer.
+var _urgEditando = false;
+function urgToggleEditar(){
+  _urgEditando = !_urgEditando;
+  var sec = document.getElementById('urg-edicion');
+  var btn = document.getElementById('urg-btn-editar');
+  if(sec) sec.style.display = _urgEditando ? 'block' : 'none';
+  if(btn){
+    btn.className = _urgEditando ? 'btn bgreen' : 'btn bgray';
+    btn.innerHTML = _urgEditando
+      ? '<i class="ti ti-check"></i> Listo'
+      : '<i class="ti ti-pencil"></i> Editar productos';
+  }
+  if(_urgEditando){
+    try{
+      rendProds('infantil','inf-grid'); rendProds('credencial','cred-grid');
+      rendProds('cartilla','cart-grid'); rendProds('digital','dig-grid');
+      rendVisas(); rendCatsDinamicas();
+    }catch(e){ console.warn(e); }
+  }
+}
+
 function rendProds(cat,gridId){
   const el=document.getElementById(gridId);if(!el)return;
   const isDigital=cat==='digital';
@@ -6210,8 +6323,10 @@ function iniciarFirebase(){
   Promise.all([
     db.collection('datos').doc('precios').get(),
     db.collection('datos').doc('productos').get(),
-    db.collection('escuelas').get()
-  ]).then(([precDoc,prodDoc,escSnap])=>{
+    db.collection('escuelas').get(),
+    db.collection('datos').doc('config').get()   // +1 lectura, ahorra ~1,400 por Reportes
+  ]).then(([precDoc,prodDoc,escSnap,cfgDoc])=>{
+    _aplicarConfig(cfgDoc && cfgDoc.exists ? cfgDoc.data() : null);
     fbListo=true;
     if(precDoc.exists){
       const d=precDoc.data();
@@ -8458,7 +8573,28 @@ const RESPALDO = (function(){
   }
 
   function hayArchivo(){ return !!fileHandle; }
-  return { init, elegirArchivo, _reactivar, reconciliarCompleto, restaurar, merge, mergeMuchos, hayArchivo };
+
+  // Lee de vuelta el archivo del disco. init() solo recuperaba el handle: tras
+  // recargar la pagina el respaldo estaba ahi pero la app no lo usaba y volvia
+  // a pedirle todo a Firebase. Con esto los reportes historicos salen del disco
+  // y cuestan CERO lecturas.
+  async function leerArchivo(){
+    if(!fileHandle) return null;
+    if(!(await permiso(fileHandle,true))) return null;
+    try{
+      const f = await fileHandle.getFile();
+      const txt = await f.text();
+      if(!txt || !txt.trim()) return null;
+      const json = JSON.parse(txt);
+      datos = Object.assign({ meta:{}, ventas:{}, produccion:{}, escuelas:{}, datos:{}, contadores:{} }, json);
+      return datos;
+    }catch(e){ console.warn('No se pudo leer el respaldo:', e.message); return null; }
+  }
+  // Lo que ya esta en memoria, sin tocar el disco
+  function enMemoria(){ return datos; }
+
+  return { init, elegirArchivo, _reactivar, reconciliarCompleto, restaurar, merge, mergeMuchos,
+           hayArchivo, leerArchivo, enMemoria };
 })();
 
 </script>
