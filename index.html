@@ -41,6 +41,21 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f
 .tab{padding:6px 13px;font-size:12px;border:1px solid #e0e0e0;border-radius:20px;cursor:pointer;color:#666;background:#f7f7f5;}
 .tab.active{background:#E1F5EE;color:#085041;border-color:#1D9E75;font-weight:500;}
 .tsec{display:none;}
+/* Urgentes: un boton grande por producto, pensado para tocarse rapido */
+#urg-botones{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.urg-boton{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 14px 12px;cursor:pointer;text-align:left;transition:border-color .12s,box-shadow .12s;}
+.urg-boton:hover{border-color:#1D9E75;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.urg-boton:active{background:#f7f7f5;}
+.urg-boton i{font-size:20px;color:#1D9E75;margin-bottom:4px;}
+.urg-boton .ub-n{font-size:14px;font-weight:600;color:#111;line-height:1.25;}
+.urg-boton .ub-p{font-size:11px;color:#888;}
+/* Paso 1 del modal: elegir variante */
+.cr-var{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px solid #e0e0e0;border-radius:9px;background:#fff;padding:8px 12px;cursor:pointer;text-align:left;flex:1 1 auto;min-width:90px;}
+.cr-var:hover{border-color:#999;}
+.cr-var.on{border-color:#1D9E75;background:#eaf7f2;box-shadow:inset 0 0 0 1px #1D9E75;}
+.cr-var .cv-n{font-size:13px;font-weight:700;color:#111;}
+.cr-var.on .cv-n{color:#0d5f45;}
+.cr-var .cv-p{font-size:11px;color:#1D9E75;font-weight:600;}
 .tsec.active{display:block;}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .stat{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:8px;padding:10px;}
@@ -1556,6 +1571,95 @@ function crLimpiarPrecio(){
   _crRecalcPrecio();
 }
 
+// Abre la calculadora para una CATEGORIA: el primer paso es elegir la variante.
+// abrirClienteRapido sigue existiendo tal cual para cuando el producto ya se
+// conoce (editar algo del carrito), asi que no se toca ese camino.
+var _crVariantes = [];
+var _crCatActual = null;
+
+function abrirCategoriaUrgente(catId){
+  var vars = _variantesDeCategoria(catId);
+  if(!vars.length){ alert('Esa categoría no tiene productos todavía.'); return; }
+  _crCatActual = catId;
+  _crVariantes = vars;
+
+  // Estado limpio, sin producto elegido aun
+  _clienteRapido = {nombre:'', precio:0, precioBase:0, tipo:'',
+    productoId:null, productoNombre:'', _editIdx:null,
+    sexo:'', edad:'', proposito:'', colorBN:'color', pagaOtro:false,
+    cantidad:1, formato:'', notas:'', precioManual:null, precioAjustado:false,
+    foto_nino_h:0, foto_nino_m:0, foto_joven_h:0, foto_joven_m:0,
+    foto_adulto_h:0, foto_adulto_m:0, foto_adulto_plus_h:0, foto_adulto_plus_m:0};
+
+  document.getElementById('cr-titulo').textContent = _nombreCategoria(catId);
+  _crResetCampos();
+  _crPintarVariantes(-1);
+
+  var sec = document.getElementById('cr-variantes-sec');
+  var resto = document.getElementById('cr-resto');
+  var btn = document.getElementById('cr-btn-agregar');
+
+  if(vars.length === 1){
+    // Una sola opcion: no se pregunta nada, se entra directo
+    if(sec) sec.style.display = 'none';
+    crElegirVariante(0);
+  }else{
+    if(sec) sec.style.display = 'block';
+    if(resto) resto.style.display = 'none';
+    if(btn) btn.disabled = true;      // nada que agregar hasta elegir
+  }
+  openM('m-cliente-rapido');
+}
+
+function _crPintarVariantes(sel){
+  var cont = document.getElementById('cr-variantes');
+  if(!cont) return;
+  cont.innerHTML = _crVariantes.map(function(v, i){
+    return '<button type="button" class="cr-var'+(i===sel?' on':'')+'" onclick="crElegirVariante('+i+')">'
+      +'<span class="cv-n">'+_escH(v.nombre)+'</span>'
+      +'<span class="cv-p">$'+v.precio+'</span>'
+      +'</button>';
+  }).join('');
+}
+
+function crElegirVariante(i){
+  var v = _crVariantes[i];
+  if(!v) return;
+  var precioAnterior = _clienteRapido.precioBase;
+
+  _clienteRapido.nombre = v.nombre;
+  _clienteRapido.productoNombre = v.nombre;
+  _clienteRapido.productoId = v.pid || null;
+  _clienteRapido.tipo = v.tipo;
+  _clienteRapido.precioBase = v.precio;
+
+  _crPintarVariantes(i);
+  document.getElementById('cr-titulo').textContent = v.nombre;
+
+  var resto = document.getElementById('cr-resto');
+  if(resto) resto.style.display = 'block';
+  var btn = document.getElementById('cr-btn-agregar');
+  if(btn) btn.disabled = false;
+
+  // La imagen de especificaciones: la de la visa elegida, o la de cartilla
+  var img = document.getElementById('cr-var-img');
+  if(img){
+    var url = v.img || (_crCatActual==='cartilla' ? (typeof cartillaSpecUrl!=='undefined' ? cartillaSpecUrl : '') : '');
+    if(url){ img.src = url; img.style.display='block'; }
+    else { img.removeAttribute('src'); img.style.display='none'; }
+  }
+
+  // El perfil (v22) depende del tipo, y el tipo no se sabia hasta ahora
+  _crAplicarPerfil(v.tipo);
+
+  // Si ya habias puesto precio a mano, ese manda (regla de v22); pero conviene
+  // avisar que el de lista cambio al cambiar de variante.
+  if(_clienteRapido.precioManual!=null && precioAnterior && precioAnterior!==v.precio){
+    showToast('Ojo: sigue tu precio de $'+_clienteRapido.precioManual);
+  }
+  _crRecalcPrecio();
+}
+
 function abrirClienteRapido(nombre, precio, tipo, pid){
   _clienteRapido = {nombre:nombre, precio:precio, precioBase:precio, tipo:tipo,
     productoId: pid||null, productoNombre: nombre, _editIdx: null,
@@ -1566,6 +1670,12 @@ function abrirClienteRapido(nombre, precio, tipo, pid){
   document.getElementById('cr-precio').textContent = '$'+precio;
   _crResetCampos();
   _crAplicarPerfil(tipo);
+  // Este camino llega con el producto ya resuelto (editar algo del carrito):
+  // no hay variante que preguntar.
+  _crCatActual = null; _crVariantes = [];
+  var _sv=document.getElementById('cr-variantes-sec'); if(_sv) _sv.style.display='none';
+  var _sr=document.getElementById('cr-resto');         if(_sr) _sr.style.display='block';
+  var _sb=document.getElementById('cr-btn-agregar');   if(_sb) _sb.disabled=false;
   openM('m-cliente-rapido');
 }
 
@@ -6154,6 +6264,7 @@ function cargarLocal(){
     rendVisas();rendEsc();rendImp();
     rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
     rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    renderBotonesUrgentes();
     return true;
   } catch(e){ return false; }
 }
@@ -6354,6 +6465,7 @@ function iniciarFirebase(){
     rendVisas();rendEsc();rendImp();
     rendProds('infantil','inf-grid');rendProds('credencial','cred-grid');
     rendProds('cartilla','cart-grid');rendProds('digital','dig-grid');
+    renderBotonesUrgentes();
     rendCatsDinamicas();
     categoriasDinamicas.forEach(cat=>agregarTabDinamica(cat.id,cat.nombre));
     guardarLocal();
@@ -9027,6 +9139,16 @@ const RESPALDO = (function(){
 <div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
 
+  <!-- Paso 1: que variante. Con una sola (Imagen digital) ni aparece. -->
+  <div id="cr-variantes-sec" style="display:none;margin-bottom:12px;">
+    <p class="slabel" style="margin-bottom:6px;">¿Cuál?</p>
+    <div id="cr-variantes" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <img id="cr-var-img" class="simg" alt="especificaciones" style="display:none;margin-top:8px;cursor:zoom-in;" onclick="abrirSpecFullscreen(this,document.getElementById('cr-titulo').textContent)" title="Toca para ver en grande">
+  </div>
+
+  <!-- Todo lo de abajo espera a que haya variante elegida -->
+  <div id="cr-resto" style="display:none;">
+
   <!-- Quien paga. Por defecto paga el que se retrata, que es lo normal: cero
        toques. Sexo y edad solo se piden cuando NO es así, que es justo el caso
        que interesa para marketing. Ver el comentario de _pagadorDeItem. -->
@@ -9226,9 +9348,11 @@ const RESPALDO = (function(){
   </div>
   <p style="font-size:10px;color:#aaa;text-align:center;margin-bottom:10px;">Todos los campos son opcionales</p>
 
+  </div><!-- /cr-resto -->
+
   <div class="modal-btns">
     <button class="btn bgray" onclick="closeM('m-cliente-rapido')">Cancelar</button>
-    <button class="btn bgreen" onclick="confirmarClienteRapido()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
+    <button class="btn bgreen" id="cr-btn-agregar" onclick="confirmarClienteRapido()"><i class="ti ti-shopping-cart"></i> Agregar al carrito</button>
   </div>
 </div></div>
 
