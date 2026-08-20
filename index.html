@@ -1363,6 +1363,22 @@ var ETIQUETAS_FOTO = [
   ['adulto_plus_h', 'Adulto mayor'],
   ['adulto_plus_m', 'Adulta mayor']
 ];
+// Cuantas PERSONAS lleva un item. El precio ya se calcula asi (precioBase x
+// personas), pero los reportes contaban TICKETS: un ticket de 3 personas
+// marcaba 1 y no habia forma de recordar despues que eran tres. Medido en
+// agosto: "Pasaporte" son 3 tickets pero 7 personas.
+// Sin captura de personas el item sigue valiendo 1, no 0.
+function _personasDeItem(it){
+  if(!it) return 0;
+  var cd = it.clienteData || it.specs || {};
+  var f = cd.fotografiados || {};
+  var n = 0;
+  ETIQUETAS_FOTO.forEach(function(e){ n += (f[e[0]]||0); });
+  if(n > 0) return n;
+  if(cd.personas > 0) return cd.personas;
+  return 1;
+}
+
 // Devuelve un arreglo de textos: ['Niña', 'Joven hombre ×2']
 function _fotografiadosTextos(f){
   if(!f) return [];
@@ -1698,8 +1714,6 @@ function crElegirVariante(i){
 
   var resto = document.getElementById('cr-resto');
   if(resto) resto.style.display = 'block';
-  var btn = document.getElementById('cr-btn-agregar');
-  if(btn) btn.disabled = false;
 
   // La imagen de requisitos. En visas ya va DENTRO de su viñeta plegable, así
   // que aquí solo se usa para cartilla militar y no se duplica.
@@ -1736,7 +1750,7 @@ function abrirClienteRapido(nombre, precio, tipo, pid){
   _crCatActual = null; _crVariantes = [];
   var _sv=document.getElementById('cr-variantes-sec'); if(_sv) _sv.style.display='none';
   var _sr=document.getElementById('cr-resto');         if(_sr) _sr.style.display='block';
-  var _sb=document.getElementById('cr-btn-agregar');   if(_sb) _sb.disabled=false;
+  _crActualizarBotonAgregar();
   openM('m-cliente-rapido');
 }
 
@@ -1917,6 +1931,27 @@ function crSet(campo, val, btnIds){
 // (contadores, adherible, barba) actualiza su dato y llama aquí. Antes había 4
 // fórmulas distintas y ganaba la última ejecutada, cobrando de menos.
 var FOTO_KEYS = ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m','adulto_plus_h','adulto_plus_m'];
+// No se agrega al carrito sin decir a cuanta gente se le tomo la foto. Antes
+// esos contadores eran opcionales y en agosto 69 ventas salieron sin ellos:
+// el ranking las contaba como 1 persona y la tarjeta de "personas
+// fotografiadas" como 0, y los dos numeros nunca cuadraban.
+// La imagen digital queda EXENTA: desde v22 no tiene contadores (es un
+// archivo, se mide por cantidad de imagenes), asi que exigirlos la bloquearia.
+function _crActualizarBotonAgregar(){
+  var btn = document.getElementById('cr-btn-agregar');
+  var aviso = document.getElementById('cr-falta-personas');
+  if(!btn) return;
+  var hayVariante = !!_clienteRapido.tipo;
+  var perfil = hayVariante ? _crPerfil(_clienteRapido.tipo) : null;
+  var necesitaPersonas = !!(perfil && perfil.personas);
+  var tienePersonas = _crTotalFotografiados() > 0;
+  var puede = hayVariante && (!necesitaPersonas || tienePersonas);
+  btn.disabled = !puede;
+  if(aviso){
+    aviso.style.display = (hayVariante && necesitaPersonas && !tienePersonas) ? 'block' : 'none';
+  }
+}
+
 function _crTotalFotografiados(){
   return FOTO_KEYS.reduce(function(s,k){ return s+(_clienteRapido['foto_'+k]||0); }, 0);
 }
@@ -1941,6 +1976,7 @@ function _crRecalcPrecio(){
 
   var el=document.getElementById('cr-precio');
   if(el) el.textContent = '$'+_clienteRapido.precio;
+  _crActualizarBotonAgregar();
   var nota=document.getElementById('cr-precio-nota');
   if(nota){
     if(_clienteRapido.precioAjustado){
@@ -2096,6 +2132,11 @@ function crActualizarBarba(){
 
 function confirmarClienteRapido(){
   var c = _clienteRapido;
+  var _perfil = c.tipo ? _crPerfil(c.tipo) : null;
+  if(_perfil && _perfil.personas && _crTotalFotografiados() <= 0){
+    showToast('Marca a cuántas personas se les tomó la foto');
+    return;
+  }
   var escuela = c.proposito==='Escolar' ? (document.getElementById('cr-escuela-txt').value.trim()||'') : '';
   var otroDesc = c.proposito==='Otro' ? (document.getElementById('cr-otro-txt').value.trim()||'') : '';
   var tramiteDesc = c.proposito==='Trámite gobierno' ? (document.getElementById('cr-tramite-txt').value.trim()||'') : '';
@@ -3429,6 +3470,114 @@ async function prepararHistorico(){
   cargarReportes(true);
 }
 
+// ── RELLENAR EL NUMERO DE PERSONAS QUE FALTA ─────────────────
+// Los contadores de "quien se fotografia" eran opcionales, y en agosto 69
+// ventas salieron sin ellos: el ranking las contaba como 1 persona y la
+// tarjeta de arriba como 0, asi que los dos numeros nunca cuadraban.
+// Esto deduce CUANTAS personas fueron a partir del precio (precio / precio de
+// lista, descontando adherible y barba) y lo guarda en clienteData.personas.
+// NO inventa sexo ni edad: el desglose por Nino/Joven/Adulto sigue mostrando
+// solo lo que de verdad se capturo, con su nota de cuantas no tienen desglose.
+// Un dato inventado ahi contaminaria justo el panel que se quiere usar para
+// marketing dentro de unos anios, y nadie recordaria cuales fueron ficticios.
+function _precioDeCatalogo(pid){
+  var mapa = {};
+  Object.keys(productos||{}).forEach(function(cat){
+    (productos[cat]||[]).forEach(function(p){ if(p.pid) mapa[p.pid] = p.precio; });
+  });
+  (visas||[]).forEach(function(v){ if(v.pid) mapa[v.pid] = v.p; });
+  (categoriasDinamicas||[]).forEach(function(c){
+    (c.productos||[]).forEach(function(p){ if(p.pid) mapa[p.pid] = p.precio; });
+  });
+  return mapa[pid] || 0;
+}
+
+// Cuantas personas se deducen del precio, o null si no divide limpio
+function _personasPorPrecio(it){
+  var cd = it.clienteData || {};
+  var base = it.precioBase || _precioDeCatalogo(productoDeItem(it).id);
+  var adh  = cd.adherible ? ADHERIBLE_EXTRA : 0;
+  var neto = (it.precio||0) - (cd.barba_edicion||0);
+  var div  = (base + adh) > 0 ? neto/(base+adh) : null;
+  if(div === null) return null;
+  if(Math.abs(div - Math.round(div)) > 0.001) return null;   // precio ajustado a mano
+  var n = Math.round(div);
+  return n >= 1 ? n : null;
+}
+
+async function rellenarPersonasFaltantes(){
+  if(!db){ alert('Sin conexión a Firebase.'); return; }
+  if(!RESPALDO.hayArchivo || !RESPALDO.hayArchivo()){
+    alert('Primero activa el respaldo en disco y toca "Exportar todo ahora".\n\nEsto modifica tus ventas: no lo hagas sin respaldo.');
+    return;
+  }
+
+  var snap;
+  try{ snap = await db.collection('ventas').get(); }
+  catch(e){ alert('No se pudieron leer las ventas: '+e.message); return; }
+
+  var arreglar = [], sinDeducir = [];
+  snap.forEach(function(d){
+    var v = d.data();
+    if(v.cancelado || _esCargaHistorica(v)) return;
+    var cambio = false;
+    var items = (v.items||[]).map(function(it){
+      if(it.tipo==='extra' || it.tipo==='escuela' || it.tipo==='impresion') return it;
+      var cd = it.clienteData || it.specs;
+      if(!cd) return it;
+      var f = cd.fotografiados || {};
+      var n = 0; ETIQUETAS_FOTO.forEach(function(e){ n += (f[e[0]]||0); });
+      if(n > 0 || cd.personas > 0) return it;        // ya tiene, no se toca
+      var per = _personasPorPrecio(it);
+      if(per === null){ sinDeducir.push(d.id+' · '+it.nombre+' · $'+(it.precio||0)); return it; }
+      cambio = true;
+      var nuevoCd = Object.assign({}, cd, {personas: per, personasEstimadas: true});
+      return Object.assign({}, it, {clienteData: nuevoCd});
+    });
+    if(cambio) arreglar.push({id:d.id, venta:Object.assign({}, v, {items:items})});
+  });
+
+  if(!arreglar.length){
+    alert('No hay ventas que rellenar.'
+      + (sinDeducir.length ? '\n\n'+sinDeducir.length+' no se pudieron deducir del precio.' : ''));
+    return;
+  }
+
+  var totalPersonas = 0;
+  arreglar.forEach(function(x){
+    (x.venta.items||[]).forEach(function(it){
+      var cd=it.clienteData||{};
+      if(cd.personasEstimadas) totalPersonas += (cd.personas||0);
+    });
+  });
+
+  if(!confirm('Se va a rellenar el NÚMERO de personas en '+arreglar.length+' venta(s),'
+    + ' deducido del precio: '+totalPersonas+' personas en total.\n\n'
+    + 'NO se inventa sexo ni edad: el desglose por Niño/Joven/Adulto seguirá mostrando\n'
+    + 'solo lo que capturaste de verdad.\n\n'
+    + (sinDeducir.length ? sinDeducir.length+' no se pueden deducir (precio ajustado a mano) y se quedan igual.\n\n' : '')
+    + 'Importes, productos y folios NO se tocan.\n\n¿Continuar?')) return;
+
+  var hechas = 0, fallos = [];
+  for(var i=0; i<arreglar.length; i+=200){
+    var lote = db.batch();
+    arreglar.slice(i, i+200).forEach(function(x){
+      lote.update(db.collection('ventas').doc(x.id), {items: x.venta.items});
+    });
+    try{
+      await lote.commit();
+      arreglar.slice(i, i+200).forEach(function(x){ RESPALDO.merge('ventas', x.id, x.venta); });
+      hechas += Math.min(200, arreglar.length - i);
+    }catch(e){ fallos.push(e.message||e); break; }
+  }
+
+  alert('Listo: '+hechas+' venta(s) rellenadas.'
+    + (sinDeducir.length ? '\n\n'+sinDeducir.length+' quedaron sin deducir (precio ajustado a mano).' : '')
+    + (fallos.length ? '\n\nFalló: '+fallos[0] : '')
+    + '\n\nEl importe NO cambió; solo se agregó cuántas personas eran.');
+  cargarReportes(true);
+}
+
 // ── CARGAS HISTÓRICAS ────────────────────────────────────────
 // Al empezar a usar el programa se metieron semanas enteras de urgentes como
 // un solo ticket. F-U-00517 es una: "6 Inf" por $41,280, o sea ~516 fotos de
@@ -3745,6 +3894,15 @@ function _repCargando(on){
 
 // Rango de fechas del período seleccionado, en formato "YYYY-MM-DD".
 // Devuelve null si al período le falta un dato (y avisa).
+// Lunes de la semana de una fecha. getDay(): 0=domingo … 6=sabado
+function _lunesDeLaSemana(d){
+  var x = new Date(d);
+  var dia = x.getDay();
+  var atras = (dia === 0) ? 6 : (dia - 1);   // el domingo pertenece a la semana que termina
+  x.setDate(x.getDate() - atras);
+  return fechaKeyDe(x);
+}
+
 function _rangoDelPeriodo(){
   var now = new Date();
   var y = now.getFullYear(), m = now.getMonth();
@@ -3753,8 +3911,10 @@ function _rangoDelPeriodo(){
 
   if(periodoActual==='hoy')    return {desde:fechaKeyDe(now), hasta:fechaKeyDe(now)};
   if(periodoActual==='semana'){
-    var h7=new Date(now); h7.setDate(h7.getDate()-7);
-    return {desde:fechaKeyDe(h7), hasta:fechaKeyDe(now)};
+    // De LUNES a hoy, no los ultimos 7 dias corridos: estando a lunes, la
+    // semana es solo el lunes. Se corta en hoy y no en domingo para que Horas
+    // pico no pinte como "cerrados" dias que todavia no llegan.
+    return {desde: _lunesDeLaSemana(now), hasta: fechaKeyDe(now)};
   }
   if(periodoActual==='mes')  return {desde:ini(y,m), hasta:fin(y,m)};
   if(periodoActual==='anio') return {desde:y+'-01-01', hasta:y+'-12-31'};
@@ -3982,6 +4142,15 @@ function _rangoAnterior(){
     var yy = parseInt(r.desde.split('-')[0]);
     return {desde:(yy-1)+'-01-01', hasta:(yy-1)+'-12-31'};
   }
+  if(periodoActual==='semana'){
+    // La semana en curso puede llevar 1 dia o 7; comparar contra una ventana
+    // corrida del mismo tamanio daria una comparacion torcida. Se compara
+    // contra el lunes-domingo ANTERIOR completo.
+    var lun = new Date(r.desde+'T12:00:00');
+    var finPrev = new Date(lun); finPrev.setDate(finPrev.getDate()-1);      // domingo pasado
+    var iniPrev = new Date(finPrev); iniPrev.setDate(iniPrev.getDate()-6);  // lunes pasado
+    return {desde: fechaKeyDe(iniPrev), hasta: fechaKeyDe(finPrev)};
+  }
   // El resto: se recorre la ventana su propia longitud hacia atrás
   var d1 = new Date(r.desde+'T12:00:00'), d2 = new Date(r.hasta+'T12:00:00');
   var dias = Math.round((d2-d1)/86400000) + 1;
@@ -4190,8 +4359,9 @@ function renderTemporadas(ventas){
       else if(it.tipo === 'impresion'){ k = IMPRESIONES; nombres[k] = 'Impresiones'; nImp++; }
       else return;                       // urgentes y extras, fuera
       datos[k] = datos[k] || {};
-      datos[k][per] = datos[k][per] || {n:0, monto:0, anios:{}};
-      datos[k][per].n++;
+      datos[k][per] = datos[k][per] || {n:0, tickets:0, monto:0, anios:{}};
+      datos[k][per].n += _personasDeItem(it);   // personas, no tickets
+      datos[k][per].tickets++;
       datos[k][per].monto += (it.precio||0);
       datos[k][per].anios[anio] = (datos[k][per].anios[anio]||0)+1;
       periodos[per] = 1; anios[anio] = 1;
@@ -4236,8 +4406,9 @@ function renderTemporadas(ventas){
       // En qué AÑOS cayó: a cinco años vista es lo que separa una temporada
       // real de una casualidad de un solo año.
       var aniosTxt = x ? Object.keys(x.anios).sort().map(function(a){ return a+' ('+x.anios[a]+')'; }).join(', ') : '';
-      var titulo = f.nombre+' · '+etq+' — '+n+' venta'+(n!==1?'s':'')
-        + (x ? ' · $'+x.monto.toLocaleString()+' · años: '+aniosTxt : '');
+      var titulo = f.nombre+' · '+etq+' — '+n+' persona'+(n!==1?'s':'')
+        + (x ? ' · '+x.tickets+' ticket'+(x.tickets!==1?'s':'')
+             + ' · $'+x.monto.toLocaleString()+' · años: '+aniosTxt : '');
       return '<td style="padding:1px;">'
         +'<div title="'+_escH(titulo)+'" style="height:24px;display:flex;align-items:center;justify-content:center;'
         +'background:'+bg+';border-radius:4px;font-size:10px;font-weight:600;'
@@ -4597,6 +4768,20 @@ function _vacio(msg){
   return '<p class="rvacio">'+_escH(msg||'Sin datos en este período')+'</p>';
 }
 
+// "7 personas · 3 tickets". Cuando coinciden se muestra una sola cifra: el 93%
+// de los renglones son de una persona y repetirlo solo ensuciaria.
+// Las impresiones no son personas: ahi la palabra cambia.
+function _etqUnidades(personas, tickets, cat){
+  if(cat === 'imp'){
+    return personas + (personas===1 ? ' impresión' : ' impresiones');
+  }
+  var base = personas + (personas===1 ? ' persona' : ' personas');
+  if(tickets && tickets !== personas){
+    base += ' · ' + tickets + (tickets===1 ? ' ticket' : ' tickets');
+  }
+  return base;
+}
+
 function renderMarketing(ventasActivas){
   // 1) Ranking de productos (todos los orígenes juntos, por productoId)
   var prods={}, propPorProd={}, pago={}, dias={};
@@ -4619,10 +4804,12 @@ function renderMarketing(ventasActivas){
       if(it.tipo==='extra') return;
       var pd=productoDeItem(it);
       var _ct=_catProducto(it);
-      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,cat:_ct,sub:_ct==='urg'?_subcatUrg(pd.id,it):null};
+      if(!prods[pd.id]) prods[pd.id]={nombre:pd.nombre,total:0,unid:0,tickets:0,cat:_ct,sub:_ct==='urg'?_subcatUrg(pd.id,it):null};
       prods[pd.id].total+=(it.precio||0);
-      if(_esCarga){ cargasUnid++; cargasImporte+=(it.precio||0); }
-      else { prods[pd.id].unid++; totalUnidades++; }
+      // unid son PERSONAS, no tickets: un ticket de 3 personas vale 3.
+      var _per=_personasDeItem(it);
+      if(_esCarga){ cargasUnid+=_per; cargasImporte+=(it.precio||0); }
+      else { prods[pd.id].unid+=_per; prods[pd.id].tickets++; totalUnidades+=_per; }
       // propósito por producto
       var cd=it.clienteData||{};
       var prop=cd.proposito||'';
@@ -4631,8 +4818,8 @@ function renderMarketing(ventasActivas){
       else if(prop==='Trabajo'&&cd.trabajoDesc) prop='Trabajo: '+cd.trabajoDesc;
       if(!prop) prop='(sin capturar)';
       if(!propPorProd[pd.id]) propPorProd[pd.id]={nombre:pd.nombre,total:0,props:{}};
-      propPorProd[pd.id].total++;
-      propPorProd[pd.id].props[prop]=(propPorProd[pd.id].props[prop]||0)+1;
+      propPorProd[pd.id].total+=_per;
+      propPorProd[pd.id].props[prop]=(propPorProd[pd.id].props[prop]||0)+_per;
     });
   });
 
@@ -4649,6 +4836,7 @@ function renderMarketing(ventasActivas){
         var delGrupo = lista.filter(function(p){ return p.cat===c.id; });
         if(!delGrupo.length) return '';
         var unidGrupo = delGrupo.reduce(function(s,p){ return s+p.unid; },0);
+        var tickGrupo = delGrupo.reduce(function(s,p){ return s+(p.tickets||0); },0);
         var totGrupo  = delGrupo.reduce(function(s,p){ return s+p.total; },0);
         // Urgentes va partido por tipo, con su propio subtotal. Los demas van
         // seguidos: escolares e impresiones ya son un solo tipo de cosa.
@@ -4672,7 +4860,7 @@ function renderMarketing(ventasActivas){
                 + sc.prods.map(function(p){
                     var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
                     return _barraMkt(p.nombre, p.unid, maxU,
-                      p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
+                      _etqUnidades(p.unid,p.tickets,c.id)+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
                   }).join('')
                 +'</div>';
             }).join('');
@@ -4680,14 +4868,14 @@ function renderMarketing(ventasActivas){
           cuerpo = delGrupo.map(function(p){
             var pct=totalUnidades?Math.round(p.unid/totalUnidades*100):0;
             return _barraMkt(p.nombre, p.unid, maxU,
-              p.unid+(p.unid===1?' vendido':' vendidos')+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
+              _etqUnidades(p.unid,p.tickets,c.id)+' · '+pct+'% · $'+p.total.toLocaleString(), c.color);
           }).join('');
         }
         return '<div style="margin-bottom:14px;">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;'
           +'border-left:4px solid '+c.color+';padding:3px 0 3px 8px;margin-bottom:8px;">'
           +'<span style="font-size:11px;font-weight:700;color:'+c.color+';text-transform:uppercase;letter-spacing:.5px;">'+c.icono+' '+c.nombre+'</span>'
-          +'<span style="font-size:11px;font-weight:600;color:'+c.color+';white-space:nowrap;">'+unidGrupo+' · $'+totGrupo.toLocaleString()+'</span>'
+          +'<span style="font-size:11px;font-weight:600;color:'+c.color+';white-space:nowrap;">'+_etqUnidades(unidGrupo,tickGrupo,c.id)+' · $'+totGrupo.toLocaleString()+'</span>'
           +'</div>'
           + cuerpo
           +'</div>';
@@ -4770,7 +4958,7 @@ function _periodoTexto(){
     return parseInt(p[2])+' '+MES[parseInt(p[1])-1]+' '+p[0];
   };
   if(periodoActual==='hoy')    return 'hoy, '+bonito(fechaKeyDe(hoy));
-  if(periodoActual==='semana') return 'últimos 7 días';
+  if(periodoActual==='semana') return 'esta semana (desde el lunes)';
   if(periodoActual==='mes')    return MES[hoy.getMonth()]+' '+hoy.getFullYear();
   if(periodoActual==='anio')   return 'año '+hoy.getFullYear();
   if(periodoActual==='dia'){
@@ -4817,7 +5005,7 @@ function renderReportes(){
   const totalCargas=cargas.reduce((s,v)=>s+(v.total||0),0);
   const num=ventasVisita.length;
   const prom=num?Math.round((total-totalCargas)/num):0;
-  const labels={hoy:'Hoy',semana:'Últimos 7 días',mes:'Este mes',anio:'Este año',dia:'Día específico',rango:'Rango de fechas',mes_cal:'Mes seleccionado'};
+  const labels={hoy:'Hoy',semana:'Esta semana',mes:'Este mes',anio:'Este año',dia:'Día específico',rango:'Rango de fechas',mes_cal:'Mes seleccionado'};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set('rep-total','$'+total.toLocaleString());
   set('rep-numventas',num);
@@ -4868,37 +5056,54 @@ function renderReportes(){
     }
   }
 
-  // Contador fotografiados urgentes
-  var fUrgH=0, fUrgM=0;
+  // Contador fotografiados urgentes.
+  // El TOTAL usa el mismo criterio que el ranking (_personasDeItem), asi que
+  // las dos cifras cuadran. El desglose H/M cuenta solo lo REALMENTE capturado:
+  // no se inventa sexo. Cuando faltan, se dice cuantas quedaron sin desglose.
+  var fUrgH=0, fUrgM=0, fUrgTotal=0, fUrgSinDesglose=0;
   ventasActivas.forEach(function(v){
     if(v.origen!=='urgentes' && v.origen!=='visas') return;
     (v.items||[]).forEach(function(it){
-      if(it.clienteData && it.clienteData.fotografiados){
-        var f=it.clienteData.fotografiados;
-        fUrgH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-        fUrgM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+      if(it.tipo==='extra') return;
+      var per=_personasDeItem(it);
+      fUrgTotal+=per;
+      var f=(it.clienteData||{}).fotografiados;
+      var conDesglose=0;
+      if(f){
+        var h=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var m=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        fUrgH+=h; fUrgM+=m; conDesglose=h+m;
       }
+      fUrgSinDesglose += (per - conDesglose);
     });
   });
-  var fUrgTotal = fUrgH+fUrgM;
   set('rep-fotos-urg', fUrgTotal>0 ? fUrgTotal+' personas' : '—');
-  set('rep-fotos-urg-hm', fUrgTotal>0 ? 'H: '+fUrgH+' · M: '+fUrgM : 'Sin datos aún');
+  set('rep-fotos-urg-hm', fUrgTotal>0
+    ? 'H: '+fUrgH+' · M: '+fUrgM + (fUrgSinDesglose>0 ? ' · '+fUrgSinDesglose+' sin desglose' : '')
+    : 'Sin datos aún');
 
-  // Contador fotografiados ordinarios
-  var fOrdH=0, fOrdM=0;
+  // Contador fotografiados ordinarios, con el mismo criterio
+  var fOrdH=0, fOrdM=0, fOrdTotal=0, fOrdSinDesglose=0;
   ventasActivas.forEach(function(v){
     if(v.origen!=='escuelas') return;
     (v.items||[]).forEach(function(it){
-      if(it.clienteData && it.clienteData.fotografiados){
-        var f=it.clienteData.fotografiados;
-        fOrdH+=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
-        fOrdM+=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+      if(it.tipo!=='escuela') return;
+      var per=_personasDeItem(it);
+      fOrdTotal+=per;
+      var f=(it.clienteData||{}).fotografiados;
+      var conDesglose=0;
+      if(f){
+        var h2=(f.nino_h||0)+(f.joven_h||0)+(f.adulto_h||0)+(f.adulto_plus_h||0);
+        var m2=(f.nino_m||0)+(f.joven_m||0)+(f.adulto_m||0)+(f.adulto_plus_m||0);
+        fOrdH+=h2; fOrdM+=m2; conDesglose=h2+m2;
       }
+      fOrdSinDesglose += (per - conDesglose);
     });
   });
-  var fOrdTotal = fOrdH+fOrdM;
   set('rep-fotos-ord', fOrdTotal>0 ? fOrdTotal+' personas' : '—');
-  set('rep-fotos-ord-hm', fOrdTotal>0 ? 'H: '+fOrdH+' · M: '+fOrdM : 'Sin datos aún');
+  set('rep-fotos-ord-hm', fOrdTotal>0
+    ? 'H: '+fOrdH+' · M: '+fOrdM + (fOrdSinDesglose>0 ? ' · '+fOrdSinDesglose+' sin desglose' : '')
+    : 'Sin datos aún');
   _avisoHistorico();
   renderMarketing(ventasActivas);
   renderTablaEscuelasMes(ventasActivas);
@@ -5256,7 +5461,7 @@ function consultarProducto(){
   }
 
   // Acumular estadísticas
-  var totalPesos=0, totalPaq=0;
+  var totalPesos=0, totalPaq=0, totalTickets=0;
   var fotoH=0, fotoM=0;
   var fotoNinoH=0,fotoNinoM=0,fotoJovenH=0,fotoJovenM=0,fotoAdultoH=0,fotoAdultoM=0,fotoAdultoPlusH=0,fotoAdultoPlusM=0;
   var cColor=0, cBN=0, cAdh=0;
@@ -5269,7 +5474,8 @@ function consultarProducto(){
   itemsFiltrados.forEach(function(r){
     var it=r.item;
     totalPesos += (it.precio||0);
-    totalPaq++;
+    totalPaq += _personasDeItem(it);   // personas, no tickets
+    totalTickets++;
     var cd = it.clienteData || it.specs || null;
     if(!cd){ sinDatos++; return; }
     // El pagador sale de _pagadorDeItem: capturado cuando paga otro, deducido
@@ -5310,12 +5516,12 @@ function consultarProducto(){
   // aqui las filas en cero se ocultan
   var barra = function(l,v,m,c){ return _barraRep(l,v,m,c,true); };
 
-  var conDatos = totalPaq - sinDatos;
+  var conDatos = totalTickets - sinDatos;
   var html = '<div style="background:#EBF3FF;border:1px solid #90BEFF;border-radius:10px;padding:14px;">';
   html += '<p style="font-size:12px;font-weight:700;color:#0C447C;margin-bottom:12px;">'    +'📦 '+nombre+' &nbsp;·&nbsp; '    +desde.split('-').reverse().join('/')+' → '+hasta.split('-').reverse().join('/')+'</p>';
 
   // Resumen general
-  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #c0d8f0;">'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Paquetes vendidos</div>'    +'<div style="font-size:22px;font-weight:700;color:#0C447C;">'+totalPaq+'</div></div>'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Total recaudado</div>'    +'<div style="font-size:22px;font-weight:700;color:#1D9E75;">$'+totalPesos.toLocaleString()+'</div></div>'    +(fotoH+fotoM>0?'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Personas fotografiadas</div>'    +'<div style="font-size:22px;font-weight:700;color:#085041;">'+(fotoH+fotoM)+'</div>'    +'<div style="font-size:10px;color:#555;">H: '+fotoH+' · M: '+fotoM+'</div></div>':'')    +(sinDatos>0?'<div style="align-self:flex-end;"><div style="font-size:10px;color:#aaa;">'+sinDatos+' sin datos de specs</div></div>':'')    +'</div>';
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #c0d8f0;">'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Vendidos</div>'    +'<div style="font-size:22px;font-weight:700;color:#0C447C;">'+totalPaq+' persona'+(totalPaq!==1?'s':'')+'</div>'    +(totalTickets!==totalPaq?'<div style="font-size:10px;color:#555;">en '+totalTickets+' ticket'+(totalTickets!==1?'s':'')+'</div>':'')+'</div>'    +'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Total recaudado</div>'    +'<div style="font-size:22px;font-weight:700;color:#1D9E75;">$'+totalPesos.toLocaleString()+'</div></div>'    +(fotoH+fotoM>0?'<div><div style="font-size:10px;color:#888;text-transform:uppercase;">Personas fotografiadas</div>'    +'<div style="font-size:22px;font-weight:700;color:#085041;">'+(fotoH+fotoM)+'</div>'    +'<div style="font-size:10px;color:#555;">H: '+fotoH+' · M: '+fotoM+'</div></div>':'')    +(sinDatos>0?'<div style="align-self:flex-end;"><div style="font-size:10px;color:#aaa;">'+sinDatos+' sin datos de specs</div></div>':'')    +'</div>';
 
   // Grids de detalle solo si hay datos
   if(conDatos > 0){
@@ -9333,6 +9539,7 @@ const RESPALDO = (function(){
   <button class="btn bgray" id="btn-preparar-historico" style="width:100%;margin-bottom:6px;" onclick="prepararHistorico()"><i class="ti ti-calendar-check"></i> Preparar histórico para reportes rápidos</button>
   <button class="btn bgray" style="width:100%;margin-bottom:6px;" onclick="renumerarFoliosLocales()"><i class="ti ti-list-numbers"></i> Renumerar ventas con folio de emergencia</button>
   <button class="btn bgray" style="width:100%;margin-bottom:14px;" onclick="marcarCargasHistoricas()"><i class="ti ti-archive"></i> Marcar cargas históricas</button>
+  <button class="btn bgray" style="width:100%;margin-bottom:14px;" onclick="rellenarPersonasFaltantes()"><i class="ti ti-users-plus"></i> Rellenar personas faltantes</button>
 
   <p class="slabel" style="margin-bottom:6px;color:#A32D2D;">Zona peligrosa</p>
   <button class="btn bgray" style="color:#A32D2D;border-color:#f5c0c0;width:100%;" onclick="limpiarTodasVentas()"><i class="ti ti-trash"></i> Borrar TODAS las ventas</button>
@@ -9580,8 +9787,9 @@ const RESPALDO = (function(){
     <span style="font-size:11px;color:#888;">Total </span>
     <span id="cr-precio" style="font-size:18px;font-weight:700;color:#1D9E75;"></span>
     <div id="cr-precio-nota" style="display:none;font-size:10px;color:#BA7517;margin-top:2px;"></div>
+    <div id="cr-falta-personas" style="display:none;font-size:11px;color:#A32D2D;margin-top:4px;font-weight:600;">Marca a cuántas personas se les tomó la foto ↑</div>
   </div>
-  <p style="font-size:10px;color:#aaa;text-align:center;margin-bottom:10px;">Todos los campos son opcionales</p>
+  <p style="font-size:10px;color:#aaa;text-align:center;margin-bottom:10px;">Solo "quién se fotografía" es obligatorio</p>
 
   </div><!-- /cr-resto -->
 
