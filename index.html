@@ -41,14 +41,23 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f
 .tab{padding:6px 13px;font-size:12px;border:1px solid #e0e0e0;border-radius:20px;cursor:pointer;color:#666;background:#f7f7f5;}
 .tab.active{background:#E1F5EE;color:#085041;border-color:#1D9E75;font-weight:500;}
 .tsec{display:none;}
-/* Urgentes: un boton grande por producto, pensado para tocarse rapido */
-#urg-botones{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-.urg-boton{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px 14px 12px;cursor:pointer;text-align:left;transition:border-color .12s,box-shadow .12s;}
-.urg-boton:hover{border-color:#1D9E75;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-.urg-boton:active{background:#f7f7f5;}
-.urg-boton i{font-size:20px;color:#1D9E75;margin-bottom:4px;}
-.urg-boton .ub-n{font-size:14px;font-weight:600;color:#111;line-height:1.25;}
-.urg-boton .ub-p{font-size:11px;color:#888;}
+/* Urgentes: un boton grande por producto, pensado para tocarse rapido.
+   auto-FIT (no auto-fill): las columnas vacias se colapsan y los botones se
+   estiran a lo ancho. Con auto-fill quedaban 6 botones chicos a la izquierda y
+   un hueco enorme a la derecha en un monitor de escritorio. */
+#urg-botones{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+.urg-boton{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:3px;min-height:132px;background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:18px;cursor:pointer;text-align:left;transition:border-color .12s,box-shadow .12s,transform .08s;}
+.urg-boton:hover{border-color:#1D9E75;box-shadow:0 3px 12px rgba(0,0,0,.07);}
+.urg-boton:active{background:#f7f7f5;transform:translateY(1px);}
+.urg-boton i{font-size:30px;color:#1D9E75;margin-bottom:auto;}
+.urg-boton .ub-n{font-size:18px;font-weight:700;color:#111;line-height:1.2;}
+.urg-boton .ub-p{font-size:12px;color:#888;}
+@media(max-width:700px){
+  #urg-botones{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .urg-boton{min-height:104px;padding:14px;}
+  .urg-boton i{font-size:24px;}
+  .urg-boton .ub-n{font-size:15px;}
+}
 /* Paso 1 del modal: elegir variante */
 .cr-var{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px solid #e0e0e0;border-radius:9px;background:#fff;padding:8px 12px;cursor:pointer;text-align:left;flex:1 1 auto;min-width:90px;}
 .cr-var:hover{border-color:#999;}
@@ -56,6 +65,30 @@ body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;background:#f
 .cr-var .cv-n{font-size:13px;font-weight:700;color:#111;}
 .cr-var.on .cv-n{color:#0d5f45;}
 .cr-var .cv-p{font-size:11px;color:#1D9E75;font-weight:600;}
+/* Visas dentro del modal: viñeta plegable que despliega la imagen con los
+   requisitos que le piden al cliente. Es como estaba antes de v31. */
+.cr-visa{border:1.5px solid #e0e0e0;border-radius:9px;background:#fff;margin-bottom:6px;overflow:hidden;}
+.cr-visa.on{border-color:#1D9E75;background:#eaf7f2;}
+.cr-visa .cvh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;}
+.cr-visa .cvh .cv-n{font-size:13px;font-weight:700;color:#111;}
+.cr-visa.on .cvh .cv-n{color:#0d5f45;}
+.cr-visa .cvb{display:none;padding:0 12px 11px;}
+.cr-visa.on .cvb{display:block;}
+/* Botones de proposito: mas chicos, para que las seis opciones quepan en dos
+   renglones cortos en vez de estirar el modal. Se estila por CONTENEDOR porque
+   crSet reescribe el className de cada boton al marcarlo. */
+#cr-props-btns .btn{font-size:10px;padding:4px 8px;}
+#cr-sec-extras .btn{font-size:10px;padding:4px 9px;}
+/* La calculadora a DOS COLUMNAS en monitor: antes era una sola columna de
+   340px de ancho y habia que bajar con scroll para ver a quien se fotografia y
+   el total. Ahora cabe completa de un vistazo. */
+#m-cliente-rapido .modal-box{width:340px;}
+@media(min-width:760px){
+  #m-cliente-rapido .modal-box{width:720px;max-width:94vw;}
+  #cr-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start;}
+  #cr-sec-personas{margin-top:0;}
+  #cr-sec-personas > p.slabel{margin-top:0 !important;}
+}
 .tsec.active{display:block;}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .stat{background:#f7f7f5;border:1px solid #e0e0e0;border-radius:8px;padding:10px;}
@@ -1539,13 +1572,9 @@ function _crAplicarPerfil(tipo){
   _crMostrar('cr-sec-personas', p.personas);
   _crMostrar('cr-sec-extras',   p.extras);
   _crMostrar('cr-sec-digital',  p.digital);
-  // La visa siempre es trámite: se marca sola y se deja la caja de texto lista
-  // para escribir cuál, en vez de hacerte elegir lo obvio cada vez.
-  if(p.propositoFijo==='Trámite gobierno'){
-    crSelTramite();
-    var t=document.getElementById('cr-tramite-txt');
-    if(t && !t.value) t.placeholder='Visa, pasaporte, licencia...';
-  }
+  // Antes la visa preseleccionaba "Trámite gov.", pero ese botón se retiró al
+  // dejar el propósito en cuatro. Ya no se marca nada: el producto (Visa USA,
+  // Pasaporte...) ya dice para qué es, así que preguntarlo era redundante.
 }
 
 // Cantidad de imágenes digitales
@@ -1604,9 +1633,17 @@ function abrirCategoriaUrgente(catId){
     if(sec) sec.style.display = 'none';
     crElegirVariante(0);
   }else{
+    // Un solo paso: la calculadora se ve COMPLETA desde el primer clic, con la
+    // variante arriba. Antes el resto estaba oculto hasta elegir y se sentia
+    // como dos pantallas.
     if(sec) sec.style.display = 'block';
-    if(resto) resto.style.display = 'none';
+    if(resto) resto.style.display = 'block';
     if(btn) btn.disabled = true;      // nada que agregar hasta elegir
+    // Todas las variantes de una categoria comparten perfil (fisica, digital o
+    // visa), asi que ya se sabe que secciones mostrar sin haber elegido.
+    _crAplicarPerfil(vars[0].tipo);
+    var pr = document.getElementById('cr-precio');
+    if(pr) pr.textContent = '—';      // sin variante todavia no hay precio
   }
   openM('m-cliente-rapido');
 }
@@ -1614,6 +1651,29 @@ function abrirCategoriaUrgente(catId){
 function _crPintarVariantes(sel){
   var cont = document.getElementById('cr-variantes');
   if(!cont) return;
+  // Las visas se pintan como viñetas plegables con su imagen de requisitos:
+  // esa foto es lo que se le enseña al cliente, y tenerla a un toque durante la
+  // venta es media conversación ahorrada.
+  if(_crCatActual === 'visas'){
+    cont.style.display = 'block';
+    cont.innerHTML = _crVariantes.map(function(v, i){
+      var cuerpo = v.img
+        ? '<img src="'+v.img+'" class="vsp" alt="Requisitos '+_escH(v.nombre)+'" style="cursor:zoom-in;" '
+          +'onclick="event.stopPropagation();abrirSpecFullscreen(this,\'Requisitos: '+_escH(v.nombre)+'\')">'
+        : '<div class="vph">Sin imagen de requisitos</div>';
+      return '<div class="cr-visa'+(i===sel?' on':'')+'" id="cr-visa-'+i+'">'
+        +'<div class="cvh" onclick="crElegirVariante('+i+')">'
+        +'<span class="cv-n">'+_escH(v.nombre)+'</span>'
+        +'<span style="display:flex;align-items:center;gap:8px;">'
+        +'<span class="cv-p">$'+v.precio+'</span>'
+        +'<i class="ti ti-chevron-'+(i===sel?'up':'down')+'" style="font-size:13px;color:#888;"></i>'
+        +'</span></div>'
+        +'<div class="cvb">'+cuerpo+'</div>'
+        +'</div>';
+    }).join('');
+    return;
+  }
+  cont.style.display = 'flex';
   cont.innerHTML = _crVariantes.map(function(v, i){
     return '<button type="button" class="cr-var'+(i===sel?' on':'')+'" onclick="crElegirVariante('+i+')">'
       +'<span class="cv-n">'+_escH(v.nombre)+'</span>'
@@ -1641,10 +1701,11 @@ function crElegirVariante(i){
   var btn = document.getElementById('cr-btn-agregar');
   if(btn) btn.disabled = false;
 
-  // La imagen de especificaciones: la de la visa elegida, o la de cartilla
+  // La imagen de requisitos. En visas ya va DENTRO de su viñeta plegable, así
+  // que aquí solo se usa para cartilla militar y no se duplica.
   var img = document.getElementById('cr-var-img');
   if(img){
-    var url = v.img || (_crCatActual==='cartilla' ? (typeof cartillaSpecUrl!=='undefined' ? cartillaSpecUrl : '') : '');
+    var url = (_crCatActual==='cartilla' && typeof cartillaSpecUrl!=='undefined') ? (cartillaSpecUrl||'') : '';
     if(url){ img.src = url; img.style.display='block'; }
     else { img.removeAttribute('src'); img.style.display='none'; }
   }
@@ -1696,8 +1757,7 @@ function _crResetCampos(){
     var b=document.getElementById(id);
     if(b){b.style.background='#FFEEF5';b.style.borderColor='#FFB3D4';b.style.color='#7C0C44';b.style.opacity='1';}
   });
-  ['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'
-  ].forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; });
+  ['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro'].forEach(function(id){ var b=document.getElementById(id); if(b) b.className='btn bgray'; });
   var escSec=document.getElementById('cr-escuela-sec'); if(escSec) escSec.style.display='none';
   var escTxt=document.getElementById('cr-escuela-txt'); if(escTxt) escTxt.value='';
   var escSugs=document.getElementById('cr-escuela-sugs'); if(escSugs) escSugs.style.display='none';
@@ -1731,7 +1791,8 @@ function _crResetCampos(){
   _clienteRapido.precioManual=null; _clienteRapido.precioAjustado=false;
   var cCant=document.getElementById('cr-cant'); if(cCant) cCant.value=1;
   var cFmt=document.getElementById('cr-formato-txt'); if(cFmt) cFmt.value='';
-  var cNot=document.getElementById('cr-notas'); if(cNot) cNot.value='';
+  var cNot=document.getElementById('cr-notas'); if(cNot){ cNot.value=''; cNot.style.display='none'; }
+  var cNotB=document.getElementById('cr-notas-btn'); if(cNotB) cNotB.className='btn bgray';
   var cPre=document.getElementById('cr-precio-manual'); if(cPre) cPre.value='';
   ['cr-fmt-1','cr-fmt-2','cr-fmt-3','cr-fmt-4','cr-fmt-5'].forEach(function(id){
     var b=document.getElementById(id); if(b) b.className='btn bgray';
@@ -1898,31 +1959,53 @@ function crAjFoto(tipo, delta){
 }
 
 function crSelOtro(){
-  crSet('proposito','Otro',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  crSet('proposito','Otro',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro']);
   document.getElementById('cr-otro-sec').style.display='block';
   document.getElementById('cr-otro-txt').focus();
 }
 
+// Las notas se piden con un boton: casi ninguna venta lleva, y el campo suelto
+// solo ocupaba espacio en el modal.
+function crToggleNotas(){
+  var inp = document.getElementById('cr-notas');
+  var btn = document.getElementById('cr-notas-btn');
+  if(!inp) return;
+  var abierto = inp.style.display !== 'none';
+  if(abierto && !inp.value.trim()){
+    inp.style.display = 'none';
+    if(btn) btn.className = 'btn bgray';
+  }else if(!abierto){
+    inp.style.display = 'block';
+    inp.focus();
+    if(btn) btn.className = 'btn bgreen';
+  }
+}
+function crActualizarNotas(v){
+  _clienteRapido.notas = String(v||'').trim();
+  var btn = document.getElementById('cr-notas-btn');
+  if(btn) btn.className = _clienteRapido.notas ? 'btn bgreen' : 'btn bgray';
+}
+
 function crSelInscripcion(){
-  crSet('proposito','Inscripción',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  crSet('proposito','Inscripción',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro']);
   document.getElementById('cr-inscripcion-sec').style.display='block';
   document.getElementById('cr-inscripcion-txt').focus();
 }
 
 function crSelEscolar(){
-  crSet('proposito','Escolar',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  crSet('proposito','Escolar',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro']);
   document.getElementById('cr-escuela-sec').style.display='block';
   document.getElementById('cr-escuela-txt').focus();
 }
 
 function crSelTramite(){
-  crSet('proposito','Tr\u00e1mite gobierno',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  crSet('proposito','Tr\u00e1mite gobierno',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro']);
   document.getElementById('cr-tramite-sec').style.display='block';
   document.getElementById('cr-tramite-txt').focus();
 }
 
 function crSelTrabajo(){
-  crSet('proposito','Trabajo',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion']);
+  crSet('proposito','Trabajo',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro']);
   document.getElementById('cr-trabajo-sec').style.display='block';
   document.getElementById('cr-trabajo-txt').focus();
 }
@@ -2079,7 +2162,7 @@ function abrirModificarUrgente(i){
   }
   // Propósito (y su campo de texto)
   if(cd.proposito){
-    var IDS=['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'];
+    var IDS=['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro'];
     var poner=function(id,val,campo){ var e=document.getElementById(id); if(e) e.value=val||''; _clienteRapido[campo]=val||''; };
     if(cd.proposito==='Escolar'){ crSelEscolar(); poner('cr-escuela-txt',cd.escuela,'escuela'); var sg=document.getElementById('cr-escuela-sugs'); if(sg) sg.style.display='none'; }
     else if(cd.proposito==='Inscripción'){ crSelInscripcion(); poner('cr-inscripcion-txt',cd.inscripcionEscuela,'inscripcionEscuela'); }
@@ -2109,7 +2192,12 @@ function abrirModificarUrgente(i){
   // Campos de v22
   if(cd.cantidad>0){ _clienteRapido.cantidad=cd.cantidad; var ic=document.getElementById('cr-cant'); if(ic) ic.value=cd.cantidad; }
   if(cd.formato){ crSetFormato(cd.formato); var ifm=document.getElementById('cr-formato-txt'); if(ifm) ifm.value=cd.formato; _clienteRapido.formato=cd.formato; }
-  if(cd.notas){ _clienteRapido.notas=cd.notas; var inn=document.getElementById('cr-notas'); if(inn) inn.value=cd.notas; }
+  if(cd.notas){
+    _clienteRapido.notas=cd.notas;
+    var inn=document.getElementById('cr-notas');
+    if(inn){ inn.value=cd.notas; inn.style.display='block'; }
+    var innB=document.getElementById('cr-notas-btn'); if(innB) innB.className='btn bgreen';
+  }
   // Si el precio se había ajustado a mano, se recupera tal cual: si no, al
   // reabrir el producto volvería solo al de lista y perderías el descuento.
   if(cd.precioAjustado){
@@ -9136,7 +9224,7 @@ const RESPALDO = (function(){
 
 
 <!-- MODAL CLIENTE RÁPIDO -->
-<div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="width:340px;max-height:90vh;overflow-y:auto;">
+<div class="modal-ov" id="m-cliente-rapido"><div class="modal-box" style="max-height:92vh;overflow-y:auto;">
   <p class="modal-t"><i class="ti ti-user-circle"></i> <span id="cr-titulo"></span></p>
 
   <!-- Paso 1: que variante. Con una sola (Imagen digital) ni aparece. -->
@@ -9148,6 +9236,8 @@ const RESPALDO = (function(){
 
   <!-- Todo lo de abajo espera a que haya variante elegida -->
   <div id="cr-resto" style="display:none;">
+  <div id="cr-cols">
+  <div id="cr-col-izq">
 
   <!-- Quien paga. Por defecto paga el que se retrata, que es lo normal: cero
        toques. Sexo y edad solo se piden cuando NO es así, que es justo el caso
@@ -9186,14 +9276,13 @@ const RESPALDO = (function(){
 
   <div class="frow">
     <label>Propósito</label>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;">
-      <button id="cr-imss" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'])">IMSS/ISSSTE</button>
-      <button id="cr-escolar" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelEscolar()">Escolar</button>
-      <button id="cr-tramite" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelTramite()">Trámite gov.</button>
-      <button id="cr-inapam" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSet('proposito','INAPAM',['cr-imss','cr-escolar','cr-tramite','cr-inapam','cr-trabajo','cr-otro','cr-inscripcion'])">INAPAM</button>
-      <button id="cr-trabajo" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelTrabajo()">Trabajo</button>
-      <button id="cr-otro" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelOtro()">Otro</button>
-      <button id="cr-inscripcion" class="btn bgray" style="font-size:11px;padding:5px 9px;" onclick="crSelInscripcion()">Inscripción</button>
+    <div id="cr-props-btns" style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button id="cr-imss" class="btn bgray" onclick="crSet('proposito','IMSS/ISSSTE',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro'])">IMSS/ISSSTE</button>
+      <button id="cr-trabajo" class="btn bgray" onclick="crSelTrabajo()">Trabajo</button>
+      <button id="cr-escolar" class="btn bgray" onclick="crSelEscolar()">Escolar</button>
+      <button id="cr-inscripcion" class="btn bgray" onclick="crSelInscripcion()">Inscripción</button>
+      <button id="cr-inapam" class="btn bgray" onclick="crSet('proposito','INAPAM',['cr-imss','cr-trabajo','cr-escolar','cr-inscripcion','cr-inapam','cr-otro'])">INAPAM</button>
+      <button id="cr-otro" class="btn bgray" onclick="crSelOtro()">Otro</button>
     </div>
     <div id="cr-inscripcion-sec" style="display:none;margin-top:8px;">
       <input type="text" id="cr-inscripcion-txt" placeholder="¿A qué escuela se inscribe?" autocomplete="off" style="font-size:12px;width:100%;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;" oninput="crFiltrarInscripcion()">
@@ -9214,14 +9303,18 @@ const RESPALDO = (function(){
     </div>
   </div>
 
-  <!-- Camisa blanca + Barba + Adherible -->
+  <!-- Extras. Las notas se piden aqui, detras de un boton: la mayoria de las
+       ventas no lleva ninguna y el campo suelto solo ocupaba lugar. -->
   <div class="frow" id="cr-sec-extras">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <label>Extras</label>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
       <button id="cr-adherible" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleAdherible()">Adherible +$20</button>
       <button id="cr-camisa" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleCamisa()"><i class="ti ti-shirt"></i> Camisa blanca</button>
-      <button id="cr-barba-editar-btn" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crToggleEditarBarba()"><i class="ti ti-scissors"></i> Editar barba</button>
+      <button id="cr-barba-editar-btn" class="btn bgray" style="font-size:11px;padding:5px 10px;" onclick="crToggleEditarBarba()"><i class="ti ti-scissors"></i> Barba</button>
       <input type="number" id="cr-barba-precio" min="0" placeholder="$precio" style="width:80px;font-size:12px;display:none;" oninput="crActualizarBarba()">
+      <button id="cr-notas-btn" class="btn bgray" style="font-size:11px;padding:5px 12px;" onclick="crToggleNotas()"><i class="ti ti-note"></i> Notas</button>
     </div>
+    <input type="text" id="cr-notas" placeholder="Ej: sin lentes, fondo azul, urge para hoy..." style="display:none;margin-top:6px;font-size:12px;" oninput="crActualizarNotas(this.value)">
   </div>
 
   <!-- Solo Imagen digital: es un archivo, no una foto impresa -->
@@ -9256,13 +9349,9 @@ const RESPALDO = (function(){
     <div style="font-size:10px;color:#aaa;margin-top:4px;">Déjalo vacío para usar el precio de lista.</div>
   </details>
 
-  <!-- Notas para el fotógrafo -->
-  <div class="frow">
-    <label>Notas</label>
-    <input type="text" id="cr-notas" placeholder="Ej: sin lentes, fondo azul, urge para hoy..." oninput="_clienteRapido.notas=this.value.trim()">
-  </div>
-
   <!-- Quien se fotografía -->
+  </div><!-- /cr-col-izq -->
+
   <div id="cr-sec-personas">
   <p class="slabel" style="margin:10px 0 8px;">Quien se fotografía</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
@@ -9341,6 +9430,7 @@ const RESPALDO = (function(){
 
   </div>
   </div><!-- /cr-sec-personas -->
+  </div><!-- /cr-cols -->
   <div style="background:#f7f7f5;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:4px;">
     <span style="font-size:11px;color:#888;">Total </span>
     <span id="cr-precio" style="font-size:18px;font-weight:700;color:#1D9E75;"></span>
