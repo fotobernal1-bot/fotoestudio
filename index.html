@@ -5471,7 +5471,7 @@ function abrirEstadisticasOp(){
   cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:20px;">Cargando...</p>';
   openM('m-stats-operador');
 
-  db.collection('produccion').get().then(function(snap){
+  db.collection('produccion').where('archivada','==',false).get().then(function(snap){
     var pasos = ['proceso','impresion','acabado','entrega'];
     var operadores = {}; // {nombre: {proceso:0, impresion:0, acabado:0, entrega:0, total:0}}
 
@@ -5569,10 +5569,18 @@ function _cancelarEdicionPaquete(){
 // ── PANEL URGENTES EN PRODUCCIÓN ──────────────────────────────
 var _urgProdVentas = [];
 
-function cargarUrgProd(){
+var _urgProdUltima = 0;
+function cargarUrgProd(forzar){
   var cont = document.getElementById('urg-prod-body');
   if(!cont) return;
   if(!db){ cont.innerHTML='<p style="font-size:12px;color:#aaa;text-align:center;padding:20px;">Sin conexión</p>'; return; }
+  // Relee TODAS las ventas del dia en cada entrada a Produccion, y ese numero
+  // crece toda la jornada. Con la misma ventana de 2 minutos que ya usa
+  // Reportes, entrar y salir de la pestania deja de costar.
+  if(!forzar && _urgProdVentas && _urgProdVentas.length && (Date.now()-_urgProdUltima) < PROD_FRESCO_MS){
+    renderUrgProd(_urgProdVentas);
+    return;
+  }
   cont.innerHTML = '<p style="font-size:12px;color:#888;text-align:center;padding:16px;">Cargando...</p>';
   // Antes solo se traían las de HOY: una urgente que el cliente no recogía
   // desaparecía del tablero al día siguiente y nadie sabía en qué quedó.
@@ -5593,6 +5601,7 @@ function cargarUrgProd(){
       });
     });
     _urgProdVentas.sort(function(a,b){ return (b.timestamp||'').localeCompare(a.timestamp||''); });
+    _urgProdUltima = Date.now();
     renderUrgProd(_urgProdVentas);
   }).catch(function(e){ cont.innerHTML='<p style="color:#A32D2D;font-size:12px;text-align:center;padding:16px;">Error: '+e.message+'</p>'; });
 }
@@ -6644,8 +6653,62 @@ function autoGuardar(){
   }
 }
 
-// Verificar órdenes urgentes cada 5 minutos aunque no se recargue producción
-setInterval(function(){ if(db) cargarProduccion(); }, 5 * 60 * 1000);
+// ── CUANDO SE REFRESCA PRODUCCION ────────────────────────────
+// Antes: setInterval cada 5 minutos, SIEMPRE. Corria aunque estuvieras
+// vendiendo en Urgentes o con la app en segundo plano, y cada vuelta leia las
+// ~198 ordenes sin archivar. De 9 a 5 eso son ~19,000 lecturas, y con la doble
+// lectura de la alerta se iba al doble.
+// Ahora se refresca solo cuando tiene sentido:
+//   · al entrar a la pestaña Produccion
+//   · al volver a la app si estuvo oculta un buen rato
+//   · UNA vez al dia, ~2h15 antes de la entrega mas proxima (con la entrega
+//     habitual de la 1pm eso cae cerca de las 11, que es cuando la alerta
+//     empieza a importar). Sale del dato real, asi que un dia con entrega a las
+//     4 se ajusta solo.
+var _prodRefrescoTimer = null;
+var _prodUltimaCarga = 0;
+var PROD_FRESCO_MS = 2 * 60 * 1000;      // no recargar dos veces en 2 minutos
+var PROD_ANTES_ENTREGA_MS = 135 * 60 * 1000;  // 2 h 15 min antes
+
+function _prodEstaVisible(){
+  var p = document.getElementById('page-produccion');
+  return !!(p && p.classList.contains('active') && document.visibilityState !== 'hidden');
+}
+
+// Recarga solo si hace falta; devuelve true si de verdad consultó
+function refrescarProduccion(forzar){
+  if(!db) return false;
+  if(!forzar && (Date.now() - _prodUltimaCarga) < PROD_FRESCO_MS) return false;
+  cargarProduccion();
+  return true;
+}
+
+// Programa UN refresco antes de la entrega más próxima pendiente.
+// Se calcula con lo que ya está en memoria: no cuesta ninguna lectura.
+function _programarRefrescoEntrega(){
+  clearTimeout(_prodRefrescoTimer);
+  var arr = window._produccionLista || [];
+  var ahora = Date.now(), mejor = null;
+  arr.forEach(function(o){
+    if(o.entrega && o.entrega.hecho) return;
+    if(!o.fechaEntregaKey) return;
+    var ts = new Date(o.fechaEntregaKey+'T'+(o.horaEntrega||'13:00')+':00').getTime();
+    if(isNaN(ts)) return;
+    var aviso = ts - PROD_ANTES_ENTREGA_MS;
+    if(aviso > ahora && (mejor===null || aviso < mejor)) mejor = aviso;
+  });
+  if(mejor===null) return;
+  var espera = Math.min(mejor - ahora, 6 * 60 * 60 * 1000);   // tope de 6 h por seguridad
+  _prodRefrescoTimer = setTimeout(function(){
+    refrescarProduccion(true);
+    _programarRefrescoEntrega();
+  }, espera);
+}
+
+// Al volver a la app tras estar oculta, ponerse al día una sola vez
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'visible' && _prodEstaVisible()) refrescarProduccion(false);
+});
 
 // Cargar local inmediatamente, luego Firebase sobreescribe si hay datos
 cargarLocal();
@@ -7944,36 +8007,52 @@ function tocarAlerta(){
 }
 
 function silenciarAlerta(){
-  clearInterval(_alertaInterval);
+  // Se silencian las ordenes urgentes de AHORA; el vigilante sigue corriendo
+  // para avisar de las siguientes. Antes se apagaba el intervalo y ya no
+  // volvia a sonar en todo el dia.
+  _alertaSilenciadas = (window._produccionLista||[])
+    .filter(function(o){ return esOrdenUrgente(o); })
+    .map(function(o){ return o.folio; });
   _alertaActiva = false;
   var btn = document.getElementById('btn-silenciar-alerta');
   if(btn) btn.style.display = 'none';
 }
+var _alertaSilenciadas = [];
 
-function verificarAlertaUrgente(){
-  if(!window._produccionLista) return;
-  // Recargar desde Firebase para tener lista actualizada
-  if(db){
-    db.collection('produccion').where('archivada','==',false).get()
-      .then(function(snap){
-        var arr = [];
-        snap.forEach(function(d){ arr.push(d.data()); });
-        window._produccionLista = arr;
-        var hayUrgente = arr.some(function(o){ return esOrdenUrgente(o); });
-        if(hayUrgente && !_alertaActiva){
-          _alertaActiva = true;
-          tocarAlerta();
-          var btnS=document.getElementById('btn-silenciar-alerta');
-          if(btnS) btnS.style.display='inline-flex';
-          _alertaInterval = setInterval(function(){
-            verificarAlertaUrgente();
-          }, 5 * 60 * 1000);
-        } else if(!hayUrgente && _alertaActiva){
-          clearInterval(_alertaInterval);
-          _alertaActiva = false;
-        }
-      }).catch(function(){});
+// La alerta NO necesita leer nada. esOrdenUrgente calcula con la fecha de
+// entrega de la orden contra el reloj: lo que cambia con el tiempo es la HORA,
+// no las ordenes. Antes esta funcion volvia a pedirle a Firestore las mismas
+// ~198 ordenes que cargarProduccion acababa de recibir, y encima abria su
+// propio ciclo de 5 minutos que las releia otra vez. Eran ~38,000 lecturas al
+// dia solo por esto. Ahora trabaja sobre lo que ya esta en memoria: costo cero,
+// y revisa cada minuto en vez de cada cinco, asi que ademas es mas puntual.
+function verificarAlertaUrgente(lista){
+  var arr = lista || window._produccionLista;
+  if(!arr) return;
+  var hayUrgente = arr.some(function(o){
+    return esOrdenUrgente(o) && _alertaSilenciadas.indexOf(o.folio) === -1;
+  });
+
+  if(hayUrgente && !_alertaActiva){
+    _alertaActiva = true;
+    tocarAlerta();
+    var btnS = document.getElementById('btn-silenciar-alerta');
+    if(btnS) btnS.style.display = 'inline-flex';
+  } else if(!hayUrgente && _alertaActiva){
+    _alertaActiva = false;
+    var btnO = document.getElementById('btn-silenciar-alerta');
+    if(btnO) btnO.style.display = 'none';
   }
+}
+
+// Un solo reloj local que revisa si alguna orden ya entro en las 2 horas
+// previas a su entrega. Cero lecturas: solo mira la hora.
+function _iniciarVigilanciaAlerta(){
+  if(_alertaInterval) return;
+  _alertaInterval = setInterval(function(){
+    if(document.visibilityState === 'hidden') return;
+    verificarAlertaUrgente();
+  }, 60 * 1000);
 }
 
 function esOrdenUrgente(o){
@@ -8175,7 +8254,13 @@ function cargarProduccion(){
       // Si el tab activo es pendiente, re-renderizar
       var tabP = document.getElementById('prod-tab-pendiente');
       if(tabP && tabP.style.color !== '#aaa') renderPendienteEntrega(pendiente);
-      verificarAlertaUrgente();
+      // La alerta trabaja sobre lo que acabamos de recibir: no vuelve a leer.
+      _prodUltimaCarga = Date.now();
+      verificarAlertaUrgente(ordinarias);
+      _iniciarVigilanciaAlerta();
+      _programarRefrescoEntrega();
+      // Lo de mas de 3 semanas sale solo del tablero, una vez al dia
+      autoArchivarViejas(arr).then(function(n){ if(n>0) cargarProduccion(); });
     })
     .catch(function(e){ console.error('Error cargar produccion:', e); });
 }
@@ -8508,6 +8593,66 @@ function deshacerPaso(folio, paso){
   db.collection('produccion').doc(folio).update(update)
     .then(function(){ cargarProduccion(); })
     .catch(function(e){ alert('Error: '+e.message); });
+}
+
+// ── AUTO-ARCHIVADO A LAS 3 SEMANAS ───────────────────────────
+// El tablero cargaba 198 ordenes sin archivar, de las cuales 170 eran de antes
+// de agosto: trabajo terminado que se releia cada refresco sin que nadie lo
+// mirara. Ahora lo viejo sale solo del tablero.
+// Se archiva TODO lo de mas de 3 semanas, entregado o no (decision del usuario):
+// lo no recogido no se pierde, queda en Archivadas y se puede buscar por folio
+// y desarchivar.
+// Corre UNA vez al dia y trabaja sobre la lista que ya esta en memoria: no
+// cuesta ni una lectura, solo escrituras.
+var PROD_DIAS_ARCHIVAR = 21;
+var ARCHIVO_AUTO_KEY = 'fs_ultimo_autoarchivo';
+
+function _fechaDeOrden(o){
+  if(o.fechaEntregaKey) return o.fechaEntregaKey;
+  if(o.fechaKey) return o.fechaKey;
+  if(o.timestamp) return String(o.timestamp).slice(0,10);
+  // "18/07/2026" -> "2026-07-18"
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(o.fecha||''));
+  if(m) return m[3]+'-'+m[2]+'-'+m[1];
+  return '';
+}
+
+async function autoArchivarViejas(lista){
+  if(!db) return 0;
+  var hoy = fechaKeyDe(new Date());
+  try{ if(localStorage.getItem(ARCHIVO_AUTO_KEY) === hoy) return 0; }catch(e){}
+
+  var corte = new Date();
+  corte.setDate(corte.getDate() - PROD_DIAS_ARCHIVAR);
+  var corteKey = fechaKeyDe(corte);
+
+  var viejas = (lista||[]).filter(function(o){
+    if(o.archivada) return false;
+    var f = _fechaDeOrden(o);
+    return f && f < corteKey;      // sin fecha utilizable, no se toca
+  });
+
+  // La marca del dia se pone aunque no haya nada que archivar: asi no se
+  // reintenta en cada refresco.
+  try{ localStorage.setItem(ARCHIVO_AUTO_KEY, hoy); }catch(e){}
+  if(!viejas.length) return 0;
+
+  var hechas = 0;
+  try{
+    for(var i=0; i<viejas.length; i+=400){
+      var lote = db.batch();
+      viejas.slice(i, i+400).forEach(function(o){
+        lote.update(db.collection('produccion').doc(o.folio), {archivada:true});
+      });
+      await lote.commit();
+      hechas += Math.min(400, viejas.length - i);
+    }
+  }catch(e){
+    console.warn('Auto-archivado incompleto:', e.message);
+    return hechas;
+  }
+  showToast('Se archivaron '+hechas+' orden'+(hechas!==1?'es':'')+' de más de 3 semanas');
+  return hechas;
 }
 
 function archivarOrden(folio){
