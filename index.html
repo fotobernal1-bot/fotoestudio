@@ -7865,10 +7865,23 @@ function _continuarAgregarCarrito(){
     b.style.color=esH?'#0C447C':'#7C0C44';
   });
   _calcPendiente.sexo=''; _calcPendiente.edad=''; escSetPagaOtro(false);
+  _calcPendiente.notas='';
+  var _en=document.getElementById('esc-notas'); if(_en) _en.value='';
   _pintarMotivosEsc(); escSetMotivo(_calcPendiente.motivo||'');
   ['nino_h','nino_m','joven_h','joven_m','adulto_h','adulto_m'].forEach(function(k){
     var el=document.getElementById('esc-foto-'+k); if(el) el.textContent=(_calcPendiente.foto[k]||0);
   });
+  // Si se esta EDITANDO un paquete del carrito, se recuperan su nota y su
+  // motivo; si no, quedan en blanco como para uno nuevo.
+  if(_carritoPaqueteEditIdx !== null && carrito[_carritoPaqueteEditIdx]){
+    var _prev = carrito[_carritoPaqueteEditIdx];
+    var _pcd = _prev.clienteData || {};
+    if(_pcd.notas){
+      _calcPendiente.notas = _pcd.notas;
+      var _en2 = document.getElementById('esc-notas'); if(_en2) _en2.value = _pcd.notas;
+    }
+    if(_prev.motivo) escSetMotivo(_prev.motivo);
+  }
   _escRenderTotal();
   openM('m-calc-pagador');
 
@@ -8020,6 +8033,7 @@ function confirmarCalcPagador(){
     sexo:_calcPendiente.pagaOtro?(_calcPendiente.sexo||''):'', edad:_calcPendiente.pagaOtro?(_calcPendiente.edad||''):'',
     pagaOtro: !!_calcPendiente.pagaOtro,
     proposito:'Escolar', escuela:_calcPendiente.nombreBase||'',
+    notas: _calcPendiente.notas||'',
     personas: totalFotos || 1,
     fotografiados:{
       nino_h:foto.nino_h||0, nino_m:foto.nino_m||0,
@@ -8482,7 +8496,10 @@ function _cdResumenHTML(cd){
     var fStr=_fotografiadosTextos(f);
     if(fStr.length) partes.push(fStr.join(' · '));
   }
-  return partes.length ? '<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>' : '';
+  var html = partes.length ? '<div style="color:#0C447C;font-weight:600;">👤 '+partes.join(' · ')+'</div>' : '';
+  // La nota manual del paquete: el laboratorio la necesita a la vista
+  if(cd.notas) html += '<div style="color:#555;font-style:italic;">✎ '+_escH(cd.notas)+'</div>';
+  return html;
 }
 // Fondo / vestimenta / cabello / aretes / barba / notas de un objeto de specs
 function _specLinesHTML(sp){
@@ -9882,6 +9899,11 @@ const RESPALDO = (function(){
       </div>
     </div>
   </div>
+
+  <!-- Nota manual del paquete. Va al ticket y al tablero de Produccion, que es
+       donde el fotografo y el laboratorio la necesitan. -->
+  <p class="slabel" style="margin:12px 0 6px;">Nota <span style="font-weight:400;color:#888;">(opcional)</span></p>
+  <textarea id="esc-notas" rows="2" placeholder="Ej: entregar en sobre aparte, la mamá pasa por ellas, urge para el viernes..." style="width:100%;font-size:12px;padding:7px 10px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;resize:vertical;font-family:inherit;margin-bottom:4px;" oninput="_calcPendiente.notas=this.value.trim()"></textarea>
 
   <div class="modal-btns">
     <button class="btn bgray" onclick="cerrarPagadorSinAgregar()">Cancelar</button>
